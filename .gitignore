@@ -41,6 +41,25 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Environment variables
+.env
+
+# Uploads
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.sql.backup
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 

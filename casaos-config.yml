@@ -1,0 +1,117 @@
+name: CNC Shop Floor Management
+version: "1.0.0"
+category: Manufacturing
+icon: https://cdn-icons-png.flaticon.com/512/3655/3655580.png
+tagline: Professional CNC Shop Floor Management System
+description: |
+  Complete shop floor management system for CNC operations with employee tracking,
+  part management, file handling, time tracking, and feedback system.
+  
+  Features:
+  - Employee authentication and session management
+  - Sequential part access control
+  - Real-time job and session timers
+  - PDF, DXF, and NC file management
+  - Employee feedback system
+  - Time tracking and reporting
+  - Responsive web interface
+
+developer: CNC Management Systems
+website: https://github.com/yourusername/cnc-shop-floor-management
+port_map: "3000"
+
+compose:
+  services:
+    postgres:
+      image: postgres:15-alpine
+      container_name: cnc-postgres
+      restart: unless-stopped
+      environment:
+        POSTGRES_DB: cnc_shop_floor
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: changeme_secure_password
+      volumes:
+        - type: bind
+          source: /DATA/AppData/cnc-shop-floor/postgres
+          target: /var/lib/postgresql/data
+        - type: bind
+          source: /DATA/AppData/cnc-shop-floor/init.sql
+          target: /docker-entrypoint-initdb.d/schema.sql
+      ports:
+        - target: 5432
+          published: 5432
+          protocol: tcp
+
+    backend:
+      image: cnc-backend:latest
+      container_name: cnc-backend
+      restart: unless-stopped
+      environment:
+        NODE_ENV: production
+        PORT: 5000
+        DB_HOST: postgres
+        DB_PORT: 5432
+        DB_NAME: cnc_shop_floor
+        DB_USER: postgres
+        DB_PASSWORD: changeme_secure_password
+        JWT_SECRET: change-this-to-a-secure-random-string
+        JWT_EXPIRES_IN: 8h
+        UPLOAD_DIR: /app/uploads
+        MAX_FILE_SIZE: 10485760
+        FRONTEND_URL: http://localhost:3000
+      volumes:
+        - type: bind
+          source: /DATA/AppData/cnc-shop-floor/uploads
+          target: /app/uploads
+      ports:
+        - target: 5000
+          published: 5000
+          protocol: tcp
+      depends_on:
+        - postgres
+
+    frontend:
+      image: cnc-frontend:latest
+      container_name: cnc-frontend
+      restart: unless-stopped
+      ports:
+        - target: 80
+          published: 3000
+          protocol: tcp
+      depends_on:
+        - backend
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: frontend
+  author: CNC Management Systems
+  category: Manufacturing
+  description:
+    en_us: Professional CNC Shop Floor Management System with employee tracking, part management, and time tracking
+  tagline:
+    en_us: Manage your CNC shop floor efficiently
+  title:
+    en_us: CNC Shop Floor Management
+  index: /
+  port_map: "3000"
+  scheme: http
+  store_app_id: cnc-shop-floor-management
+  tips:
+    before_install:
+      en_us: |
+        ## Important Setup Instructions
+        
+        1. **Database Initialization**: Place the schema.sql file in `/DATA/AppData/cnc-shop-floor/init.sql`
+        2. **Change Default Password**: Update the POSTGRES_PASSWORD and JWT_SECRET in the configuration
+        3. **Default Login**: Employee ID: ADMIN001, Password: admin123
+        4. **Port Requirements**: Requires ports 3000 (frontend), 5000 (backend), and 5432 (database)
+        5. **File Storage**: Uploads will be stored in `/DATA/AppData/cnc-shop-floor/uploads`
+        
+        ## After Installation
+        
+        - Access the application at: http://YOUR_SERVER_IP:3000
+        - Login with default credentials and create additional users
+        - Upload part files (PDF, DXF, NC) through the interface
+        - Configure parts with sequential locking for workflow control

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CNC Shop Floor Management</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1>CNC Shop Floor Management</h1>
+            </div>
+            <div class="header-center">
+                <div class="session-timer">
+                    <span class="timer-label">Session Time:</span>
+                    <span class="timer-value" id="sessionTimer">00:00:00</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <span class="user-name" id="userName">Loading...</span>
+                <button class="btn btn-secondary" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="dashboard">
+            <section class="statistics">
+                <div class="stat-card">
+                    <div class="stat-icon">✓</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="completedParts">0</div>
+                        <div class="stat-label">Completed Parts</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="totalTime">0h 0m</div>
+                        <div class="stat-label">Total Time</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚙</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="currentPart">None</div>
+                        <div class="stat-label">Current Part</div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="parts-section">
+                <div class="section-header">
+                    <h2>Parts Queue</h2>
+                    <button class="btn btn-primary" id="refreshBtn">Refresh</button>
+                </div>
+                
+                <div id="partsGrid" class="parts-grid">
+                    <div class="loading">Loading parts...</div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Part Detail Modal -->
+    <div id="partModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalPartName">Part Details</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="part-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Material:</span>
+                        <span class="detail-value" id="modalMaterial"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Quantity:</span>
+                        <span class="detail-value" id="modalQuantity"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Treatment:</span>
+                        <span class="detail-value" id="modalTreatment"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Target Time:</span>
+                        <span class="detail-value" id="modalTargetTime"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Job Timer:</span>
+                        <span class="detail-value timer-display" id="modalJobTimer">00:00:00</span>
+                    </div>
+                </div>
+                
+                <div class="part-files">
+                    <h3>Files</h3>
+                    <div id="modalFiles" class="files-list">
+                        <p class="text-muted">No files available</p>
+                    </div>
+                </div>
+                
+                <div class="part-feedback">
+                    <h3>Feedback</h3>
+                    <div id="modalFeedback" class="feedback-list">
+                        <p class="text-muted">No feedback yet</p>
+                    </div>
+                    
+                    <form id="feedbackForm" class="feedback-form">
+                        <textarea id="feedbackText" placeholder="Add your feedback..." rows="3" required></textarea>
+                        <button type="submit" class="btn btn-secondary">Submit Feedback</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="timer-controls">
+                    <button class="btn btn-success" id="startTimerBtn">Start Timer</button>
+                    <button class="btn btn-warning" id="stopTimerBtn" style="display: none;">Stop Timer</button>
+                </div>
+                <button class="btn btn-primary" id="completePartBtn">Mark as Complete</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Complete Part Modal -->
+    <div id="completeModal" class="modal" style="display: none;">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Complete Part</h2>
+                <button class="modal-close" id="completeModalClose">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="completeForm">
+                    <div class="form-group">
+                        <label for="actualTime">Actual Time (minutes):</label>
+                        <input type="number" id="actualTime" name="actualTime" min="1" required>
+                    </div>
+                    <p class="text-muted">Target time: <span id="completeTargetTime"></span> minutes</p>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="completeCancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="completeSubmitBtn">Complete</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
