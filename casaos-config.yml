@@ -17,7 +17,7 @@ description: |
   - Responsive web interface
 
 developer: CNC Management Systems
-website: https://github.com/yourusername/cnc-shop-floor-management
+website: https://github.com/tntvlad/cnc-shop-floor-management
 port_map: "3000"
 
 compose:
