@@ -201,7 +201,23 @@ exports.deleteUser = async (req, res) => {
 // List all users (Supervisor+ only)
 exports.listUsers = async (req, res) => {
   try {
-    if (req.user.level < LEVELS.SUPERVISOR) {
+    // Determine requester level robustly (support legacy role tokens)
+    let requesterLevel = Number.isInteger(req.user.level) ? req.user.level : undefined;
+    if (!requesterLevel && req.user.role) {
+      requesterLevel = require('../middleware/permissions').mapRoleToLevel(req.user.role);
+    }
+
+    if (!requesterLevel) {
+      // As a last resort, look up the user in DB
+      const me = await pool.query('SELECT level, role FROM users WHERE id = $1', [req.user.id]);
+      if (me.rows.length) {
+        requesterLevel = me.rows[0].level || require('../middleware/permissions').mapRoleToLevel(me.rows[0].role) || 100;
+      } else {
+        requesterLevel = 100;
+      }
+    }
+
+    if (requesterLevel < LEVELS.SUPERVISOR) {
       return res.status(403).json({
         error: `Only Supervisor (400+) and above can list users`
       });
@@ -210,7 +226,7 @@ exports.listUsers = async (req, res) => {
     // Get all users with level <= requester's level
     const result = await pool.query(
       'SELECT id, employee_id, name, level, created_at FROM users WHERE level <= $1 ORDER BY level DESC, created_at ASC',
-      [req.user.level]
+      [requesterLevel]
     );
 
     const users = result.rows.map(user => ({

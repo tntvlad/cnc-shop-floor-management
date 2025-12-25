@@ -19,7 +19,9 @@ const authMiddleware = (req, res, next) => {
       id: decoded.id,
       employeeId: decoded.employeeId,
       name: decoded.name,
-      level: decoded.level
+      level: decoded.level,
+      // Include legacy role if present in token (backward compatibility)
+      role: decoded.role
     };
 
     next();

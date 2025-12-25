@@ -60,6 +60,21 @@ function getLevelName(level) {
   return LEVEL_NAMES[level] || 'Unknown';
 }
 
+// Map legacy role string to numeric level (for backward compatibility)
+function mapRoleToLevel(role) {
+  if (!role) return undefined;
+  switch (role) {
+    case 'admin':
+      return LEVELS.ADMIN;
+    case 'supervisor':
+      return LEVELS.SUPERVISOR;
+    case 'operator':
+      return LEVELS.CNC_OPERATOR;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Middleware: Check if user has minimum level
  * @param {number} requiredLevel - Minimum required level
@@ -105,6 +120,7 @@ module.exports = {
   hasLevel,
   canAssignLevel,
   getLevelName,
+  mapRoleToLevel,
   requireLevel,
   requireAdmin,
   requireSupervisor
