@@ -56,19 +56,28 @@ document.addEventListener('DOMContentLoaded', () => {
         employeeId,
         name: fullName,
         password,
-        role
-      });
+        try {
+          // Use direct fetch to avoid dependency on API wrapper
+          const resp = await fetch(`${config.API_BASE_URL}/auth/users`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(Auth.getAuthHeader() || {})
+            },
+            body: JSON.stringify({
+              employeeId,
+              name: fullName,
+              password,
+              role
+            })
+          });
 
-      successMessage.textContent = `User ${employeeId} created successfully!`;
-      successMessage.style.display = 'block';
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            throw new Error(data.error || 'Failed to create user');
+          }
 
-      createUserForm.reset();
-
-      // Redirect after 2 seconds
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 2000);
-    } catch (error) {
+          successMessage.textContent = `User ${employeeId} created successfully!`;
       errorMessage.textContent = error.message || 'Failed to create user';
       errorMessage.style.display = 'block';
       createBtn.disabled = false;

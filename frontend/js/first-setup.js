@@ -63,13 +63,25 @@ document.addEventListener('DOMContentLoaded', () => {
     setupBtn.textContent = 'Creating Admin & Deleting Default...';
 
     try {
-      // Create new admin user
-      const response = await API.users.create({
-        employeeId,
-        name: fullName,
-        password,
-        role: 'admin'
+      // Create new admin user via direct fetch to avoid wrapper issues
+      const createResp = await fetch(`${config.API_BASE_URL}/auth/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(Auth.getAuthHeader() || {})
+        },
+        body: JSON.stringify({
+          employeeId,
+          name: fullName,
+          password,
+          role: 'admin'
+        })
       });
+
+      const createData = await createResp.json().catch(() => ({}));
+      if (!createResp.ok) {
+        throw new Error(createData.error || 'Failed to create admin user');
+      }
 
       // Get current user ID to delete (ADMIN001)
       const currentUser = Auth.getUser();
@@ -77,7 +89,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Delete the default ADMIN001 user
       if (currentUser.id) {
         try {
-          await API.users.delete(currentUser.id);
+          const delResp = await fetch(`${config.API_BASE_URL}/auth/users/${currentUser.id}`, {
+            method: 'DELETE',
+            headers: {
+              ...(Auth.getAuthHeader() || {})
+            }
+          });
+          // ignore body; proceed even if deletion fails
         } catch (deleteError) {
           console.warn('Could not delete default user:', deleteError);
           // Continue anyway - new admin is created
