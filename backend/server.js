@@ -53,6 +53,7 @@ app.get('/health', (req, res) => {
 app.post('/api/auth/login', validateRequest(schemas.login), authController.login);
 app.get('/api/auth/me', authMiddleware, authController.getCurrentUser);
 app.post('/api/auth/users', authMiddleware, authController.createUser);
+app.delete('/api/auth/users/:userId', authMiddleware, authController.deleteUser);
 
 // Parts routes
 app.get('/api/parts', authMiddleware, partsController.getAllParts);

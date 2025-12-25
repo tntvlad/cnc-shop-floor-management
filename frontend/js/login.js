@@ -27,8 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Store authentication data
       Auth.login(response.token, response.user);
       
-      // Redirect to dashboard
-      window.location.href = 'index.html';
+      // If logging in with default admin, redirect to setup page
+      if (employeeId === 'ADMIN001') {
+        window.location.href = 'first-setup.html';
+      } else {
+        // Redirect to dashboard for other users
+        window.location.href = 'index.html';
+      }
     } catch (error) {
       errorMessage.textContent = error.message || 'Login failed. Please check your credentials.';
       errorMessage.style.display = 'block';

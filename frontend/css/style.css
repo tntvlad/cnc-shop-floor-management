@@ -118,6 +118,36 @@ body {
     font-size: 14px;
 }
 
+.alert {
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.alert-info {
+    background: #e3f2fd;
+    color: #1565c0;
+    border-left: 4px solid #1565c0;
+}
+
+.alert-warning {
+    background: #fff3e0;
+    color: #e65100;
+    border-left: 4px solid #e65100;
+}
+
+.alert-danger {
+    background: #ffebee;
+    color: #c62828;
+    border-left: 4px solid #c62828;
+}
+
+.alert strong {
+    font-weight: 600;
+}
+
 .text-link {
     color: var(--primary-color);
     text-decoration: none;

@@ -54,6 +54,12 @@ const API = {
         method: 'POST',
         body: JSON.stringify(data)
       });
+    },
+
+    async delete(userId) {
+      return API.request(`/auth/users/${userId}`, {
+        method: 'DELETE'
+      });
     }
   },
 
