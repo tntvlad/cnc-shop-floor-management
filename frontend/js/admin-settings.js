@@ -7,7 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const user = Auth.getUser();
-  if (user.level < 400) {
+  const isSupervisorPlus = (user && typeof user.level === 'number' && user.level >= 400)
+    || (user && user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  if (!isSupervisorPlus) {
     alert('Access denied. Supervisor level (400+) required.');
     window.location.href = 'index.html';
     return;

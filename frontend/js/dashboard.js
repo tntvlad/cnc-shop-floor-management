@@ -32,9 +32,11 @@ function loadUserInfo() {
   const user = Auth.getUser();
   document.getElementById('userName').textContent = user.name;
   
-  // Show admin link if user is Supervisor+ (level 400+)
+  // Show admin link if user is Supervisor+ (level 400+) or legacy role admin/supervisor
   const adminLink = document.getElementById('adminLink');
-  if (user.level >= 400) {
+  const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+    || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  if (isSupervisorPlus) {
     adminLink.style.display = 'inline-block';
   }
 }
