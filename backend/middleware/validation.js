@@ -49,6 +49,10 @@ const schemas = {
   
   completeTime: Joi.object({
     actualTime: Joi.number().integer().min(1).required()
+  }),
+
+  assignPart: Joi.object({
+    userId: Joi.number().integer().required()
   })
 };
 

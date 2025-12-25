@@ -13,10 +13,16 @@ exports.getAllParts = async (req, res) => {
             'fileType', f.file_type,
             'uploadedAt', f.uploaded_at
           )
-        ) FILTER (WHERE f.id IS NOT NULL), '[]') as files
+        ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
+        json_build_object(
+          'id', au.id,
+          'name', au.name,
+          'employeeId', au.employee_id
+        ) as assigned_user
       FROM parts p
       LEFT JOIN files f ON p.id = f.part_id
-      GROUP BY p.id
+      LEFT JOIN users au ON p.assigned_to = au.id
+      GROUP BY p.id, au.id
       ORDER BY p.order_position ASC
     `);
 
@@ -50,13 +56,19 @@ exports.getPart = async (req, res) => {
             'userName', u.name,
             'createdAt', fb.created_at
           ) ORDER BY fb.created_at DESC
-        ) FILTER (WHERE fb.id IS NOT NULL), '[]') as feedback
+        ) FILTER (WHERE fb.id IS NOT NULL), '[]') as feedback,
+        json_build_object(
+          'id', au.id,
+          'name', au.name,
+          'employeeId', au.employee_id
+        ) as assigned_user
       FROM parts p
       LEFT JOIN files f ON p.id = f.part_id
       LEFT JOIN feedback fb ON p.id = fb.part_id
       LEFT JOIN users u ON fb.user_id = u.id
+      LEFT JOIN users au ON p.assigned_to = au.id
       WHERE p.id = $1
-      GROUP BY p.id
+      GROUP BY p.id, au.id
     `, [id]);
 
     if (result.rows.length === 0) {
@@ -67,6 +79,48 @@ exports.getPart = async (req, res) => {
   } catch (error) {
     console.error('Get part error:', error);
     res.status(500).json({ error: 'Failed to get part' });
+  }
+};
+
+// Assign part to a user (Supervisor+)
+exports.assignPart = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    // Validate user exists
+    const userRes = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Target user not found' });
+    }
+
+    // Only assign to Operator/Production roles (<= 300)
+    const targetLevel = userRes.rows[0].level || 100;
+    if (targetLevel > 300) {
+      return res.status(400).json({ error: 'Can only assign jobs to operators/QC (<= 300)' });
+    }
+
+    const result = await pool.query(
+      'UPDATE parts SET assigned_to = $1, assigned_at = NOW() WHERE id = $2 RETURNING *',
+      [userId, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Part not found' });
+    }
+
+    const assignedPart = result.rows[0];
+
+    // Get assigned user info
+    const au = await pool.query('SELECT id, name, employee_id FROM users WHERE id = $1', [userId]);
+
+    res.json({
+      ...assignedPart,
+      assigned_user: au.rows[0] || null
+    });
+  } catch (error) {
+    console.error('Assign part error:', error);
+    res.status(500).json({ error: 'Failed to assign part' });
   }
 };
 

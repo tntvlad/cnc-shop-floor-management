@@ -103,6 +103,13 @@ const API = {
       });
     },
 
+    async assign(id, userId) {
+      return API.request(`/parts/${id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ userId })
+      });
+    },
+
     async getStatistics() {
       return API.request('/parts/statistics');
     }

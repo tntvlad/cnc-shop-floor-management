@@ -30,6 +30,8 @@ CREATE TABLE parts (
     order_position INTEGER UNIQUE NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
     locked BOOLEAN DEFAULT TRUE,
+    assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    assigned_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const authMiddleware = require('./middleware/auth');
 const { validateRequest, schemas } = require('./middleware/validation');
+const { requireSupervisor } = require('./middleware/permissions');
 
 // Controllers
 const authController = require('./controllers/authController');
@@ -67,9 +68,10 @@ app.post('/api/admin/database/restore', authMiddleware, adminController.database
 app.get('/api/parts', authMiddleware, partsController.getAllParts);
 app.get('/api/parts/statistics', authMiddleware, partsController.getStatistics);
 app.get('/api/parts/:id', authMiddleware, partsController.getPart);
-app.post('/api/parts', authMiddleware, validateRequest(schemas.createPart), partsController.createPart);
-app.put('/api/parts/:id', authMiddleware, validateRequest(schemas.updatePart), partsController.updatePart);
-app.delete('/api/parts/:id', authMiddleware, partsController.deletePart);
+app.post('/api/parts', authMiddleware, requireSupervisor(), validateRequest(schemas.createPart), partsController.createPart);
+app.put('/api/parts/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updatePart), partsController.updatePart);
+app.delete('/api/parts/:id', authMiddleware, requireSupervisor(), partsController.deletePart);
+app.post('/api/parts/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignPart), partsController.assignPart);
 app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.completeTime), partsController.completePart);
 
 // Feedback routes
