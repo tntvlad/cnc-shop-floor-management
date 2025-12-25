@@ -324,3 +324,103 @@ async function deleteUser(userId, employeeId) {
     logEl.textContent += `✗ Error: ${error.message}\n`;
   }
 }
+
+// Backup database
+async function backupDatabase(event) {
+  const btn = event?.target;
+  const logEl = document.getElementById('dbLog');
+  
+  logEl.style.display = 'block';
+  logEl.textContent = '⏳ Creating database backup...\n';
+  if (btn) btn.disabled = true;
+
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/admin/database/backup`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${Auth.getToken()}`
+      }
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Backup failed');
+    }
+
+    // Download the SQL file
+    const blob = await response.blob();
+    const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
+    const filename = `cnc_backup_${timestamp}.sql`;
+    
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+
+    logEl.textContent += `✓ Backup downloaded: ${filename}\n`;
+    if (btn) btn.disabled = false;
+  } catch (error) {
+    logEl.textContent += `✗ Error: ${error.message}\n`;
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Restore database
+async function restoreDatabase(event) {
+  const fileInput = event.target;
+  const logEl = document.getElementById('dbLog');
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    return;
+  }
+
+  const file = fileInput.files[0];
+  
+  if (!confirm(`⚠️ WARNING: This will restore the database from ${file.name}. All current data will be replaced. Continue?`)) {
+    fileInput.value = '';
+    return;
+  }
+
+  logEl.style.display = 'block';
+  logEl.textContent = `⏳ Restoring database from ${file.name}...\n`;
+
+  try {
+    const sqlContent = await file.text();
+    
+    const response = await fetch(`${config.API_BASE_URL}/admin/database/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify({ sqlContent })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Restore failed');
+    }
+
+    logEl.textContent += '✓ Database restored successfully\n';
+    logEl.textContent += data.message || '';
+    logEl.textContent += '\n\n⚠️ Please log out and log back in.\n';
+    
+    // Clear file input
+    fileInput.value = '';
+    
+    // Optional: auto-logout after 3 seconds
+    setTimeout(() => {
+      if (confirm('Database restored. Log out now?')) {
+        Auth.logout();
+      }
+    }, 3000);
+  } catch (error) {
+    logEl.textContent += `✗ Error: ${error.message}\n`;
+    fileInput.value = '';
+  }
+}

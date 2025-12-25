@@ -60,6 +60,8 @@ app.get('/api/auth/users', authMiddleware, authController.listUsers);
 // Admin routes
 app.post('/api/admin/git-pull', authMiddleware, adminController.gitPull);
 app.post('/api/admin/restart', authMiddleware, adminController.restartServices);
+app.get('/api/admin/database/backup', authMiddleware, adminController.databaseBackup);
+app.post('/api/admin/database/restore', authMiddleware, adminController.databaseRestore);
 
 // Parts routes
 app.get('/api/parts', authMiddleware, partsController.getAllParts);

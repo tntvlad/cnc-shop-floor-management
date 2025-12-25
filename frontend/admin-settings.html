@@ -137,6 +137,24 @@
                     </button>
                     <div class="log-output" id="restartLog" style="display: none;"></div>
                 </div>
+
+                <!-- Database Management -->
+                <div class="settings-card">
+                    <h3>Database Management</h3>
+                    <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
+                        Backup and restore database (Admin 500 only).
+                    </p>
+                    <button class="btn btn-primary btn-block" onclick="backupDatabase(event)" style="margin-bottom: 10px;">
+                        Download Backup
+                    </button>
+                    <div style="margin-top: 10px;">
+                        <label for="restoreFileInput" class="btn btn-warning btn-block" style="margin: 0; cursor: pointer;">
+                            Upload & Restore Backup
+                        </label>
+                        <input type="file" id="restoreFileInput" accept=".sql" style="display: none;" onchange="restoreDatabase(event)">
+                    </div>
+                    <div class="log-output" id="dbLog" style="display: none;"></div>
+                </div>
             </div>
 
             <!-- Create User Form -->
