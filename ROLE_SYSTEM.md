@@ -138,12 +138,7 @@ When a user logs in, the token contains:
 
 ### Login Page (`login.html`)
 - No level-based restrictions
-- Default admin (ADMIN001) redirects to first-setup page
-
-### First Setup (`first-setup.html`)
-- Must be ADMIN001 (default admin)
-- Creates new Admin level (500) user
-- Deletes default ADMIN001 account
+- Default admin (ADMIN001) redirects to admin-settings page
 
 ### Dashboard (`index.html`)
 - Admin link visible for level 400+

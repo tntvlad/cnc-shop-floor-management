@@ -27,9 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Store authentication data
       Auth.login(response.token, response.user);
       
-      // If logging in with default admin, redirect to setup page
+      // If logging in with default admin, redirect to admin settings
       if (employeeId === 'ADMIN001') {
-        window.location.href = 'first-setup.html';
+        window.location.href = 'admin-settings.html';
       } else {
         // Redirect to dashboard for other users
         window.location.href = 'index.html';
