@@ -1,8 +1,6 @@
 // API Configuration
-const API_BASE_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000/api'
-  : `http://${window.location.hostname}:5000/api`;
-
+// Always use localhost:5000 since frontend and backend are in same Docker network
+const API_BASE_URL = 'http://localhost:5000/api';
 const config = {
   API_BASE_URL
 };
