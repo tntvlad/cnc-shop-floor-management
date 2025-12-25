@@ -13,6 +13,7 @@ const partsController = require('./controllers/partsController');
 const feedbackController = require('./controllers/feedbackController');
 const timeController = require('./controllers/timeController');
 const filesController = require('./controllers/filesController');
+const adminController = require('./controllers/adminController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,6 +55,10 @@ app.post('/api/auth/login', validateRequest(schemas.login), authController.login
 app.get('/api/auth/me', authMiddleware, authController.getCurrentUser);
 app.post('/api/auth/users', authMiddleware, authController.createUser);
 app.delete('/api/auth/users/:userId', authMiddleware, authController.deleteUser);
+
+// Admin routes
+app.post('/api/admin/git-pull', authMiddleware, adminController.gitPull);
+app.post('/api/admin/restart', authMiddleware, adminController.restartServices);
 
 // Parts routes
 app.get('/api/parts', authMiddleware, partsController.getAllParts);

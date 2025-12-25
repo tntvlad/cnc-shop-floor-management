@@ -31,6 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadUserInfo() {
   const user = Auth.getUser();
   document.getElementById('userName').textContent = user.name;
+  
+  // Show admin link if user is admin
+  const adminLink = document.getElementById('adminLink');
+  if (user.role === 'admin') {
+    adminLink.style.display = 'inline-block';
+  }
 }
 
 // Session timer
