@@ -83,7 +83,7 @@ CREATE INDEX idx_part_completions_part_id ON part_completions(part_id);
 
 -- Insert default admin user (password: admin123)
 INSERT INTO users (employee_id, name, password_hash, role) VALUES
-('ADMIN001', 'Administrator', '$2b$10$rXKzE8KxJVZqXdZhGz0lH.nQWJZ0QYcqYvJ9xZKjQvXqY8KGqwQZS', 'admin');
+('ADMIN001', 'Administrator', '$2b$10$v4KiJjM5GIq9dkRrekc7Nu1ZT2IHDPXZbVBppl4kdXAqxPnHEffBG', 'admin');
 
 -- Insert sample parts
 INSERT INTO parts (name, material, quantity, treatment, target_time, order_position, locked) VALUES

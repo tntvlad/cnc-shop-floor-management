@@ -109,6 +109,25 @@ body {
     font-size: 14px;
 }
 
+.success-message {
+    background: #efe;
+    color: var(--success-color);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.text-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.text-link:hover {
+    text-decoration: underline;
+}
+
 .login-footer {
     text-align: center;
     margin-top: 20px;

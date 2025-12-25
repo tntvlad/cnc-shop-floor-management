@@ -52,6 +52,7 @@ app.get('/health', (req, res) => {
 // Auth routes
 app.post('/api/auth/login', validateRequest(schemas.login), authController.login);
 app.get('/api/auth/me', authMiddleware, authController.getCurrentUser);
+app.post('/api/auth/users', authMiddleware, authController.createUser);
 
 // Parts routes
 app.get('/api/parts', authMiddleware, partsController.getAllParts);

@@ -47,6 +47,16 @@ const API = {
     }
   },
 
+  // User management endpoints
+  users: {
+    async create(data) {
+      return API.request('/auth/users', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    }
+  },
+
   // Parts endpoints
   parts: {
     async getAll() {
