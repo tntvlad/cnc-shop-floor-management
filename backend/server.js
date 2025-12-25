@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
 require('dotenv').config();
 
 const authMiddleware = require('./middleware/auth');
