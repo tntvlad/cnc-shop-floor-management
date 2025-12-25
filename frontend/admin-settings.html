@@ -159,12 +159,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="newRole">Role</label>
-                        <select id="newRole" name="role" required>
-                            <option value="operator">Operator</option>
-                            <option value="supervisor">Supervisor</option>
-                            <option value="admin">Admin</option>
+                        <label for="newLevel">Permission Level</label>
+                        <select id="newLevel" name="level" required>
+                            <option value="">-- Select Level --</option>
+                            <option value="100">100 - CNC Operator (Can view assigned jobs, track time)</option>
+                            <option value="200">200 - Cutting Operator (Can view all jobs, cutting operations)</option>
+                            <option value="300">300 - Quality Control (Can review and approve jobs)</option>
+                            <option value="400">400 - Supervisor (Can create jobs, assign work, manage users)</option>
+                            <option value="500">500 - Admin (Full system access)</option>
                         </select>
+                        <small id="levelHint" style="color: #64748b; margin-top: 5px; display: block;"></small>
                     </div>
 
                     <div id="createUserError" class="error-message" style="display: none;"></div>

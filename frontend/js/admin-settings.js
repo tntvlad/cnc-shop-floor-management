@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const user = Auth.getUser();
-  if (user.role !== 'admin') {
-    alert('Access denied. Admin privileges required.');
+  if (user.level < 400) {
+    alert('Access denied. Supervisor level (400+) required.');
     window.location.href = 'index.html';
     return;
   }
@@ -22,6 +22,27 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = 'login.html';
   });
 
+  // Update level hints when selecting a level
+  const levelSelect = document.getElementById('newLevel');
+  const levelHint = document.getElementById('levelHint');
+  
+  const levelDescriptions = {
+    100: 'Can view assigned jobs, start/complete work, track time',
+    200: 'Can view all jobs, perform cutting operations, track time',
+    300: 'Can review and approve/reject completed jobs, add quality notes',
+    400: 'Can create jobs, assign work, create users up to level 400',
+    500: 'Full system access, manage all data and configurations'
+  };
+
+  levelSelect.addEventListener('change', (e) => {
+    const selectedLevel = parseInt(e.target.value);
+    if (selectedLevel && levelDescriptions[selectedLevel]) {
+      levelHint.textContent = `📋 ${levelDescriptions[selectedLevel]}`;
+    } else {
+      levelHint.textContent = '';
+    }
+  });
+
   // Create user form
   document.getElementById('createUserForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -29,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const employeeId = document.getElementById('newEmployeeId').value.trim();
     const fullName = document.getElementById('newFullName').value.trim();
     const password = document.getElementById('newPassword').value;
-    const role = document.getElementById('newRole').value;
+    const level = parseInt(document.getElementById('newLevel').value);
 
     const errorEl = document.getElementById('createUserError');
     const successEl = document.getElementById('createUserSuccess');
@@ -40,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Validation
     if (password.length < 8) {
       errorEl.textContent = 'Password must be at least 8 characters';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (!level || level < 50 || level > 500) {
+      errorEl.textContent = 'Invalid permission level selected';
       errorEl.style.display = 'block';
       return;
     }
@@ -55,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
           employeeId,
           name: fullName,
           password,
-          role
+          level
         })
       });
 
@@ -65,9 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.error || 'Failed to create user');
       }
 
-      successEl.textContent = `✓ User ${employeeId} created successfully!`;
+      successEl.textContent = `✓ User ${employeeId} (Level ${level}) created successfully!`;
       successEl.style.display = 'block';
       document.getElementById('createUserForm').reset();
+      document.getElementById('levelHint').textContent = '';
 
       setTimeout(() => {
         successEl.style.display = 'none';

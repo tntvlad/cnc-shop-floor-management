@@ -32,9 +32,9 @@ function loadUserInfo() {
   const user = Auth.getUser();
   document.getElementById('userName').textContent = user.name;
   
-  // Show admin link if user is admin
+  // Show admin link if user is Supervisor+ (level 400+)
   const adminLink = document.getElementById('adminLink');
-  if (user.role === 'admin') {
+  if (user.level >= 400) {
     adminLink.style.display = 'inline-block';
   }
 }

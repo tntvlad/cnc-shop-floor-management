@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
           employeeId,
           name: fullName,
           password,
-          role: 'admin'
+          level: 500  // Level 500 = Admin
         })
       });
 

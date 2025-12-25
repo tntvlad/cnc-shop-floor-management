@@ -8,13 +8,14 @@ DROP TABLE IF EXISTS files CASCADE;
 DROP TABLE IF EXISTS parts CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
--- Users table
+-- Users table with hierarchical level-based permission system
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     employee_id VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) DEFAULT 'operator',
+    level INTEGER DEFAULT 100, -- 50=Customer, 100=CNC Operator, 200=Cutting Operator, 300=QC, 400=Supervisor, 500=Admin
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -81,9 +82,9 @@ CREATE INDEX idx_time_logs_user_id ON time_logs(user_id);
 CREATE INDEX idx_time_logs_part_id ON time_logs(part_id);
 CREATE INDEX idx_part_completions_part_id ON part_completions(part_id);
 
--- Insert default admin user (password: admin123)
-INSERT INTO users (employee_id, name, password_hash, role) VALUES
-('ADMIN001', 'Administrator', '$2b$10$v4KiJjM5GIq9dkRrekc7Nu1ZT2IHDPXZbVBppl4kdXAqxPnHEffBG', 'admin');
+-- Insert default admin user (password: admin123, level: 500 = Super Admin)
+INSERT INTO users (employee_id, name, password_hash, level) VALUES
+('ADMIN001', 'Administrator', '$2b$10$v4KiJjM5GIq9dkRrekc7Nu1ZT2IHDPXZbVBppl4kdXAqxPnHEffBG', 500);
 
 -- Insert sample parts
 INSERT INTO parts (name, material, quantity, treatment, target_time, order_position, locked) VALUES

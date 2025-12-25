@@ -1,12 +1,15 @@
 const { execSync } = require('child_process');
 const pool = require('../config/database');
+const { LEVELS, getLevelName } = require('../middleware/permissions');
 
 // Git pull (admin only)
 exports.gitPull = async (req, res) => {
   try {
     // Check if requester is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Only admins can pull updates' });
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can pull updates. Your level: ${getLevelName(req.user.level)}`
+      });
     }
 
     try {
@@ -35,8 +38,10 @@ exports.gitPull = async (req, res) => {
 exports.restartServices = async (req, res) => {
   try {
     // Check if requester is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Only admins can restart services' });
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can restart services. Your level: ${getLevelName(req.user.level)}`
+      });
     }
 
     try {
