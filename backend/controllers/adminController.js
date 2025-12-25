@@ -13,9 +13,20 @@ exports.gitPull = async (req, res) => {
     }
 
     try {
-      const output = execSync('cd /app/project && git pull origin main 2>&1', {
+      // Configure git if not already done
+      execSync('git config --global user.email "admin@cnc-shop.local" 2>/dev/null || true', {
         encoding: 'utf-8',
-        timeout: 30000
+        cwd: '/app/project'
+      });
+      execSync('git config --global user.name "CNC Admin" 2>/dev/null || true', {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      });
+
+      const output = execSync('cd /app/project && git pull origin main --no-edit 2>&1', {
+        encoding: 'utf-8',
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024
       });
 
       res.json({
