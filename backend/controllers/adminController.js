@@ -13,7 +13,7 @@ exports.gitPull = async (req, res) => {
     }
 
     try {
-      const output = execSync('cd /app && git pull origin main 2>&1', {
+      const output = execSync('cd /app/project && git pull origin main 2>&1', {
         encoding: 'utf-8',
         timeout: 30000
       });
@@ -49,7 +49,7 @@ exports.restartServices = async (req, res) => {
       const output = execSync('docker-compose restart 2>&1', {
         encoding: 'utf-8',
         timeout: 60000,
-        cwd: '/app'
+        cwd: '/app/project'
       });
 
       res.json({

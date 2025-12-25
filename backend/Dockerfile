@@ -2,6 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Install system dependencies for admin operations
+# - postgresql-client: for pg_dump and psql (database backup/restore)
+# - git: for git pull operations
+# - docker-cli and docker-compose: for service restart
+RUN apk add --no-cache postgresql-client git docker-cli docker-cli-compose
+
 # Copy package files
 COPY package*.json ./
 
