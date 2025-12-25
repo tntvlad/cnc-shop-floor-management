@@ -49,6 +49,9 @@ const API = {
 
   // User management endpoints
   users: {
+    async list() {
+      return API.request('/auth/users');
+    },
     async create(data) {
       return API.request('/auth/users', {
         method: 'POST',

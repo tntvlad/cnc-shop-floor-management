@@ -110,6 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial status check
   checkStatus();
+
+  // Load users list
+  document.getElementById('refreshUsersBtn').addEventListener('click', loadUsers);
+  loadUsers();
 });
 
 async function checkStatus() {
@@ -232,5 +236,91 @@ async function restartServices(event) {
   } catch (error) {
     logEl.textContent += `✗ Error: ${error.message}\n`;
     if (btn) btn.disabled = false;
+  }
+}
+
+// Helper: map legacy role to level
+function mapRoleToLevel(role) {
+  if (!role) return undefined;
+  if (role === 'admin') return 500;
+  if (role === 'supervisor') return 400;
+  return 100;
+}
+
+// Load and render users
+async function loadUsers() {
+  const tbody = document.getElementById('usersTableBody');
+  const logEl = document.getElementById('usersLog');
+  logEl.style.display = 'none';
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:10px; color:#64748b;">Loading users...</td></tr>';
+
+  try {
+    const data = await API.users.list();
+    const users = data.users || [];
+
+    const current = Auth.getUser();
+    const currentLevel = typeof current.level === 'number' ? current.level : mapRoleToLevel(current.role) || 100;
+
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:10px; color:#64748b;">No users found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    users.forEach(user => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.employee_id}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.name || ''}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.level} ${user.levelName ? '('+user.levelName+')' : ''}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${new Date(user.created_at).toLocaleString()}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">
+          <button class="btn btn-danger" data-action="delete" data-id="${user.id}">Delete</button>
+        </td>
+      `;
+
+      // Disable delete button for self or higher-level users
+      const delBtn = tr.querySelector('button[data-action="delete"]');
+      if (user.id === current.id || user.level > currentLevel) {
+        delBtn.disabled = true;
+        delBtn.textContent = user.id === current.id ? 'Cannot delete self' : 'Insufficient level';
+      } else {
+        delBtn.addEventListener('click', () => deleteUser(user.id, user.employee_id));
+      }
+
+      tbody.appendChild(tr);
+    });
+  } catch (error) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:10px; color:#ef4444;">Failed to load users</td></tr>';
+    logEl.style.display = 'block';
+    logEl.textContent = `✗ Error: ${error.message}`;
+  }
+}
+
+// Delete user
+async function deleteUser(userId, employeeId) {
+  if (!confirm(`Delete user ${employeeId}? This cannot be undone.`)) return;
+
+  const logEl = document.getElementById('usersLog');
+  logEl.style.display = 'block';
+  logEl.textContent = `⏳ Deleting user ${employeeId}...\n`;
+
+  try {
+    const resp = await fetch(`${config.API_BASE_URL}/auth/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${Auth.getToken()}`
+      }
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.error || 'Delete failed');
+    }
+
+    logEl.textContent += '✓ User deleted\n';
+    loadUsers();
+  } catch (error) {
+    logEl.textContent += `✗ Error: ${error.message}\n`;
   }
 }

@@ -180,6 +180,34 @@
                 </form>
             </div>
 
+            <!-- Users Management -->
+            <div class="settings-card" style="margin-top: 20px;">
+                <h3>Users Management</h3>
+                <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
+                    View all users up to your level and delete accounts (cannot delete your own).
+                </p>
+                <button class="btn btn-secondary btn-block" id="refreshUsersBtn">Refresh Users</button>
+                <div style="overflow-x:auto; margin-top: 10px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Employee ID</th>
+                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Name</th>
+                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Level</th>
+                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Created</th>
+                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="5" style="padding: 10px; color: #64748b;">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="log-output" id="usersLog" style="display: none; margin-top: 10px;"></div>
+            </div>
+
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: white; border-radius: 8px;">
                 <p style="color: #64748b; margin: 0;">
                     <a href="index.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">← Back to Dashboard</a>
