@@ -257,21 +257,62 @@ async function openPartModal(partId) {
 // Load part files
 function loadPartFiles(part) {
   const filesContainer = document.getElementById('modalFiles');
+  const user = Auth.getUser();
+  const canDelete = (typeof user.level === 'number' && user.level >= 400);
   
   if (!part.files || part.files.length === 0) {
     filesContainer.innerHTML = '<p class="text-muted">No files available</p>';
+    hidePdfPreview();
     return;
   }
 
   filesContainer.innerHTML = '';
+  let firstPdf = null;
+  
   part.files.forEach(file => {
-    const btn = document.createElement('button');
     const fileType = (file.fileType || file.filetype || 'FILE').toUpperCase();
+    const fileDiv = document.createElement('div');
+    fileDiv.style.display = 'flex';
+    fileDiv.style.alignItems = 'center';
+    fileDiv.style.gap = '10px';
+    fileDiv.style.marginBottom = '8px';
+    
+    const btn = document.createElement('button');
     btn.className = `file-btn file-${fileType.toLowerCase()}`;
     btn.textContent = `${fileType} - ${file.filename}`;
+    btn.style.flex = '1';
     btn.addEventListener('click', () => downloadFile(file.id, file.filename));
-    filesContainer.appendChild(btn);
+    
+    fileDiv.appendChild(btn);
+    
+    // Add delete button for admins/supervisors
+    if (canDelete) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'btn btn-sm btn-danger';
+      deleteBtn.textContent = '🗑';
+      deleteBtn.title = 'Delete file';
+      deleteBtn.style.padding = '5px 10px';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteFile(file.id, file.filename);
+      });
+      fileDiv.appendChild(deleteBtn);
+    }
+    
+    filesContainer.appendChild(fileDiv);
+    
+    // Find first PDF for preview
+    if (!firstPdf && fileType === 'PDF') {
+      firstPdf = file;
+    }
   });
+  
+  // Show PDF preview if we found a PDF
+  if (firstPdf) {
+    showPdfPreview(firstPdf.id);
+  } else {
+    hidePdfPreview();
+  }
 }
 
 // Download file
@@ -298,6 +339,69 @@ function downloadFile(fileId, filename) {
       console.error('Download failed:', error);
       alert('Failed to download file');
     });
+}
+
+// Delete file
+async function deleteFile(fileId, filename) {
+  if (!confirm(`Delete file "${filename}"?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/files/${fileId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${Auth.getToken()}`
+      }
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Delete failed');
+    }
+    
+    // Reload part files
+    const part = await API.parts.getOne(currentPart.id);
+    currentPart = part;
+    loadPartFiles(part);
+    alert('File deleted successfully');
+  } catch (error) {
+    alert(error.message || 'Failed to delete file');
+  }
+}
+
+// Show PDF preview
+function showPdfPreview(fileId) {
+  const previewSection = document.getElementById('pdfPreviewSection');
+  const previewFrame = document.getElementById('pdfPreviewFrame');
+  const url = API.files.getDownloadUrl(fileId);
+  const token = Auth.getToken();
+  
+  // Use blob URL with auth
+  fetch(url, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+    .then(response => response.blob())
+    .then(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      previewFrame.src = blobUrl;
+      previewSection.style.display = 'block';
+    })
+    .catch(error => {
+      console.error('PDF preview failed:', error);
+      hidePdfPreview();
+    });
+}
+
+// Hide PDF preview
+function hidePdfPreview() {
+  const previewSection = document.getElementById('pdfPreviewSection');
+  const previewFrame = document.getElementById('pdfPreviewFrame');
+  if (previewFrame.src) {
+    window.URL.revokeObjectURL(previewFrame.src);
+    previewFrame.src = '';
+  }
+  previewSection.style.display = 'none';
 }
 
 // Load part feedback
