@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Multi-Operator Job Assignment System - Docker Deployment Script
+# CNC Shop Floor Management - Docker Deployment Script (V2 Schema)
 # Run this from the project root directory
 
 set -e  # Exit on any error
@@ -12,7 +12,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 echo -e "${CYAN}╔═════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║     Multi-Operator Job Assignment - Docker Deployment          ║${NC}"
+echo -e "${CYAN}║     CNC Shop Floor Management - Docker Deployment (V2)         ║${NC}"
 echo -e "${CYAN}╚═════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -125,62 +125,72 @@ else
 fi
 
 # =============================================================================
-# STEP 4: UPDATE DATABASE SCHEMA
+# STEP 4: UPDATE DATABASE SCHEMA (V2 - Complete Rewrite)
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 5: UPDATE DATABASE SCHEMA ===${NC}"
-echo "Running schema migration (preserving existing data)..."
+echo -e "${YELLOW}=== STEP 5: UPDATE DATABASE SCHEMA (V2) ===${NC}"
 
-# Check if migration file exists
-if [ -f "backend/db/migration-add-sequence.sql" ]; then
-    echo -e "${CYAN}Using migration script to preserve users and data...${NC}"
-    # Copy migration to container and execute
-    docker cp backend/db/migration-add-sequence.sql "$DB_CONTAINER:/tmp/migration.sql"
+# Check if user wants fresh schema or migration
+echo -e "${YELLOW}Database Schema Options:${NC}"
+echo -e "  1. Fresh Schema V2 (recommended for new/test installs)"
+echo -e "  2. Keep existing data (migrate to V2)"
+echo ""
+read -p "Choose option (1 or 2) [default: 1]: " SCHEMA_OPTION
+SCHEMA_OPTION=${SCHEMA_OPTION:-1}
+
+if [ "$SCHEMA_OPTION" = "1" ]; then
+    echo -e "${CYAN}Using fresh Schema V2 (all existing data will be replaced)...${NC}"
     
-    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration.sql; then
-        echo -e "${GREEN}✅ Migration completed successfully (data preserved)${NC}"
-        # If resequencing script exists, run it to enforce updated order
-        if [ -f "backend/db/migration-resequence.sql" ]; then
-            docker cp backend/db/migration-resequence.sql "$DB_CONTAINER:/tmp/migration-resequence.sql"
-            if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration-resequence.sql; then
-                echo -e "${GREEN}✅ Resequenced assignments to Cutting → CNC → QC${NC}"
-            else
-                echo -e "${YELLOW}⚠️  Resequencing failed, continuing (data unchanged).${NC}"
-            fi
+    # Check if schema-v2-complete.sql exists
+    if [ -f "backend/db/schema-v2-complete.sql" ]; then
+        docker cp backend/db/schema-v2-complete.sql "$DB_CONTAINER:/tmp/schema-v2.sql"
+        
+        if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/schema-v2.sql; then
+            echo -e "${GREEN}✅ Schema V2 applied successfully${NC}"
+            echo -e "${CYAN}   • 22 new tables created${NC}"
+            echo -e "${CYAN}   • Default admin user: ADMIN001 / admin123${NC}"
+            echo -e "${CYAN}   • 6 machines pre-configured (5 mills, 1 lathe)${NC}"
+        else
+            echo -e "${RED}❌ Schema V2 deployment failed!${NC}"
+            echo -e "${YELLOW}Rolling back is available. To restore:${NC}"
+            echo -e "${CYAN}  cat $BACKUP_DIR/$BACKUP_FILE | docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor${NC}"
+            exit 1
         fi
     else
-        echo -e "${RED}❌ Migration failed!${NC}"
-        echo -e "${YELLOW}Rolling back is available. To restore:${NC}"
-        echo -e "${CYAN}  cat $BACKUP_DIR/$BACKUP_FILE | docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor${NC}"
+        echo -e "${RED}❌ Schema file not found: backend/db/schema-v2-complete.sql${NC}"
         exit 1
     fi
 else
-    echo -e "${YELLOW}⚠️  Migration script not found. Using full schema (will recreate tables)...${NC}"
-    # Copy schema to container and execute
-    docker cp backend/db/schema.sql "$DB_CONTAINER:/tmp/schema.sql"
-    
-    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/schema.sql; then
-        echo -e "${GREEN}✅ Schema updated successfully${NC}"
-    else
-        echo -e "${RED}❌ Schema update failed!${NC}"
-        echo -e "${YELLOW}Rolling back is available. To restore:${NC}"
-        echo -e "${CYAN}  cat $BACKUP_DIR/$BACKUP_FILE | docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor${NC}"
-        exit 1
-    fi
+    echo -e "${CYAN}Keeping existing data (migration mode)...${NC}"
+    echo -e "${YELLOW}⚠️  This requires custom migration scripts (not included in standard deploy)${NC}"
+    echo -e "${YELLOW}   Please run migrate-to-v2.sh for automated migration${NC}"
+    exit 0
 fi
 
 # =============================================================================
-# STEP 5: VERIFY DATABASE CHANGES
+# STEP 6: VERIFY DATABASE SCHEMA
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 6: VERIFY DATABASE CHANGES ===${NC}"
-echo "Verifying new table exists..."
+echo -e "${YELLOW}=== STEP 6: VERIFY DATABASE SCHEMA ===${NC}"
+echo "Verifying new V2 schema tables..."
 
-if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -c "SELECT COUNT(*) FROM job_assignments;" >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Database verification passed - job_assignments table exists${NC}"
-else
-    echo -e "${RED}❌ Database verification failed!${NC}"
+TABLES_TO_CHECK=("orders" "parts" "material_stock" "machines" "qc_checklists" "activity_log")
+MISSING_TABLES=()
+
+for table in "${TABLES_TO_CHECK[@]}"; do
+    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -c "SELECT COUNT(*) FROM $table;" >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Table '$table' exists${NC}"
+    else
+        MISSING_TABLES+=("$table")
+    fi
+done
+
+if [ ${#MISSING_TABLES[@]} -gt 0 ]; then
+    echo -e "${RED}❌ Schema verification failed! Missing tables:${NC}"
+    printf '%s\n' "${MISSING_TABLES[@]}"
     exit 1
+else
+    echo -e "${GREEN}✅ All V2 schema tables verified successfully${NC}"
 fi
 
 # =============================================================================
@@ -242,21 +252,32 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║                                                                 ║${NC}"
 echo -e "${GREEN}║        ✅ DEPLOYMENT COMPLETE - SYSTEM IS LIVE!               ║${NC}"
 echo -e "${GREEN}║                                                                 ║${NC}"
-echo -e "${GREEN}║  Your multi-operator job assignment system is ready!          ║${NC}"
+echo -e "${GREEN}║  CNC Shop Floor Management V2 is ready!                       ║${NC}"
+echo -e "${GREEN}║                                                                 ║${NC}"
+echo -e "${GREEN}║  New Features Available:                                       ║${NC}"
+echo -e "${GREEN}║  ✓ Order Management System                                    ║${NC}"
+echo -e "${GREEN}║  ✓ Material Stock Tracking                                    ║${NC}"
+echo -e "${GREEN}║  ✓ Workflow Monitoring (6 stages)                             ║${NC}"
+echo -e "${GREEN}║  ✓ Machine Scheduling                                         ║${NC}"
+echo -e "${GREEN}║  ✓ Quality Control Checklists                                 ║${NC}"
+echo -e "${GREEN}║  ✓ Operator Skills Management                                 ║${NC}"
+echo -e "${GREEN}║  ✓ Scrap Tracking & Reports                                   ║${NC}"
+echo -e "${GREEN}║  ✓ Shipment Management                                        ║${NC}"
+echo -e "${GREEN}║  ✓ Notifications & Alerts                                     ║${NC}"
 echo -e "${GREEN}║                                                                 ║${NC}"
 echo -e "${GREEN}║  Backup file: $BACKUP_DIR/$BACKUP_FILE${NC}"
 echo -e "${GREEN}║                                                                 ║${NC}"
 echo -e "${GREEN}║  Next steps:                                                    ║${NC}"
 echo -e "${GREEN}║  [ ] Clear browser cache (Ctrl+Shift+Del)                     ║${NC}"
 echo -e "${GREEN}║  [ ] Hard refresh (Ctrl+F5)                                   ║${NC}"
-echo -e "${GREEN}║  [ ] Login as Supervisor and test assignment                  ║${NC}"
-echo -e "${GREEN}║  [ ] Login as CNC Operator and verify isolation              ║${NC}"
-echo -e "${GREEN}║  [ ] Login as Cutting Operator and verify jobs               ║${NC}"
+echo -e "${GREEN}║  [ ] Login as ADMIN001 / admin123                             ║${NC}"
+echo -e "${GREEN}║  [ ] Click '📦 Orders' to access new order system            ║${NC}"
+echo -e "${GREEN}║  [ ] Create test order                                         ║${NC}"
+echo -e "${GREEN}║  [ ] Test workflow transitions                                ║${NC}"
 echo -e "${GREEN}║                                                                 ║${NC}"
 echo -e "${GREEN}║  Documentation:                                                ║${NC}"
-echo -e "${GREEN}║  • START_HERE.md - Quick overview                             ║${NC}"
-echo -e "${GREEN}║  • SUMMARY_SHEET.md - One-page summary                        ║${NC}"
-echo -e "${GREEN}║  • DEPLOYMENT_CHECKLIST.md - Full checklist                   ║${NC}"
+echo -e "${GREEN}║  • PHASE_1A_COMPLETE.md - Feature overview                    ║${NC}"
+echo -e "${GREEN}║  • PHASE_1A_API.md - Complete API reference                   ║${NC}"
 echo -e "${GREEN}║                                                                 ║${NC}"
 echo -e "${GREEN}╚═════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
