@@ -233,3 +233,69 @@ exports.deleteFile = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete file' });
   }
 };
+
+// Sync files from part's folder into DB without copying
+exports.syncFromFolder = async (req, res) => {
+  try {
+    const { id } = req.params; // part id
+
+    const partRes = await pool.query('SELECT file_folder FROM parts WHERE id = $1', [id]);
+    if (partRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Part not found' });
+    }
+
+    const folder = partRes.rows[0].file_folder;
+    if (!folder) {
+      return res.status(400).json({ error: 'Part does not have a folder assigned' });
+    }
+
+    const dirPath = path.resolve(folder.startsWith(BROWSE_ROOT) ? folder : path.join(BROWSE_ROOT, folder));
+    ensureWithinRoot(dirPath);
+
+    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      return res.status(404).json({ error: 'Assigned folder not found or not a directory' });
+    }
+
+    const allowedExts = new Set(['.pdf', '.dxf', '.nc', '.txt']);
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    let added = 0;
+    const filesAdded = [];
+
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!allowedExts.has(ext)) continue;
+
+      const fullPath = path.join(dirPath, entry.name);
+      // Skip broken files
+      try {
+        const st = fs.statSync(fullPath);
+        if (!st.isFile()) continue;
+      } catch (_) {
+        continue;
+      }
+
+      // Check if already present for this part
+      const existsRes = await pool.query(
+        'SELECT id FROM files WHERE part_id = $1 AND file_path = $2',
+        [id, fullPath]
+      );
+      if (existsRes.rows.length > 0) continue;
+
+      const fileType = ext.substring(1).toUpperCase();
+      const insRes = await pool.query(
+        `INSERT INTO files (part_id, filename, file_type, file_path)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, filename, file_type`,
+        [id, entry.name, fileType, fullPath]
+      );
+      added++;
+      filesAdded.push(insRes.rows[0]);
+    }
+
+    res.json({ message: 'Sync completed', added, files: filesAdded });
+  } catch (error) {
+    console.error('Sync from folder error:', error);
+    res.status(500).json({ error: 'Failed to sync files from folder' });
+  }
+};

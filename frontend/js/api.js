@@ -220,6 +220,12 @@ const API = {
     async browseFolders(path = '') {
       const query = path ? `?path=${encodeURIComponent(path)}` : '';
       return API.request(`/folders/browse${query}`);
+    },
+
+    async syncFromFolder(partId) {
+      return API.request(`/parts/${partId}/files/sync`, {
+        method: 'POST'
+      });
     }
   }
 };

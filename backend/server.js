@@ -92,6 +92,9 @@ app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.comp
 // Folder browse (Supervisor+)
 app.get('/api/folders/browse', authMiddleware, requireSupervisor(), filesController.browseFolders);
 
+// Sync files from assigned folder into DB (Supervisor+)
+app.post('/api/parts/:id/files/sync', authMiddleware, requireSupervisor(), filesController.syncFromFolder);
+
 // Feedback routes
 app.get('/api/parts/:partId/feedback', authMiddleware, feedbackController.getPartFeedback);
 app.post('/api/parts/:partId/feedback', authMiddleware, validateRequest(schemas.feedback), feedbackController.addFeedback);

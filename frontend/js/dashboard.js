@@ -677,6 +677,33 @@ function setupEventListeners() {
     });
   }
 
+  const folderSyncBtn = document.getElementById('fileFolderSyncBtn');
+  if (folderSyncBtn) {
+    folderSyncBtn.addEventListener('click', async () => {
+      if (!currentPart) return;
+      const status = document.getElementById('fileFolderStatus');
+      if (status) {
+        status.textContent = 'Syncing files...';
+        status.style.color = '#64748b';
+      }
+      try {
+        const result = await API.files.syncFromFolder(currentPart.id);
+        const part = await API.parts.getOne(currentPart.id);
+        currentPart = part;
+        loadPartFiles(part);
+        if (status) {
+          status.textContent = `Synced ${result.added} files`;
+          status.style.color = '#16a34a';
+        }
+      } catch (error) {
+        if (status) {
+          status.textContent = error.message || 'Sync failed';
+          status.style.color = '#c53030';
+        }
+      }
+    });
+  }
+
   // Folder browser controls
   const folderBrowserUpBtn = document.getElementById('folderBrowserUpBtn');
   if (folderBrowserUpBtn) {
@@ -694,6 +721,28 @@ function setupEventListeners() {
       const input = document.getElementById('fileFolderInput');
       if (input) input.value = pathToUse;
       saveFolderPath(pathToUse);
+      // After saving folder, trigger an automatic sync
+      const status = document.getElementById('fileFolderStatus');
+      if (status) {
+        status.textContent = 'Syncing files...';
+        status.style.color = '#64748b';
+      }
+      API.files.syncFromFolder(currentPart.id)
+        .then(async (result) => {
+          const part = await API.parts.getOne(currentPart.id);
+          currentPart = part;
+          loadPartFiles(part);
+          if (status) {
+            status.textContent = `Synced ${result.added} files`;
+            status.style.color = '#16a34a';
+          }
+        })
+        .catch((error) => {
+          if (status) {
+            status.textContent = error.message || 'Sync failed';
+            status.style.color = '#c53030';
+          }
+        });
       closeFolderBrowser();
     });
   }
