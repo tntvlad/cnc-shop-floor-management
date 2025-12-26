@@ -16,6 +16,8 @@ const feedbackController = require('./controllers/feedbackController');
 const timeController = require('./controllers/timeController');
 const filesController = require('./controllers/filesController');
 const adminController = require('./controllers/adminController');
+const ordersController = require('./controllers/ordersController');
+const materialsController = require('./controllers/materialsController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -104,6 +106,33 @@ app.get('/api/time/active', authMiddleware, timeController.getActiveTimer);
 app.post('/api/parts/:partId/timer/start', authMiddleware, timeController.startTimer);
 app.post('/api/parts/:partId/timer/stop', authMiddleware, timeController.stopTimer);
 app.get('/api/parts/:partId/timelogs', authMiddleware, timeController.getPartTimeLogs);
+
+// ======================== ORDERS ROUTES ========================
+app.post('/api/orders', authMiddleware, requireSupervisor, ordersController.createOrder);
+app.get('/api/orders', authMiddleware, ordersController.getOrders);
+app.get('/api/orders/:id', authMiddleware, ordersController.getOrderById);
+app.put('/api/orders/:id', authMiddleware, requireSupervisor, ordersController.updateOrder);
+app.put('/api/orders/:id/status', authMiddleware, requireSupervisor, ordersController.updateOrderStatus);
+app.delete('/api/orders/:id', authMiddleware, requireSupervisor, ordersController.deleteOrder);
+app.get('/api/orders/stats/summary', authMiddleware, ordersController.getOrderStats);
+
+// ======================== MATERIALS ROUTES ========================
+app.get('/api/materials', authMiddleware, materialsController.getMaterials);
+app.get('/api/materials/:id', authMiddleware, materialsController.getMaterialById);
+app.post('/api/materials', authMiddleware, requireSupervisor, materialsController.createMaterial);
+app.put('/api/materials/:id', authMiddleware, requireSupervisor, materialsController.updateMaterialStock);
+app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor, materialsController.adjustMaterialStock);
+app.get('/api/materials/alerts/low-stock', authMiddleware, materialsController.getLowStockAlerts);
+app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsController.getOrderMaterialRequirements);
+app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
+
+// ======================== WORKFLOW TRANSITIONS ========================
+app.post('/api/parts/:partId/workflow/start', authMiddleware, requireSupervisor, partsController.startWorkflowStage);
+app.post('/api/parts/:partId/workflow/complete', authMiddleware, requireSupervisor, partsController.completeWorkflowStage);
+app.post('/api/parts/:partId/hold', authMiddleware, requireSupervisor, partsController.holdPart);
+app.post('/api/parts/:partId/resume', authMiddleware, requireSupervisor, partsController.resumePart);
+app.post('/api/parts/:partId/scrap', authMiddleware, requireSupervisor, partsController.recordScrap);
+
 
 // File routes
 app.get('/api/parts/:partId/files', authMiddleware, filesController.getPartFiles);

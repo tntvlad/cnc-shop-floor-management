@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Monitor - CNC Shop Floor</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .workflow-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .workflow-header {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-item {
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border-left: 4px solid #667eea;
+    }
+
+    .summary-label {
+      font-weight: 600;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .summary-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #333;
+      margin-top: 0.5rem;
+    }
+
+    .workflow-stages {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stage-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stage-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .stage-header h3 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .stage-count {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      margin-top: 0.5rem;
+    }
+
+    .stage-body {
+      padding: 1.5rem;
+      min-height: 400px;
+      background: #f9f9f9;
+    }
+
+    .part-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      border-left: 4px solid #667eea;
+      cursor: move;
+      transition: all 0.3s;
+    }
+
+    .part-card:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .part-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .part-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.75rem;
+    }
+
+    .part-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-complete {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-complete:hover {
+      background: #218838;
+    }
+
+    .btn-hold {
+      background: #ffc107;
+      color: #333;
+    }
+
+    .btn-hold:hover {
+      background: #e0a800;
+    }
+
+    .btn-detail {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-detail:hover {
+      background: #5568d3;
+    }
+
+    .empty-stage {
+      text-align: center;
+      color: #999;
+      padding: 2rem 0;
+    }
+
+    .empty-stage-icon {
+      font-size: 2rem;
+      opacity: 0.5;
+      margin-bottom: 1rem;
+    }
+
+    .batch-info {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      background: #e7f3ff;
+      color: #0056b3;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .stat-item {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .modal-close {
+      float: right;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .form-group textarea {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: inherit;
+      min-height: 100px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    .btn-cancel {
+      padding: 0.75rem 1.5rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-submit {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <h1>🔄 Workflow Monitor</h1>
+      </div>
+      <div class="nav-right">
+        <button class="btn-nav" onclick="history.back()">← Back</button>
+        <button class="btn-nav" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="workflow-container">
+        <!-- Order Summary -->
+        <div class="workflow-header">
+          <div class="order-summary">
+            <div class="summary-item">
+              <div class="summary-label">Order #</div>
+              <div class="summary-value" id="order-num">---</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Customer</div>
+              <div class="summary-value" id="customer-name" style="font-size: 1rem;">---</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total Parts</div>
+              <div class="summary-value" id="total-parts">0</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Completed</div>
+              <div class="summary-value" id="completed-parts">0</div>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-number" id="stat-pending">0</div>
+              <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="stat-cutting">0</div>
+              <div class="stat-label">Cutting</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="stat-programming">0</div>
+              <div class="stat-label">Programming</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="stat-machining">0</div>
+              <div class="stat-label">Machining</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="stat-qc">0</div>
+              <div class="stat-label">QC</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="stat-completed">0</div>
+              <div class="stat-label">Completed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workflow Stages -->
+        <div class="workflow-stages">
+          <!-- Pending -->
+          <div class="stage-card">
+            <div class="stage-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+              <h3>📋 Pending</h3>
+              <div class="stage-count"><span id="pending-count">0</span> parts</div>
+            </div>
+            <div class="stage-body" id="pending-stage">
+              <div class="empty-stage">
+                <div class="empty-stage-icon">—</div>
+                <p>No pending parts</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cutting -->
+          <div class="stage-card">
+            <div class="stage-header" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+              <h3>✂️ Cutting</h3>
+              <div class="stage-count"><span id="cutting-count">0</span> parts</div>
+            </div>
+            <div class="stage-body" id="cutting-stage">
+              <div class="empty-stage">
+                <div class="empty-stage-icon">—</div>
+                <p>No parts in cutting</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Programming -->
+          <div class="stage-card">
+            <div class="stage-header" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+              <h3>💻 Programming</h3>
+              <div class="stage-count"><span id="programming-count">0</span> parts</div>
+            </div>
+            <div class="stage-body" id="programming-stage">
+              <div class="empty-stage">
+                <div class="empty-stage-icon">—</div>
+                <p>No parts programming</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Machining -->
+          <div class="stage-card">
+            <div class="stage-header" style="background: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);">
+              <h3>⚙️ Machining</h3>
+              <div class="stage-count"><span id="machining-count">0</span> parts</div>
+            </div>
+            <div class="stage-body" id="machining-stage">
+              <div class="empty-stage">
+                <div class="empty-stage-icon">—</div>
+                <p>No parts machining</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- QC -->
+          <div class="stage-card">
+            <div class="stage-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <h3>✅ QC</h3>
+              <div class="stage-count"><span id="qc-count">0</span> parts</div>
+            </div>
+            <div class="stage-body" id="qc-stage">
+              <div class="empty-stage">
+                <div class="empty-stage-icon">—</div>
+                <p>No parts in QC</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completed -->
+          <div class="stage-card">
+            <div class="stage-header" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+              <h3>🎉 Completed</h3>
+              <div class="stage-count"><span id="completed-count">0</span> parts</div>
+            </div>
+            <div class="stage-body" id="completed-stage">
+              <div class="empty-stage">
+                <div class="empty-stage-icon">—</div>
+                <p>No parts completed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Action Modal -->
+  <div id="action-modal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeModal('action-modal')">✕</span>
+      <h3 id="action-modal-title">Action</h3>
+      <div class="form-group">
+        <label for="action-notes">Notes:</label>
+        <textarea id="action-notes" placeholder="Enter any notes..."></textarea>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeModal('action-modal')">Cancel</button>
+        <button class="btn-submit" id="action-submit-btn" onclick="submitAction()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/workflow-monitor.js"></script>
+</body>
+</html>

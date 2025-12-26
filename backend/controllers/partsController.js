@@ -539,3 +539,229 @@ exports.startJob = async (req, res) => {
     client.release();
   }
 };
+
+// ======================== WORKFLOW TRANSITIONS ========================
+
+// Start workflow stage (move part to next stage)
+exports.startWorkflowStage = async (req, res) => {
+  try {
+    const { partId } = req.params;
+    const { stage } = req.body;
+
+    const validStages = ['cutting', 'programming', 'machining', 'qc', 'completed'];
+    if (!validStages.includes(stage)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Invalid stage. Valid stages: ${validStages.join(', ')}` 
+      });
+    }
+
+    const result = await pool.query(
+      `UPDATE parts 
+       SET workflow_stage = $1, 
+           status = 'in-progress',
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, part_name, workflow_stage, status, batch_number`,
+      [stage, partId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    // Log activity
+    await pool.query(
+      `INSERT INTO activity_log (part_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [partId, `started_${stage}`, `Part moved to ${stage} workflow stage`]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Part moved to ${stage} stage`,
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error starting workflow:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Complete workflow stage
+exports.completeWorkflowStage = async (req, res) => {
+  try {
+    const { partId } = req.params;
+    const { notes } = req.body;
+
+    // Get current part
+    const partResult = await pool.query(
+      'SELECT id, workflow_stage, batch_number FROM parts WHERE id = $1',
+      [partId]
+    );
+
+    if (partResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    const currentStage = partResult.rows[0].workflow_stage;
+    const stageProgression = {
+      'pending': 'cutting',
+      'cutting': 'programming',
+      'programming': 'machining',
+      'machining': 'qc',
+      'qc': 'completed'
+    };
+
+    const nextStage = stageProgression[currentStage] || 'completed';
+
+    const result = await pool.query(
+      `UPDATE parts 
+       SET workflow_stage = $1, 
+           status = $2,
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, part_name, workflow_stage, status, batch_number`,
+      [nextStage, nextStage === 'completed' ? 'completed' : 'pending', partId]
+    );
+
+    // Log activity
+    await pool.query(
+      `INSERT INTO activity_log (part_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [partId, `completed_${currentStage}`, `${currentStage} stage completed. ${notes || ''}`]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `${currentStage} stage completed, moving to ${nextStage}`,
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error completing stage:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Hold part (pause workflow)
+exports.holdPart = async (req, res) => {
+  try {
+    const { partId } = req.params;
+    const { reason } = req.body;
+
+    const result = await pool.query(
+      `UPDATE parts 
+       SET status = 'on-hold', hold_reason = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, part_name, status, hold_reason`,
+      [reason || '', partId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    await pool.query(
+      `INSERT INTO activity_log (part_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [partId, 'part_held', `Part placed on hold: ${reason || 'No reason provided'}`]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Part placed on hold',
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error holding part:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Resume part from hold
+exports.resumePart = async (req, res) => {
+  try {
+    const { partId } = req.params;
+
+    const partResult = await pool.query(
+      'SELECT workflow_stage FROM parts WHERE id = $1',
+      [partId]
+    );
+
+    if (partResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    const result = await pool.query(
+      `UPDATE parts 
+       SET status = 'in-progress', hold_reason = NULL, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, part_name, status, workflow_stage`,
+      [partId]
+    );
+
+    await pool.query(
+      `INSERT INTO activity_log (part_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [partId, 'part_resumed', `Part resumed from hold in ${result.rows[0].workflow_stage} stage`]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Part resumed',
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error resuming part:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Record scrap
+exports.recordScrap = async (req, res) => {
+  try {
+    const { partId } = req.params;
+    const { quantity_scrapped, reason, notes } = req.body;
+
+    const partResult = await pool.query(
+      'SELECT quantity, batch_number FROM parts WHERE id = $1',
+      [partId]
+    );
+
+    if (partResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    const totalQuantity = partResult.rows[0].quantity;
+    
+    const result = await pool.query(
+      `UPDATE parts 
+       SET quantity_scrapped = quantity_scrapped + $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, part_name, quantity, quantity_scrapped`,
+      [quantity_scrapped, partId]
+    );
+
+    // Record in scrap table
+    await pool.query(
+      `INSERT INTO scrap_records (part_id, quantity, reason, notes, recorded_by)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [partId, quantity_scrapped, reason || 'unspecified', notes || '', req.user?.id || 'system']
+    );
+
+    await pool.query(
+      `INSERT INTO activity_log (part_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [partId, 'scrap_recorded', `${quantity_scrapped} units scrapped (${reason || 'no reason'})`]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Scrap recorded',
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error recording scrap:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

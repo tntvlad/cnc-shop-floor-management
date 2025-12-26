@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Details - CNC Shop Floor</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .order-details-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .order-header {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-header-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .order-header-section h3 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+
+    .order-info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .order-info-item:last-child {
+      border-bottom: none;
+    }
+
+    .order-info-label {
+      font-weight: 600;
+      color: #666;
+    }
+
+    .order-info-value {
+      color: #333;
+    }
+
+    .order-status {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-in-progress {
+      background: #cfe2ff;
+      color: #084298;
+    }
+
+    .status-completed {
+      background: #d1e7dd;
+      color: #0f5132;
+    }
+
+    .parts-section,
+    .materials-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      color: #333;
+    }
+
+    .parts-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .parts-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .parts-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .parts-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .part-row {
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .part-row:hover {
+      background: #f9f9f9;
+    }
+
+    .workflow-badge {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: #667eea;
+      color: white;
+    }
+
+    .progress-bar {
+      width: 100px;
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #667eea;
+      transition: width 0.3s;
+    }
+
+    .material-item {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      display: grid;
+      grid-template-columns: 1fr 200px 200px 150px;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .material-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .material-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .material-type {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .alert-low {
+      background: #f8d7da;
+      color: #842029;
+    }
+
+    .alert-in-stock {
+      background: #d1e7dd;
+      color: #0f5132;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .btn-action {
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+
+    .btn-status {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-status:hover {
+      background: #5568d3;
+    }
+
+    .btn-materials {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-materials:hover {
+      background: #218838;
+    }
+
+    .btn-workflow {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .btn-workflow:hover {
+      background: #138496;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-close {
+      float: right;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .modal-title {
+      margin-top: 0;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .form-group select,
+    .form-group textarea {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    .btn-cancel {
+      padding: 0.75rem 1.5rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-cancel:hover {
+      background: #5a6268;
+    }
+
+    .btn-submit {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-submit:hover {
+      background: #5568d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <h1>📋 Order #<span id="order-id">---</span></h1>
+      </div>
+      <div class="nav-right">
+        <button class="btn-nav" onclick="navigateTo('order-dashboard.html')">← Back to Orders</button>
+        <button class="btn-nav" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="order-details-container">
+        <!-- Order Header -->
+        <div class="order-header">
+          <div class="order-header-top">
+            <!-- Customer Info -->
+            <div class="order-header-section">
+              <h3>Customer Information</h3>
+              <div class="order-info-item">
+                <span class="order-info-label">Name:</span>
+                <span class="order-info-value" id="customer-name">---</span>
+              </div>
+              <div class="order-info-item">
+                <span class="order-info-label">Email:</span>
+                <span class="order-info-value" id="customer-email">---</span>
+              </div>
+              <div class="order-info-item">
+                <span class="order-info-label">Phone:</span>
+                <span class="order-info-value" id="customer-phone">---</span>
+              </div>
+            </div>
+
+            <!-- Order Info -->
+            <div class="order-header-section">
+              <h3>Order Information</h3>
+              <div class="order-info-item">
+                <span class="order-info-label">Order Date:</span>
+                <span class="order-info-value" id="order-date">---</span>
+              </div>
+              <div class="order-info-item">
+                <span class="order-info-label">Due Date:</span>
+                <span class="order-info-value" id="due-date">---</span>
+              </div>
+              <div class="order-info-item">
+                <span class="order-info-label">Status:</span>
+                <span class="order-info-value" id="order-status">---</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div id="notes-section" style="display: none;">
+            <h4>Notes</h4>
+            <p id="order-notes" style="margin: 0; color: #666;"></p>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button class="btn-action btn-status" onclick="openStatusModal()">Update Status</button>
+            <button class="btn-action btn-materials" onclick="openMaterialsModal()">Material Requirements</button>
+            <button class="btn-action btn-workflow" onclick="navigateTo('workflow-monitor.html')">Workflow Monitor</button>
+          </div>
+        </div>
+
+        <!-- Parts Section -->
+        <div class="parts-section">
+          <h2 class="section-title">Parts</h2>
+          <table class="parts-table">
+            <thead>
+              <tr>
+                <th>Part Name</th>
+                <th>Qty</th>
+                <th>Material</th>
+                <th>Workflow</th>
+                <th>Progress</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="parts-tbody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Materials Section -->
+        <div class="materials-section">
+          <h2 class="section-title">Material Requirements</h2>
+          <div id="materials-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Status Modal -->
+  <div id="status-modal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeModal('status-modal')">✕</span>
+      <h3 class="modal-title">Update Order Status</h3>
+      <div class="form-group">
+        <label for="status-select">New Status:</label>
+        <select id="status-select">
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="paused">Paused</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeModal('status-modal')">Cancel</button>
+        <button class="btn-submit" onclick="updateOrderStatus()">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Materials Modal -->
+  <div id="materials-modal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeModal('materials-modal')">✕</span>
+      <h3 class="modal-title">Material Requirements</h3>
+      <div id="materials-modal-content">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/order-details.js"></script>
+</body>
+</html>

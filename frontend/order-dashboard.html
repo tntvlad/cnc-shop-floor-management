@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Dashboard - CNC Shop Floor</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .order-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card.pending {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-card.in-progress {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .stat-card.completed {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .orders-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .search-bar {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .filter-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-buttons button {
+      padding: 0.75rem 1rem;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-buttons button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .orders-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .orders-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .orders-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .orders-table tbody tr:hover {
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-in-progress {
+      background: #cfe2ff;
+      color: #084298;
+    }
+
+    .status-completed {
+      background: #d1e7dd;
+      color: #0f5132;
+    }
+
+    .status-paused {
+      background: #f8d7da;
+      color: #842029;
+    }
+
+    .progress-bar {
+      width: 100px;
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #667eea;
+      transition: width 0.3s;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .action-buttons button {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-view {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-view:hover {
+      background: #5568d3;
+    }
+
+    .btn-delete {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-delete:hover {
+      background: #c82333;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-close {
+      float: right;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <h1>📦 Order Dashboard</h1>
+      </div>
+      <div class="nav-right">
+        <button class="btn-nav" onclick="navigateTo('dashboard.html')">← Dashboard</button>
+        <button class="btn-nav" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <!-- Stats Cards -->
+      <div class="order-stats">
+        <div class="stat-card">
+          <div class="stat-value" id="total-orders">0</div>
+          <div class="stat-label">Total Orders</div>
+        </div>
+        <div class="stat-card pending">
+          <div class="stat-value" id="pending-orders">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card in-progress">
+          <div class="stat-value" id="in-progress-orders">0</div>
+          <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-card completed">
+          <div class="stat-value" id="completed-orders">0</div>
+          <div class="stat-label">Completed</div>
+        </div>
+      </div>
+
+      <!-- Search and Filter -->
+      <div class="orders-header">
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="Search by customer name or email...">
+        </div>
+        <div class="filter-buttons">
+          <button class="filter-btn active" data-status="all">All</button>
+          <button class="filter-btn" data-status="pending">Pending</button>
+          <button class="filter-btn" data-status="in-progress">In Progress</button>
+          <button class="filter-btn" data-status="completed">Completed</button>
+        </div>
+        <button class="btn-primary" onclick="navigateTo('create-order.html')">+ New Order</button>
+      </div>
+
+      <!-- Orders Table -->
+      <div id="orders-container">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Parts</th>
+              <th>Progress</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <div class="empty-state-icon">📋</div>
+          <h3>No orders found</h3>
+          <p>Create a new order to get started</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Order Details Modal -->
+  <div id="order-modal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeOrderModal()">✕</span>
+      <div id="order-modal-body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/order-dashboard.js"></script>
+</body>
+</html>

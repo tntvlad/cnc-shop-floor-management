@@ -61,6 +61,79 @@ const schemas = {
     folderPath: Joi.string().trim().max(500).allow('', null).required()
   }),
 
+  // Orders schemas
+  createOrder: Joi.object({
+    customer_name: Joi.string().required().max(255),
+    customer_email: Joi.string().email().required(),
+    customer_phone: Joi.string().max(20).allow('', null),
+    order_date: Joi.date().required(),
+    due_date: Joi.date().required(),
+    notes: Joi.string().max(1000).allow('', null),
+    parts: Joi.array().items(
+      Joi.object({
+        part_name: Joi.string().required(),
+        quantity: Joi.number().integer().min(1),
+        description: Joi.string().allow('', null),
+        material_id: Joi.number().integer().allow(null)
+      })
+    ).allow(null)
+  }),
+
+  updateOrder: Joi.object({
+    customer_name: Joi.string().max(255),
+    customer_email: Joi.string().email(),
+    customer_phone: Joi.string().max(20).allow('', null),
+    due_date: Joi.date(),
+    notes: Joi.string().max(1000).allow('', null)
+  }).min(1),
+
+  updateOrderStatus: Joi.object({
+    status: Joi.string().valid('pending', 'in-progress', 'paused', 'completed', 'cancelled').required()
+  }),
+
+  // Materials schemas
+  createMaterial: Joi.object({
+    material_name: Joi.string().required().max(255),
+    material_type: Joi.string().max(100),
+    supplier_id: Joi.number().integer().allow(null),
+    current_stock: Joi.number().min(0),
+    reorder_level: Joi.number().min(0),
+    unit: Joi.string().max(50).required(),
+    cost_per_unit: Joi.number().min(0),
+    notes: Joi.string().allow('', null)
+  }),
+
+  updateMaterialStock: Joi.object({
+    current_stock: Joi.number().min(0),
+    reorder_level: Joi.number().min(0),
+    cost_per_unit: Joi.number().min(0)
+  }).min(1),
+
+  adjustMaterialStock: Joi.object({
+    quantity: Joi.number().integer().min(1).required(),
+    transaction_type: Joi.string().valid('add', 'remove', 'use').required(),
+    notes: Joi.string().allow('', null)
+  }),
+
+  // Workflow schemas
+  startWorkflowStage: Joi.object({
+    stage: Joi.string().valid('cutting', 'programming', 'machining', 'qc', 'completed').required()
+  }),
+
+  completeWorkflowStage: Joi.object({
+    notes: Joi.string().allow('', null)
+  }),
+
+  holdPart: Joi.object({
+    reason: Joi.string().max(255)
+  }),
+
+  recordScrap: Joi.object({
+    quantity_scrapped: Joi.number().integer().min(1).required(),
+    reason: Joi.string().max(255),
+    notes: Joi.string().allow('', null)
+  }),
+
   // Allow numeric strings for flexibility with form inputs
   assignPart: Joi.object({
     userId: Joi.alternatives().try(

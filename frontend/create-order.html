@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Order - CNC Shop Floor</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .create-order-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .form-section:last-child {
+      border-bottom: none;
+    }
+
+    .form-section h3 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      color: #333;
+      font-size: 1.2rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .parts-section {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .parts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .part-item {
+      background: white;
+      padding: 1rem;
+      border-radius: 4px;
+      border-left: 4px solid #667eea;
+      display: grid;
+      grid-template-columns: 1fr 1fr 100px 100px auto;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .part-item input {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .btn-remove-part {
+      padding: 0.5rem 1rem;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-remove-part:hover {
+      background: #c82333;
+    }
+
+    .btn-add-part {
+      padding: 0.75rem 1.5rem;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .btn-add-part:hover {
+      background: #218838;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+    }
+
+    .btn-submit {
+      padding: 0.75rem 2rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .btn-submit:hover {
+      background: #5568d3;
+    }
+
+    .btn-cancel {
+      padding: 0.75rem 2rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .btn-cancel:hover {
+      background: #5a6268;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      color: #842029;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .success-message {
+      background: #d1e7dd;
+      color: #0f5132;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .required::after {
+      content: " *";
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <h1>📝 Create New Order</h1>
+      </div>
+      <div class="nav-right">
+        <button class="btn-nav" onclick="navigateTo('order-dashboard.html')">← Back to Orders</button>
+        <button class="btn-nav" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="create-order-container">
+        <div class="error-message" id="error-message"></div>
+        <div class="success-message" id="success-message"></div>
+
+        <form id="create-order-form" onsubmit="handleCreateOrder(event)">
+          <!-- Customer Information -->
+          <div class="form-section">
+            <h3>Customer Information</h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="customer-name" class="required">Customer Name</label>
+                <input type="text" id="customer-name" name="customer_name" required>
+              </div>
+              <div class="form-group">
+                <label for="customer-email" class="required">Email</label>
+                <input type="email" id="customer-email" name="customer_email" required>
+              </div>
+              <div class="form-group">
+                <label for="customer-phone">Phone</label>
+                <input type="tel" id="customer-phone" name="customer_phone">
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Details -->
+          <div class="form-section">
+            <h3>Order Details</h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="order-date" class="required">Order Date</label>
+                <input type="date" id="order-date" name="order_date" required>
+              </div>
+              <div class="form-group">
+                <label for="due-date" class="required">Due Date</label>
+                <input type="date" id="due-date" name="due_date" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="notes">Notes</label>
+              <textarea id="notes" name="notes" placeholder="Special instructions, tolerances, etc."></textarea>
+            </div>
+          </div>
+
+          <!-- Parts -->
+          <div class="form-section">
+            <h3>Parts</h3>
+            <div class="parts-section">
+              <div class="parts-list" id="parts-list">
+                <!-- Parts added here -->
+              </div>
+              <button type="button" class="btn-add-part" onclick="addPartField()">+ Add Part</button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" onclick="navigateTo('order-dashboard.html')">Cancel</button>
+            <button type="submit" class="btn-submit">Create Order</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script>
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      ensureAuthed();
+      setTodayDate();
+      addPartField(); // Add initial part field
+    });
+
+    function setTodayDate() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('order-date').value = today;
+    }
+
+    function addPartField() {
+      const partsList = document.getElementById('parts-list');
+      const partIndex = partsList.children.length;
+
+      const partItem = document.createElement('div');
+      partItem.className = 'part-item';
+      partItem.innerHTML = `
+        <input type="text" placeholder="Part name" name="parts[${partIndex}][part_name]" required>
+        <textarea placeholder="Description" name="parts[${partIndex}][description]" style="resize: none; min-height: auto;"></textarea>
+        <input type="number" placeholder="Qty" name="parts[${partIndex}][quantity]" min="1" value="1">
+        <select name="parts[${partIndex}][material_id]">
+          <option value="">Select Material</option>
+        </select>
+        <button type="button" class="btn-remove-part" onclick="this.parentElement.remove()">Remove</button>
+      `;
+
+      partsList.appendChild(partItem);
+
+      // Load materials for this select
+      loadMaterialsForSelect(partItem.querySelector('select'));
+    }
+
+    async function loadMaterialsForSelect(selectElement) {
+      try {
+        const response = await fetch(`${API_URL}/materials`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await response.json();
+
+        selectElement.innerHTML = '<option value="">Select Material</option>';
+        if (data.success && data.materials) {
+          data.materials.forEach(material => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            option.textContent = `${material.material_name} (${material.current_stock} ${material.unit})`;
+            selectElement.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('Error loading materials:', error);
+      }
+    }
+
+    async function handleCreateOrder(event) {
+      event.preventDefault();
+
+      const formData = new FormData(document.getElementById('create-order-form'));
+      const order = {
+        customer_name: formData.get('customer_name'),
+        customer_email: formData.get('customer_email'),
+        customer_phone: formData.get('customer_phone'),
+        order_date: formData.get('order_date'),
+        due_date: formData.get('due_date'),
+        notes: formData.get('notes'),
+        parts: []
+      };
+
+      // Collect parts
+      const partsList = document.getElementById('parts-list');
+      partsList.querySelectorAll('.part-item').forEach(item => {
+        const part = {
+          part_name: item.querySelector('input[name*="part_name"]').value,
+          description: item.querySelector('textarea[name*="description"]').value,
+          quantity: parseInt(item.querySelector('input[name*="quantity"]').value) || 1,
+          material_id: item.querySelector('select[name*="material_id"]').value || null
+        };
+        if (part.part_name) order.parts.push(part);
+      });
+
+      if (order.parts.length === 0) {
+        showError('Please add at least one part');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/orders`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
+          body: JSON.stringify(order)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          showError(data.message || 'Failed to create order');
+          return;
+        }
+
+        showSuccess('Order created successfully!');
+        setTimeout(() => {
+          navigateTo('order-dashboard.html');
+        }, 1500);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function showError(message) {
+      const errorEl = document.getElementById('error-message');
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+    }
+
+    function showSuccess(message) {
+      const successEl = document.getElementById('success-message');
+      successEl.textContent = message;
+      successEl.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
