@@ -55,9 +55,18 @@ const schemas = {
     actualTime: Joi.number().integer().min(1).required()
   }),
 
+  // Allow numeric strings for flexibility with form inputs
   assignPart: Joi.object({
-    userId: Joi.number().integer(),
-    userIds: Joi.array().items(Joi.number().integer()).min(1)
+    userId: Joi.alternatives().try(
+      Joi.number().integer(),
+      Joi.string().pattern(/^\d+$/)
+    ),
+    userIds: Joi.array()
+      .items(Joi.alternatives().try(
+        Joi.number().integer(),
+        Joi.string().pattern(/^\d+$/)
+      ))
+      .min(1)
   }).or('userId', 'userIds')
 };
 
