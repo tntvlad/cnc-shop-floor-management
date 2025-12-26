@@ -1,28 +1,34 @@
 const pool = require('../config/database');
 
-// Get all parts
+// Get all parts with assignments
 exports.getAllParts = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
         p.*,
         COALESCE(json_agg(
-          json_build_object(
+          DISTINCT jsonb_build_object(
             'id', f.id,
             'filename', f.filename,
             'fileType', f.file_type,
             'uploadedAt', f.uploaded_at
           )
         ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
-        json_build_object(
-          'id', au.id,
-          'name', au.name,
-          'employeeId', au.employee_id
-        ) as assigned_user
+        COALESCE(json_agg(
+          jsonb_build_object(
+            'id', ja.id,
+            'userId', ja.user_id,
+            'userName', u.name,
+            'employeeId', u.employee_id,
+            'status', ja.status,
+            'assignedAt', ja.assigned_at
+          ) ORDER BY ja.assigned_at
+        ) FILTER (WHERE ja.id IS NOT NULL), '[]') as assignments
       FROM parts p
       LEFT JOIN files f ON p.id = f.part_id
-      LEFT JOIN users au ON p.assigned_to = au.id
-      GROUP BY p.id, au.id
+      LEFT JOIN job_assignments ja ON p.id = ja.part_id
+      LEFT JOIN users u ON ja.user_id = u.id
+      GROUP BY p.id
       ORDER BY p.order_position ASC
     `);
 
@@ -57,18 +63,24 @@ exports.getPart = async (req, res) => {
             'createdAt', fb.created_at
           ) ORDER BY fb.created_at DESC
         ) FILTER (WHERE fb.id IS NOT NULL), '[]') as feedback,
-        json_build_object(
-          'id', au.id,
-          'name', au.name,
-          'employeeId', au.employee_id
-        ) as assigned_user
+        COALESCE(json_agg(
+          jsonb_build_object(
+            'id', ja.id,
+            'userId', ja.user_id,
+            'userName', u2.name,
+            'employeeId', u2.employee_id,
+            'status', ja.status,
+            'assignedAt', ja.assigned_at
+          ) ORDER BY ja.assigned_at
+        ) FILTER (WHERE ja.id IS NOT NULL), '[]') as assignments
       FROM parts p
       LEFT JOIN files f ON p.id = f.part_id
       LEFT JOIN feedback fb ON p.id = fb.part_id
       LEFT JOIN users u ON fb.user_id = u.id
-      LEFT JOIN users au ON p.assigned_to = au.id
+      LEFT JOIN job_assignments ja ON p.id = ja.part_id
+      LEFT JOIN users u2 ON ja.user_id = u2.id
       WHERE p.id = $1
-      GROUP BY p.id, au.id
+      GROUP BY p.id
     `, [id]);
 
     if (result.rows.length === 0) {
@@ -82,42 +94,48 @@ exports.getPart = async (req, res) => {
   }
 };
 
-// Assign part to a user (Supervisor+)
+// Assign part to users (Supervisor+) - can assign to multiple operators
 exports.assignPart = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
+    const { userIds } = req.body; // Array of user IDs
 
-    // Validate user exists
-    const userRes = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
-    if (userRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Target user not found' });
-    }
-
-    // Only assign to Operator/Production roles (<= 300)
-    const targetLevel = userRes.rows[0].level || 100;
-    if (targetLevel > 300) {
-      return res.status(400).json({ error: 'Can only assign jobs to operators/QC (<= 300)' });
-    }
-
-    const result = await pool.query(
-      'UPDATE parts SET assigned_to = $1, assigned_at = NOW() WHERE id = $2 RETURNING *',
-      [userId, id]
-    );
-
-    if (result.rows.length === 0) {
+    // Validate part exists
+    const partRes = await pool.query('SELECT id FROM parts WHERE id = $1', [id]);
+    if (partRes.rows.length === 0) {
       return res.status(404).json({ error: 'Part not found' });
     }
 
-    const assignedPart = result.rows[0];
+    // Ensure userIds is an array
+    const idsToAssign = Array.isArray(userIds) ? userIds : [userIds];
 
-    // Get assigned user info
-    const au = await pool.query('SELECT id, name, employee_id FROM users WHERE id = $1', [userId]);
+    // Validate all users exist and have appropriate level
+    for (const userId of idsToAssign) {
+      const userRes = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
+      if (userRes.rows.length === 0) {
+        return res.status(404).json({ error: `User ${userId} not found` });
+      }
+      const targetLevel = userRes.rows[0].level || 100;
+      if (targetLevel > 300) {
+        return res.status(400).json({ error: `Cannot assign to user with level > 300` });
+      }
+    }
 
-    res.json({
-      ...assignedPart,
-      assigned_user: au.rows[0] || null
-    });
+    // Assign to all users (will update if already exists due to conflict handling)
+    const results = [];
+    for (const userId of idsToAssign) {
+      const result = await pool.query(
+        `INSERT INTO job_assignments (part_id, user_id, status)
+         VALUES ($1, $2, 'pending')
+         ON CONFLICT (part_id, user_id) DO UPDATE
+         SET status = 'pending', assigned_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [id, userId]
+      );
+      results.push(result.rows[0]);
+    }
+
+    res.json({ message: 'Part assigned successfully', assignments: results });
   } catch (error) {
     console.error('Assign part error:', error);
     res.status(500).json({ error: 'Failed to assign part' });
@@ -200,7 +218,7 @@ exports.deletePart = async (req, res) => {
   }
 };
 
-// Mark part as complete
+// Mark job assignment as complete (operator marks their own assignment as done)
 exports.completePart = async (req, res) => {
   const client = await pool.connect();
   
@@ -218,18 +236,26 @@ exports.completePart = async (req, res) => {
       return res.status(404).json({ error: 'Part not found' });
     }
 
-    const part = partResult.rows[0];
+    // Get job assignment for this user
+    const assignmentResult = await client.query(
+      'SELECT * FROM job_assignments WHERE part_id = $1 AND user_id = $2',
+      [id, userId]
+    );
 
-    // Check if part is locked
-    if (part.locked) {
+    if (assignmentResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(403).json({ error: 'Part is locked' });
+      return res.status(404).json({ error: 'Job assignment not found for this user' });
     }
 
-    // Mark part as completed
-    await client.query('UPDATE parts SET completed = TRUE WHERE id = $1', [id]);
+    const assignment = assignmentResult.rows[0];
 
-    // Record completion
+    // Mark assignment as completed
+    await client.query(
+      'UPDATE job_assignments SET status = $1, completed_at = NOW(), actual_time = $2 WHERE id = $3',
+      ['completed', actualTime, assignment.id]
+    );
+
+    // Record in part_completions for history
     await client.query(
       'INSERT INTO part_completions (part_id, user_id, actual_time) VALUES ($1, $2, $3)',
       [id, userId, actualTime]
@@ -244,23 +270,36 @@ exports.completePart = async (req, res) => {
       [id, userId]
     );
 
-    // Unlock next part
-    const nextPart = await client.query(
-      'SELECT id FROM parts WHERE order_position = $1 AND locked = TRUE',
-      [part.order_position + 1]
+    const part = partResult.rows[0];
+
+    // Check if all assignments for this part are completed
+    const pendingAssignments = await client.query(
+      "SELECT COUNT(*) as count FROM job_assignments WHERE part_id = $1 AND status != 'completed'",
+      [id]
     );
 
-    if (nextPart.rows.length > 0) {
-      await client.query('UPDATE parts SET locked = FALSE WHERE id = $1', [nextPart.rows[0].id]);
+    // If all assignments done, unlock next part
+    if (parseInt(pendingAssignments.rows[0].count, 10) === 0) {
+      const nextPart = await client.query(
+        'SELECT id FROM parts WHERE order_position = $1 AND locked = TRUE',
+        [part.order_position + 1]
+      );
+
+      if (nextPart.rows.length > 0) {
+        await client.query('UPDATE parts SET locked = FALSE WHERE id = $1', [nextPart.rows[0].id]);
+      }
+
+      // Mark part as completed
+      await client.query('UPDATE parts SET completed = TRUE WHERE id = $1', [id]);
     }
 
     await client.query('COMMIT');
 
-    res.json({ message: 'Part completed successfully', nextUnlocked: nextPart.rows.length > 0 });
+    res.json({ message: 'Job marked as completed successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Complete part error:', error);
-    res.status(500).json({ error: 'Failed to complete part' });
+    res.status(500).json({ error: 'Failed to complete job' });
   } finally {
     client.release();
   }
@@ -273,23 +312,84 @@ exports.getStatistics = async (req, res) => {
 
     const stats = await pool.query(`
       SELECT 
-        COUNT(DISTINCT pc.part_id) as completed_parts,
+        COUNT(DISTINCT ja.part_id) as completed_parts,
         COALESCE(SUM(tl.duration), 0) as total_time,
         (
           SELECT p.name 
-          FROM time_logs tl2
-          JOIN parts p ON tl2.part_id = p.id
-          WHERE tl2.user_id = $1 AND tl2.end_time IS NULL
+          FROM job_assignments ja2
+          JOIN parts p ON ja2.part_id = p.id
+          WHERE ja2.user_id = $1 AND ja2.status = 'in_progress'
           LIMIT 1
         ) as current_part
-      FROM part_completions pc
-      LEFT JOIN time_logs tl ON tl.user_id = pc.user_id
-      WHERE pc.user_id = $1
+      FROM job_assignments ja
+      LEFT JOIN time_logs tl ON tl.user_id = ja.user_id AND tl.part_id = ja.part_id
+      WHERE ja.user_id = $1 AND ja.status = 'completed'
     `, [userId]);
 
-    res.json(stats.rows[0]);
+    res.json(stats.rows[0] || { completed_parts: 0, total_time: 0, current_part: null });
   } catch (error) {
     console.error('Get statistics error:', error);
     res.status(500).json({ error: 'Failed to get statistics' });
+  }
+};
+
+// Get operator's assigned jobs (only their assignments)
+exports.getOperatorJobs = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT 
+        p.*,
+        COALESCE(json_agg(
+          DISTINCT jsonb_build_object(
+            'id', f.id,
+            'filename', f.filename,
+            'fileType', f.file_type,
+            'uploadedAt', f.uploaded_at
+          )
+        ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
+        json_build_object(
+          'id', ja.id,
+          'status', ja.status,
+          'assignedAt', ja.assigned_at
+        ) as assignment
+      FROM job_assignments ja
+      JOIN parts p ON ja.part_id = p.id
+      LEFT JOIN files f ON p.id = f.part_id
+      WHERE ja.user_id = $1
+      GROUP BY p.id, ja.id, ja.status, ja.assigned_at
+      ORDER BY ja.status DESC, p.order_position ASC
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get operator jobs error:', error);
+    res.status(500).json({ error: 'Failed to get operator jobs' });
+  }
+};
+
+// Start job (update job assignment status)
+exports.startJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `UPDATE job_assignments 
+       SET status = 'in_progress', started_at = NOW()
+       WHERE part_id = $1 AND user_id = $2
+       RETURNING *`,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Job assignment not found' });
+    }
+
+    res.json({ message: 'Job started', assignment: result.rows[0] });
+  } catch (error) {
+    console.error('Start job error:', error);
+    res.status(500).json({ error: 'Failed to start job' });
   }
 };

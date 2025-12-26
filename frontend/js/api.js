@@ -110,8 +110,25 @@ const API = {
       });
     },
 
+    async assignMultiple(id, userIds) {
+      return API.request(`/parts/${id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ userIds })
+      });
+    },
+
     async getStatistics() {
       return API.request('/parts/statistics');
+    },
+
+    async getOperatorJobs() {
+      return API.request('/parts/my-jobs');
+    },
+
+    async startJob(id) {
+      return API.request(`/parts/${id}/start`, {
+        method: 'POST'
+      });
     }
   },
 

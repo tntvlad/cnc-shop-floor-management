@@ -1,6 +1,7 @@
 -- CNC Shop Floor Management System Database Schema
 
 -- Drop existing tables
+DROP TABLE IF EXISTS job_assignments CASCADE;
 DROP TABLE IF EXISTS part_completions CASCADE;
 DROP TABLE IF EXISTS time_logs CASCADE;
 DROP TABLE IF EXISTS feedback CASCADE;
@@ -30,9 +31,20 @@ CREATE TABLE parts (
     order_position INTEGER UNIQUE NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
     locked BOOLEAN DEFAULT TRUE,
-    assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    assigned_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Job Assignments table - allows same job to be assigned to multiple operators
+CREATE TABLE job_assignments (
+    id SERIAL PRIMARY KEY,
+    part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'pending', -- pending, in_progress, completed
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    actual_time INTEGER, -- in minutes
+    UNIQUE(part_id, user_id)
 );
 
 -- Files table
@@ -78,6 +90,9 @@ CREATE TABLE part_completions (
 CREATE INDEX idx_parts_order_position ON parts(order_position);
 CREATE INDEX idx_parts_locked ON parts(locked);
 CREATE INDEX idx_parts_completed ON parts(completed);
+CREATE INDEX idx_job_assignments_part_id ON job_assignments(part_id);
+CREATE INDEX idx_job_assignments_user_id ON job_assignments(user_id);
+CREATE INDEX idx_job_assignments_status ON job_assignments(status);
 CREATE INDEX idx_files_part_id ON files(part_id);
 CREATE INDEX idx_feedback_part_id ON feedback(part_id);
 CREATE INDEX idx_time_logs_user_id ON time_logs(user_id);

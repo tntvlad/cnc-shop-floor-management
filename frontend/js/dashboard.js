@@ -105,44 +105,72 @@ async function loadStatistics() {
   }
 }
 
-// Load parts
+// Load parts - for operators, show only their assigned jobs
 async function loadParts() {
   const partsGrid = document.getElementById('partsGrid');
-  partsGrid.innerHTML = '<div class="loading">Loading parts...</div>';
+  partsGrid.innerHTML = '<div class="loading">Loading jobs...</div>';
 
   try {
-    const parts = await API.parts.getAll();
+    const user = Auth.getUser();
+    const isOperator = (typeof user.level === 'number' && user.level <= 300) || 
+                       (user.role && (user.role === 'operator' || user.role === 'cutting_operator'));
+    
+    let parts;
+    
+    // Load operator's assigned jobs or all parts for supervisors
+    if (isOperator) {
+      parts = await API.parts.getOperatorJobs();
+    } else {
+      parts = await API.parts.getAll();
+    }
     
     if (parts.length === 0) {
-      partsGrid.innerHTML = '<div class="loading">No parts available</div>';
+      partsGrid.innerHTML = '<div class="loading">No jobs assigned</div>';
       return;
     }
 
     partsGrid.innerHTML = '';
     parts.forEach(part => {
-      const card = createPartCard(part);
+      const card = createPartCard(part, isOperator);
       partsGrid.appendChild(card);
     });
   } catch (error) {
     console.error('Failed to load parts:', error);
-    partsGrid.innerHTML = '<div class="loading">Failed to load parts</div>';
+    partsGrid.innerHTML = '<div class="loading">Failed to load jobs</div>';
   }
 }
 
 // Create part card
-function createPartCard(part) {
+function createPartCard(part, isOperator = false) {
   const card = document.createElement('div');
   card.className = 'part-card';
   
-  if (part.locked) {
+  // Determine status from assignment if operator
+  let statusText = 'Available';
+  let statusBadge = 'badge-unlocked';
+  
+  if (isOperator && part.assignment) {
+    if (part.assignment.status === 'completed') {
+      statusText = 'Completed';
+      statusBadge = 'badge-completed';
+    } else if (part.assignment.status === 'in_progress') {
+      statusText = 'In Progress';
+      statusBadge = 'badge-unlocked';
+    } else if (part.assignment.status === 'pending') {
+      statusText = 'Pending';
+      statusBadge = 'badge-locked';
+    }
+  } else if (part.locked) {
     card.classList.add('locked');
+    statusBadge = 'badge-locked';
+    statusText = 'Locked';
   }
+  
   if (part.completed) {
     card.classList.add('completed');
+    statusBadge = 'badge-completed';
+    statusText = 'Completed';
   }
-
-  const statusBadge = part.completed ? 'badge-completed' : (part.locked ? 'badge-locked' : 'badge-unlocked');
-  const statusText = part.completed ? 'Completed' : (part.locked ? 'Locked' : 'Available');
 
   card.innerHTML = `
     <div class="part-card-header">
@@ -169,8 +197,9 @@ function createPartCard(part) {
     </div>
   `;
 
-  // Only allow clicking on unlocked and uncompleted parts
-  if (!part.locked && !part.completed) {
+  // Allow clicking if operator has pending/in_progress assignment or if not completed/locked
+  const canClick = isOperator ? (part.assignment && part.assignment.status !== 'completed') : (!part.locked && !part.completed);
+  if (canClick) {
     card.style.cursor = 'pointer';
     card.addEventListener('click', () => openPartModal(part.id));
   }

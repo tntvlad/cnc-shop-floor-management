@@ -60,69 +60,170 @@ async function createJob(event) {
 
 async function loadJobs() {
   const tbody = document.getElementById('jobsTableBody');
-  tbody.innerHTML = '<tr><td colspan="7" class="text-muted" style="padding:10px;">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="text-muted" style="padding:10px;">Loading...</td></tr>';
 
   try {
     const parts = await API.parts.getAll();
     tbody.innerHTML = '';
     parts.forEach(part => {
       const tr = document.createElement('tr');
-      const assigned = part.assigned_user;
+      const assignedUsers = (part.assignments || []).map(a => `${a.employeeId} (${a.status})`).join(', ') || 'Unassigned';
       tr.innerHTML = `
         <td>${part.order_position}</td>
         <td>${part.name}</td>
         <td>${part.material}</td>
         <td>${part.quantity}</td>
         <td>${part.target_time}</td>
+        <td style="font-size: 0.9em; color: #666;">${assignedUsers}</td>
         <td>
-          <select data-part="${part.id}" class="assign-select">
-            <option value="">Unassigned</option>
-          </select>
-        </td>
-        <td>
-          <button class="btn btn-primary" data-action="assign" data-id="${part.id}">Save Assignment</button>
+          <button class="btn btn-primary" data-action="assign" data-id="${part.id}">Assign to Users</button>
         </td>`;
       tbody.appendChild(tr);
-    });
-
-    // Populate dropdowns
-    document.querySelectorAll('.assign-select').forEach(sel => {
-      const partId = parseInt(sel.getAttribute('data-part'), 10);
-      assignableUsers.forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.id;
-        opt.textContent = `${u.employee_id} - ${u.name}`;
-        sel.appendChild(opt);
-      });
-      const part = parts.find(p => p.id === partId);
-      if (part && part.assigned_user && part.assigned_user.id) {
-        sel.value = part.assigned_user.id;
-      }
     });
 
     // Wire assign buttons
     tbody.querySelectorAll('button[data-action="assign"]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const id = parseInt(btn.getAttribute('data-id'), 10);
-        const sel = tbody.querySelector(`select[data-part="${id}"]`);
-        const userId = sel.value ? parseInt(sel.value, 10) : null;
-        try {
-          if (userId) {
-            await API.parts.assign(id, userId);
-          } else {
-            // Unassign by setting to null via update
-            await API.parts.update(id, { assignedTo: null });
-          }
-          btn.textContent = '✓ Saved';
-          setTimeout(() => btn.textContent = 'Save Assignment', 1500);
-        } catch (e) {
-          btn.textContent = '✗ Error';
-          setTimeout(() => btn.textContent = 'Save Assignment', 2000);
-        }
+        const partId = parseInt(btn.getAttribute('data-id'), 10);
+        const part = parts.find(p => p.id === partId);
+        openAssignmentModal(partId, part);
       });
     });
 
   } catch (error) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-danger" style="padding:10px;">Failed to load jobs</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-danger" style="padding:10px;">Failed to load jobs</td></tr>';
   }
+}
+
+function openAssignmentModal(partId, part) {
+  // Create modal HTML
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>Assign Job: ${part.name}</h3>
+        <button class="modal-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        <p style="margin-bottom: 15px;">Select operators to assign this job:</p>
+        <div id="assignmentCheckboxes"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button">Cancel</button>
+        <button class="btn btn-primary" type="button">Assign Selected</button>
+      </div>
+    </div>
+  `;
+
+  const checkboxContainer = modal.querySelector('#assignmentCheckboxes');
+  
+  // Build checkboxes for each operator
+  assignableUsers.forEach(user => {
+    const isAssigned = (part.assignments || []).some(a => a.userId === user.id);
+    const div = document.createElement('div');
+    div.style.marginBottom = '10px';
+    div.innerHTML = `
+      <label style="display: flex; align-items: center; cursor: pointer;">
+        <input type="checkbox" value="${user.id}" ${isAssigned ? 'checked' : ''} style="margin-right: 10px;">
+        <span>${user.employee_id} - ${user.name} (${user.level === 100 ? 'CNC Operator' : user.level === 200 ? 'Cutting Operator' : 'QC'})</span>
+      </label>
+    `;
+    checkboxContainer.appendChild(div);
+  });
+
+  // Handle events
+  const cancelBtn = modal.querySelector('.modal-footer .btn-secondary');
+  const assignBtn = modal.querySelector('.modal-footer .btn-primary');
+  const closeBtn = modal.querySelector('.modal-close');
+
+  const cleanup = () => modal.remove();
+
+  cancelBtn.addEventListener('click', cleanup);
+  closeBtn.addEventListener('click', cleanup);
+
+  assignBtn.addEventListener('click', async () => {
+    const selectedCheckboxes = modal.querySelectorAll('input[type="checkbox"]:checked');
+    const userIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value, 10));
+
+    if (userIds.length === 0) {
+      alert('Please select at least one operator');
+      return;
+    }
+
+    try {
+      assignBtn.disabled = true;
+      assignBtn.textContent = 'Assigning...';
+      
+      await API.parts.assignMultiple(partId, userIds);
+      
+      alert('Job assigned successfully!');
+      cleanup();
+      loadJobs();
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+      assignBtn.disabled = false;
+      assignBtn.textContent = 'Assign Selected';
+    }
+  });
+
+  // Add modal styles if not present
+  if (!document.getElementById('modalStyles')) {
+    const style = document.createElement('style');
+    style.id = 'modalStyles';
+    style.textContent = `
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-content {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+      }
+      .modal-header {
+        background: #f5f5f5;
+        padding: 20px;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #999;
+      }
+      .modal-body {
+        padding: 20px;
+      }
+      .modal-footer {
+        background: #f5f5f5;
+        padding: 15px 20px;
+        border-top: 1px solid #ddd;
+        text-align: right;
+      }
+      .modal-footer button {
+        margin-left: 10px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(modal);
 }

@@ -66,12 +66,14 @@ app.post('/api/admin/database/restore', authMiddleware, adminController.database
 
 // Parts routes
 app.get('/api/parts', authMiddleware, partsController.getAllParts);
+app.get('/api/parts/my-jobs', authMiddleware, partsController.getOperatorJobs);
 app.get('/api/parts/statistics', authMiddleware, partsController.getStatistics);
 app.get('/api/parts/:id', authMiddleware, partsController.getPart);
 app.post('/api/parts', authMiddleware, requireSupervisor(), validateRequest(schemas.createPart), partsController.createPart);
 app.put('/api/parts/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updatePart), partsController.updatePart);
 app.delete('/api/parts/:id', authMiddleware, requireSupervisor(), partsController.deletePart);
 app.post('/api/parts/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignPart), partsController.assignPart);
+app.post('/api/parts/:id/start', authMiddleware, partsController.startJob);
 app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.completeTime), partsController.completePart);
 
 // Feedback routes
