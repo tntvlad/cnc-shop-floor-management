@@ -2,6 +2,9 @@ const Joi = require('joi');
 
 const validateRequest = (schema) => {
   return (req, res, next) => {
+    // Log what we received for debugging
+    console.log('Validation - Request body:', JSON.stringify(req.body));
+    
     const { error } = schema.validate(req.body, { abortEarly: false });
     
     if (error) {
@@ -9,6 +12,7 @@ const validateRequest = (schema) => {
         field: detail.path.join('.'),
         message: detail.message
       }));
+      console.error('Validation failed:', errors);
       return res.status(400).json({ error: 'Validation failed', details: errors });
     }
     
