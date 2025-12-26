@@ -235,6 +235,14 @@ async function openPartModal(partId) {
     // Load feedback
     loadPartFeedback(part);
 
+    // Show/hide file upload for supervisors/admins
+    const user = Auth.getUser();
+    const canUpload = (typeof user.level === 'number' && user.level >= 400);
+    const uploadSection = document.getElementById('fileUploadSection');
+    if (uploadSection) {
+      uploadSection.style.display = canUpload ? 'block' : 'none';
+    }
+
     // Show modal
     document.getElementById('partModal').style.display = 'flex';
 
@@ -468,6 +476,63 @@ function setupEventListeners() {
       alert(error.message || 'Failed to complete part');
     }
   });
+
+  // File upload form
+  const fileUploadForm = document.getElementById('fileUploadForm');
+  if (fileUploadForm) {
+    fileUploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentPart) return;
+
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        alert('Please select a file');
+        return;
+      }
+
+      // Validate file type
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['pdf', 'dxf', 'nc', 'txt'].includes(ext)) {
+        alert('Only PDF, DXF, NC, and TXT files are allowed');
+        return;
+      }
+
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${config.API_BASE_URL}/parts/${currentPart.id}/files`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Upload failed');
+        }
+
+        // Reset form and reload files
+        fileInput.value = '';
+        const part = await API.parts.getOne(currentPart.id);
+        currentPart = part;
+        loadPartFiles(part);
+        alert('File uploaded successfully!');
+      } catch (error) {
+        alert(error.message || 'Failed to upload file');
+      }
+    });
+  }
 }
 
 // Open complete modal
