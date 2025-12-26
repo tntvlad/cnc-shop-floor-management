@@ -179,14 +179,30 @@ fi
 # =============================================================================
 echo ""
 echo -e "${YELLOW}=== STEP 7: REBUILD AND RESTART CONTAINERS ===${NC}"
+echo "Cleaning up stale containers to avoid recreate issues..."
+
+# Safe cleanup without touching volumes (database preserved)
+docker-compose down --remove-orphans || true
+
 echo "Rebuilding and restarting containers with new code..."
 
 if docker-compose up -d --build; then
     echo -e "${GREEN}✅ Containers rebuilt and restarted successfully${NC}"
     sleep 5
 else
-    echo -e "${RED}❌ Container rebuild failed!${NC}"
-    exit 1
+    echo -e "${RED}❌ Container rebuild failed! Attempting one-time cleanup and retry...${NC}"
+    # Remove only backend container if present
+    docker rm -f cnc-backend 2>/dev/null || true
+    # Prune dangling images (keeps tagged images and all volumes)
+    docker image prune -f >/dev/null 2>&1 || true
+
+    if docker-compose up -d --build; then
+        echo -e "${GREEN}✅ Containers rebuilt and restarted after cleanup${NC}"
+        sleep 5
+    else
+        echo -e "${RED}❌ Container rebuild failed after cleanup. Please check docker logs.${NC}"
+        exit 1
+    fi
 fi
 
 # =============================================================================
