@@ -98,7 +98,7 @@ exports.getPart = async (req, res) => {
 exports.assignPart = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userIds } = req.body; // Array of user IDs
+    const { userIds, userId } = req.body; // Accept array or single value
 
     // Validate part exists
     const partRes = await pool.query('SELECT id FROM parts WHERE id = $1', [id]);
@@ -106,11 +106,22 @@ exports.assignPart = async (req, res) => {
       return res.status(404).json({ error: 'Part not found' });
     }
 
-    // Ensure userIds is an array
-    const idsToAssign = Array.isArray(userIds) ? userIds : [userIds];
+    // Normalize to an array of numeric IDs
+    const idsToAssign = [];
+    if (Array.isArray(userIds)) idsToAssign.push(...userIds);
+    if (userIds && !Array.isArray(userIds)) idsToAssign.push(userIds);
+    if (userId !== undefined && userId !== null) idsToAssign.push(userId);
+
+    const normalizedIds = idsToAssign
+      .map((val) => Number(val))
+      .filter((val) => !Number.isNaN(val));
+
+    if (normalizedIds.length === 0) {
+      return res.status(400).json({ error: 'No user IDs provided' });
+    }
 
     // Validate all users exist and have appropriate level
-    for (const userId of idsToAssign) {
+    for (const userId of normalizedIds) {
       const userRes = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
       if (userRes.rows.length === 0) {
         return res.status(404).json({ error: `User ${userId} not found` });
@@ -123,7 +134,7 @@ exports.assignPart = async (req, res) => {
 
     // Assign to all users (will update if already exists due to conflict handling)
     const results = [];
-    for (const userId of idsToAssign) {
+    for (const userId of normalizedIds) {
       const result = await pool.query(
         `INSERT INTO job_assignments (part_id, user_id, status)
          VALUES ($1, $2, 'pending')
