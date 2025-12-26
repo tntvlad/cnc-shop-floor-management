@@ -294,7 +294,7 @@
       const partItem = document.createElement('div');
       partItem.className = 'part-item';
       partItem.innerHTML = `
-        <input type="text" placeholder="Part name" name="parts[${partIndex}][part_name]" required>
+        <input type="text" placeholder="Part name" name="parts[${partIndex}][part_name]">
         <textarea placeholder="Description" name="parts[${partIndex}][description]" style="resize: none; min-height: auto;"></textarea>
         <input type="number" placeholder="Qty" name="parts[${partIndex}][quantity]" min="1" value="1">
         <select name="parts[${partIndex}][material_id]">
@@ -332,6 +332,10 @@
 
     async function handleCreateOrder(event) {
       event.preventDefault();
+      
+      // Clear previous messages
+      document.getElementById('error-message').style.display = 'none';
+      document.getElementById('success-message').style.display = 'none';
 
       const formData = new FormData(document.getElementById('create-order-form'));
       const order = {
@@ -344,22 +348,38 @@
         parts: []
       };
 
+      // Validate required fields
+      if (!order.customer_name || !order.customer_email || !order.order_date || !order.due_date) {
+        showError('Please fill in all required fields (Customer name, email, order date, due date)');
+        return;
+      }
+
       // Collect parts
       const partsList = document.getElementById('parts-list');
-      partsList.querySelectorAll('.part-item').forEach(item => {
-        const part = {
-          part_name: item.querySelector('input[name*="part_name"]').value,
-          description: item.querySelector('textarea[name*="description"]').value,
-          quantity: parseInt(item.querySelector('input[name*="quantity"]').value) || 1,
-          material_id: item.querySelector('select[name*="material_id"]').value || null
-        };
-        if (part.part_name) order.parts.push(part);
+      partsList.querySelectorAll('.part-item').forEach((item, index) => {
+        const partName = item.querySelector('input[name*="part_name"]').value.trim();
+        const description = item.querySelector('textarea[name*="description"]').value.trim();
+        const quantity = parseInt(item.querySelector('input[name*="quantity"]').value) || 1;
+        const materialId = item.querySelector('select[name*="material_id"]').value;
+
+        // Only include parts with a name
+        if (partName) {
+          const part = {
+            part_name: partName,
+            description: description || '',
+            quantity: quantity,
+            material_id: materialId ? parseInt(materialId) : null
+          };
+          order.parts.push(part);
+        }
       });
 
       if (order.parts.length === 0) {
-        showError('Please add at least one part');
+        showError('Please add at least one part with a name');
         return;
       }
+
+      console.log('Creating order:', JSON.stringify(order, null, 2));
 
       try {
         const response = await fetch(`${API_URL}/orders`, {
@@ -372,18 +392,23 @@
         });
 
         const data = await response.json();
+        
+        console.log('Response status:', response.status);
+        console.log('Response data:', data);
 
         if (!response.ok) {
-          showError(data.message || 'Failed to create order');
+          const errorMsg = data.message || data.details || JSON.stringify(data) || 'Failed to create order';
+          showError(errorMsg);
           return;
         }
 
-        showSuccess('Order created successfully!');
+        showSuccess('Order created successfully! Redirecting...');
         setTimeout(() => {
           navigateTo('order-dashboard.html');
         }, 1500);
       } catch (error) {
-        showError(error.message);
+        console.error('Request failed:', error);
+        showError('Error: ' + error.message);
       }
     }
 

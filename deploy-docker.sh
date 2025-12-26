@@ -130,16 +130,13 @@ fi
 echo ""
 echo -e "${YELLOW}=== STEP 5: UPDATE DATABASE SCHEMA (V2) ===${NC}"
 
-# Check if user wants fresh schema or migration
-echo -e "${YELLOW}Database Schema Options:${NC}"
-echo -e "  1. Fresh Schema V2 (recommended for new/test installs)"
-echo -e "  2. Keep existing data (migrate to V2)"
-echo ""
-read -p "Choose option (1 or 2) [default: 1]: " SCHEMA_OPTION
-SCHEMA_OPTION=${SCHEMA_OPTION:-1}
+# Check if V2 schema is already deployed
+SCHEMA_CHECK=$(docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'orders';" 2>/dev/null || echo "0")
 
-if [ "$SCHEMA_OPTION" = "1" ]; then
-    echo -e "${CYAN}Using fresh Schema V2 (all existing data will be replaced)...${NC}"
+if [ "$SCHEMA_CHECK" = "1" ]; then
+    echo -e "${GREEN}✓ V2 Schema already deployed - skipping schema creation${NC}"
+else
+    echo -e "${CYAN}Deploying fresh Schema V2...${NC}"
     
     # Check if schema-v2-complete.sql exists
     if [ -f "backend/db/schema-v2-complete.sql" ]; then
@@ -160,11 +157,6 @@ if [ "$SCHEMA_OPTION" = "1" ]; then
         echo -e "${RED}❌ Schema file not found: backend/db/schema-v2-complete.sql${NC}"
         exit 1
     fi
-else
-    echo -e "${CYAN}Keeping existing data (migration mode)...${NC}"
-    echo -e "${YELLOW}⚠️  This requires custom migration scripts (not included in standard deploy)${NC}"
-    echo -e "${YELLOW}   Please run migrate-to-v2.sh for automated migration${NC}"
-    exit 0
 fi
 
 # =============================================================================
