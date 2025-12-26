@@ -266,8 +266,9 @@ function loadPartFiles(part) {
   filesContainer.innerHTML = '';
   part.files.forEach(file => {
     const btn = document.createElement('button');
-    btn.className = `file-btn file-${file.filetype.toLowerCase()}`;
-    btn.textContent = `${file.filetype} - ${file.filename}`;
+    const fileType = (file.fileType || file.filetype || 'FILE').toUpperCase();
+    btn.className = `file-btn file-${fileType.toLowerCase()}`;
+    btn.textContent = `${fileType} - ${file.filename}`;
     btn.addEventListener('click', () => downloadFile(file.id, file.filename));
     filesContainer.appendChild(btn);
   });
