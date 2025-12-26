@@ -311,22 +311,50 @@
 
     async function loadMaterialsForSelect(selectElement) {
       try {
+        console.log('Loading materials from:', `${API_URL}/materials`);
+        console.log('Auth token:', getToken() ? 'Present' : 'Missing');
+        
         const response = await fetch(`${API_URL}/materials`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
+        
+        console.log('Materials API response status:', response.status);
+        
+        if (!response.ok) {
+          console.error('Materials API error:', response.status, response.statusText);
+          selectElement.innerHTML = '<option value="">Error loading materials</option>';
+          return;
+        }
+
         const data = await response.json();
+        console.log('Materials data received:', data);
 
         selectElement.innerHTML = '<option value="">Select Material</option>';
-        if (data.success && data.materials) {
+        
+        if (data.success && data.materials && Array.isArray(data.materials)) {
+          console.log(`Found ${data.materials.length} materials`);
           data.materials.forEach(material => {
             const option = document.createElement('option');
             option.value = material.id;
             option.textContent = `${material.material_name} (${material.current_stock} ${material.unit})`;
             selectElement.appendChild(option);
           });
+        } else if (data.materials && Array.isArray(data.materials)) {
+          // If no success flag but has materials array
+          console.log(`Found ${data.materials.length} materials (no success flag)`);
+          data.materials.forEach(material => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            option.textContent = `${material.material_name} (${material.current_stock} ${material.unit})`;
+            selectElement.appendChild(option);
+          });
+        } else {
+          console.warn('No materials in response:', data);
+          selectElement.innerHTML = '<option value="">No materials available</option>';
         }
       } catch (error) {
         console.error('Error loading materials:', error);
+        selectElement.innerHTML = '<option value="">Error: ' + error.message + '</option>';
       }
     }
 
