@@ -23,9 +23,33 @@ BACKUP_DIR="./backups"
 BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
 
 # =============================================================================
-# STEP 1: CHECK DOCKER
+# STEP 1: PULL LATEST CODE FROM GIT
 # =============================================================================
-echo -e "${YELLOW}=== STEP 1: CHECK DOCKER ===${NC}"
+echo -e "${YELLOW}=== STEP 1: PULL LATEST CODE FROM GIT ===${NC}"
+echo "Checking git status..."
+
+if [ -d ".git" ]; then
+    echo -e "${CYAN}Git repository detected. Pulling latest changes...${NC}"
+    
+    # Stash any local changes
+    git stash
+    
+    # Pull latest
+    if git pull; then
+        echo -e "${GREEN}✅ Successfully pulled latest code${NC}"
+    else
+        echo -e "${RED}❌ Git pull failed!${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}⚠️  Not a git repository. Skipping git pull.${NC}"
+fi
+
+# =============================================================================
+# STEP 2: CHECK DOCKER
+# =============================================================================
+echo ""
+echo -e "${YELLOW}=== STEP 2: CHECK DOCKER ===${NC}"
 echo "Checking if Docker is running..."
 
 if ! docker ps >/dev/null 2>&1; then
@@ -47,7 +71,7 @@ fi
 # STEP 2: FIND DATABASE CONTAINER
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 2: FIND DATABASE CONTAINER ===${NC}"
+echo -e "${YELLOW}=== STEP 3: FIND DATABASE CONTAINER ===${NC}"
 
 # Try different patterns to find database container
 DB_CONTAINER=$(docker ps --filter "name=db" --format "{{.Names}}" | head -n 1)
@@ -78,7 +102,7 @@ fi
 # STEP 3: BACKUP DATABASE
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 3: BACKUP DATABASE ===${NC}"
+echo -e "${YELLOW}=== STEP 4: BACKUP DATABASE ===${NC}"
 echo "Creating backup of PostgreSQL database..."
 
 # Create backup directory
@@ -104,26 +128,43 @@ fi
 # STEP 4: UPDATE DATABASE SCHEMA
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 4: UPDATE DATABASE SCHEMA ===${NC}"
-echo "Running schema migration..."
+echo -e "${YELLOW}=== STEP 5: UPDATE DATABASE SCHEMA ===${NC}"
+echo "Running schema migration (preserving existing data)..."
 
-# Copy schema to container and execute
-docker cp backend/db/schema.sql "$DB_CONTAINER:/tmp/schema.sql"
-
-if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/schema.sql; then
-    echo -e "${GREEN}✅ Schema updated successfully${NC}"
+# Check if migration file exists
+if [ -f "backend/db/migration-add-sequence.sql" ]; then
+    echo -e "${CYAN}Using migration script to preserve users and data...${NC}"
+    # Copy migration to container and execute
+    docker cp backend/db/migration-add-sequence.sql "$DB_CONTAINER:/tmp/migration.sql"
+    
+    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration.sql; then
+        echo -e "${GREEN}✅ Migration completed successfully (data preserved)${NC}"
+    else
+        echo -e "${RED}❌ Migration failed!${NC}"
+        echo -e "${YELLOW}Rolling back is available. To restore:${NC}"
+        echo -e "${CYAN}  cat $BACKUP_DIR/$BACKUP_FILE | docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor${NC}"
+        exit 1
+    fi
 else
-    echo -e "${RED}❌ Schema update failed!${NC}"
-    echo -e "${YELLOW}Rolling back is available. To restore:${NC}"
-    echo -e "${CYAN}  docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor < $BACKUP_DIR/$BACKUP_FILE${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  Migration script not found. Using full schema (will recreate tables)...${NC}"
+    # Copy schema to container and execute
+    docker cp backend/db/schema.sql "$DB_CONTAINER:/tmp/schema.sql"
+    
+    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/schema.sql; then
+        echo -e "${GREEN}✅ Schema updated successfully${NC}"
+    else
+        echo -e "${RED}❌ Schema update failed!${NC}"
+        echo -e "${YELLOW}Rolling back is available. To restore:${NC}"
+        echo -e "${CYAN}  cat $BACKUP_DIR/$BACKUP_FILE | docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor${NC}"
+        exit 1
+    fi
 fi
 
 # =============================================================================
 # STEP 5: VERIFY DATABASE CHANGES
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 5: VERIFY DATABASE CHANGES ===${NC}"
+echo -e "${YELLOW}=== STEP 6: VERIFY DATABASE CHANGES ===${NC}"
 echo "Verifying new table exists..."
 
 if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -c "SELECT COUNT(*) FROM job_assignments;" >/dev/null 2>&1; then
@@ -137,25 +178,22 @@ fi
 # STEP 6: RESTART BACKEND
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 6: RESTART BACKEND ===${NC}"
-echo "Restarting backend container..."
+echo -e "${YELLOW}=== STEP 7: REBUILD AND RESTART CONTAINERS ===${NC}"
+echo "Rebuilding and restarting containers with new code..."
 
-if [ -n "$BACKEND_CONTAINER" ]; then
-    docker restart "$BACKEND_CONTAINER"
-    sleep 3
-    echo -e "${GREEN}✅ Backend restarted successfully${NC}"
-else
-    echo -e "${YELLOW}⚠️  Backend container not found. Restarting all containers...${NC}"
-    docker-compose restart
+if docker-compose up -d --build; then
+    echo -e "${GREEN}✅ Containers rebuilt and restarted successfully${NC}"
     sleep 5
-    echo -e "${GREEN}✅ Containers restarted${NC}"
+else
+    echo -e "${RED}❌ Container rebuild failed!${NC}"
+    exit 1
 fi
 
 # =============================================================================
 # STEP 7: VERIFY API ENDPOINTS
 # =============================================================================
 echo ""
-echo -e "${YELLOW}=== STEP 7: VERIFY API ENDPOINTS ===${NC}"
+echo -e "${YELLOW}=== STEP 8: VERIFY API ENDPOINTS ===${NC}"
 echo "Testing API endpoints..."
 
 sleep 2

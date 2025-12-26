@@ -112,7 +112,7 @@ async function loadParts() {
 
   try {
     const user = Auth.getUser();
-    const isOperator = (typeof user.level === 'number' && user.level <= 300) || 
+    const isOperator = (typeof user.level === 'number' && user.level < 400) || 
                        (user.role && (user.role === 'operator' || user.role === 'cutting_operator'));
     
     let parts;
