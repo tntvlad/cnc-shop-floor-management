@@ -52,8 +52,9 @@ const schemas = {
   }),
 
   assignPart: Joi.object({
-    userId: Joi.number().integer().required()
-  })
+    userId: Joi.number().integer(),
+    userIds: Joi.array().items(Joi.number().integer()).min(1)
+  }).or('userId', 'userIds')
 };
 
 module.exports = { validateRequest, schemas };
