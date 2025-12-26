@@ -413,6 +413,7 @@ function showPdfPreview(fileId) {
       const blobUrl = window.URL.createObjectURL(blob);
       previewFrame.src = blobUrl;
       previewSection.style.display = 'block';
+      updatePdfFullscreenState();
     })
     .catch(error => {
       console.error('PDF preview failed:', error);
@@ -424,11 +425,43 @@ function showPdfPreview(fileId) {
 function hidePdfPreview() {
   const previewSection = document.getElementById('pdfPreviewSection');
   const previewFrame = document.getElementById('pdfPreviewFrame');
+  if (document.fullscreenElement === previewSection && document.exitFullscreen) {
+    document.exitFullscreen();
+  }
   if (previewFrame.src) {
     window.URL.revokeObjectURL(previewFrame.src);
     previewFrame.src = '';
   }
   previewSection.style.display = 'none';
+  updatePdfFullscreenState();
+}
+
+// Toggle fullscreen for PDF preview
+function togglePdfFullscreen() {
+  const previewSection = document.getElementById('pdfPreviewSection');
+  if (!previewSection) return;
+
+  if (document.fullscreenElement === previewSection) {
+    if (document.exitFullscreen) document.exitFullscreen();
+  } else if (previewSection.requestFullscreen) {
+    previewSection.requestFullscreen();
+  }
+}
+
+// Sync fullscreen button label and iframe height
+function updatePdfFullscreenState() {
+  const previewSection = document.getElementById('pdfPreviewSection');
+  const previewFrame = document.getElementById('pdfPreviewFrame');
+  const fullscreenBtn = document.getElementById('pdfFullscreenBtn');
+  const isFullscreen = document.fullscreenElement === previewSection;
+
+  if (fullscreenBtn) {
+    fullscreenBtn.textContent = isFullscreen ? 'Exit Full Screen' : 'Full Screen';
+  }
+
+  if (previewFrame) {
+    previewFrame.style.height = isFullscreen ? 'calc(100vh - 80px)' : '500px';
+  }
 }
 
 // Load part feedback
@@ -509,6 +542,17 @@ function setupEventListeners() {
       Auth.logout();
     }
   });
+
+  // PDF fullscreen
+  const fullscreenBtn = document.getElementById('pdfFullscreenBtn');
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      togglePdfFullscreen();
+    });
+  }
+
+  document.addEventListener('fullscreenchange', updatePdfFullscreenState);
 
   // Refresh parts
   document.getElementById('refreshBtn').addEventListener('click', () => {
