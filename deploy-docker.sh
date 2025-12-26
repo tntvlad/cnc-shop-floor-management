@@ -35,10 +35,12 @@ fi
 echo -e "${GREEN}✅ Docker is running${NC}"
 
 # Check if containers are running
-if ! docker ps | grep -q "db"; then
+if ! docker ps | grep -q -E "db|postgres"; then
     echo -e "${YELLOW}⚠️  Database container not running. Starting containers...${NC}"
     docker-compose up -d
     sleep 5
+else
+    echo -e "${GREEN}✅ Database container is running${NC}"
 fi
 
 # =============================================================================
@@ -47,11 +49,18 @@ fi
 echo ""
 echo -e "${YELLOW}=== STEP 2: FIND DATABASE CONTAINER ===${NC}"
 
+# Try different patterns to find database container
 DB_CONTAINER=$(docker ps --filter "name=db" --format "{{.Names}}" | head -n 1)
+if [ -z "$DB_CONTAINER" ]; then
+    DB_CONTAINER=$(docker ps --filter "name=postgres" --format "{{.Names}}" | head -n 1)
+fi
+if [ -z "$DB_CONTAINER" ]; then
+    DB_CONTAINER=$(docker ps --filter "name=database" --format "{{.Names}}" | head -n 1)
+fi
 
 if [ -z "$DB_CONTAINER" ]; then
     echo -e "${RED}❌ Could not find database container!${NC}"
-    echo -e "${RED}   Looking for containers with 'db' in the name${NC}"
+    echo -e "${RED}   Looking for containers with 'db', 'postgres', or 'database' in the name${NC}"
     echo -e "${YELLOW}   Current containers:${NC}"
     docker ps --format "table {{.Names}}\t{{.Status}}"
     exit 1
