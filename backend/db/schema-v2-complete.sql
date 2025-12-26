@@ -233,17 +233,16 @@ CREATE TABLE scrap_records (
 
 CREATE TABLE material_stock (
     id SERIAL PRIMARY KEY,
+    material_name VARCHAR(200) NOT NULL,
     material_type VARCHAR(100) NOT NULL,
-    dimensions VARCHAR(100),
-    quantity DECIMAL(10,2) DEFAULT 0,
+    supplier_id INTEGER,
+    current_stock DECIMAL(10,2) DEFAULT 0,
+    reorder_level DECIMAL(10,2) DEFAULT 0,
     unit VARCHAR(20) DEFAULT 'pieces',
-    location VARCHAR(100),
-    minimum_stock DECIMAL(10,2) DEFAULT 0,
-    reorder_quantity DECIMAL(10,2),
     cost_per_unit DECIMAL(10,2),
-    supplier VARCHAR(200),
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_by INTEGER REFERENCES users(id)
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
