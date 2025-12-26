@@ -89,6 +89,9 @@ app.post('/api/parts/:id/assign', authMiddleware, requireSupervisor(), validateR
 app.post('/api/parts/:id/start', authMiddleware, partsController.startJob);
 app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.completeTime), partsController.completePart);
 
+// Folder browse (Supervisor+)
+app.get('/api/folders/browse', authMiddleware, requireSupervisor(), filesController.browseFolders);
+
 // Feedback routes
 app.get('/api/parts/:partId/feedback', authMiddleware, feedbackController.getPartFeedback);
 app.post('/api/parts/:partId/feedback', authMiddleware, validateRequest(schemas.feedback), feedbackController.addFeedback);

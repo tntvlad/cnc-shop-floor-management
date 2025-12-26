@@ -2,12 +2,24 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../config/database');
 
+const BROWSE_ROOT = path.resolve(process.env.FILE_BROWSE_ROOT || process.env.UPLOAD_DIR || './uploads');
+
+function ensureWithinRoot(resolvedPath) {
+  const normalizedRoot = BROWSE_ROOT.endsWith(path.sep) ? BROWSE_ROOT : `${BROWSE_ROOT}${path.sep}`;
+  const normalizedTarget = resolvedPath.endsWith(path.sep) ? resolvedPath : `${resolvedPath}${path.sep}`;
+  if (!normalizedTarget.startsWith(normalizedRoot)) {
+    throw new Error('Folder must be inside the allowed root');
+  }
+}
+
 function normalizeFolderPath(folderPath) {
   if (folderPath === undefined || folderPath === null || folderPath === '') {
     return null;
   }
 
-  const resolved = path.resolve(folderPath);
+  const resolved = path.resolve(folderPath.startsWith(BROWSE_ROOT) ? folderPath : path.join(BROWSE_ROOT, folderPath));
+
+  ensureWithinRoot(resolved);
 
   if (!fs.existsSync(resolved)) {
     throw new Error('Folder path does not exist on server');

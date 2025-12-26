@@ -3,10 +3,19 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../config/database');
 
+const BROWSE_ROOT = path.resolve(process.env.FILE_BROWSE_ROOT || process.env.UPLOAD_DIR || './uploads');
+
+function ensureWithinRoot(targetPath) {
+  const normalizedRoot = BROWSE_ROOT.endsWith(path.sep) ? BROWSE_ROOT : `${BROWSE_ROOT}${path.sep}`;
+  const normalizedTarget = targetPath.endsWith(path.sep) ? targetPath : `${targetPath}${path.sep}`;
+  if (!normalizedTarget.startsWith(normalizedRoot)) {
+    throw new Error('Path is outside the allowed root');
+  }
+}
+
 async function resolveUploadDir(req, res, next) {
   try {
-    const defaultDir = process.env.UPLOAD_DIR || './uploads';
-    let targetDir = defaultDir;
+    let targetDir = BROWSE_ROOT;
 
     if (req.params && req.params.partId) {
       const partRes = await pool.query('SELECT file_folder FROM parts WHERE id = $1', [req.params.partId]);
@@ -16,7 +25,9 @@ async function resolveUploadDir(req, res, next) {
 
       const folder = partRes.rows[0].file_folder;
       if (folder) {
-        targetDir = path.resolve(folder);
+        const resolved = path.resolve(folder.startsWith(BROWSE_ROOT) ? folder : path.join(BROWSE_ROOT, folder));
+        ensureWithinRoot(resolved);
+        targetDir = resolved;
       }
     }
 
@@ -33,6 +44,51 @@ async function resolveUploadDir(req, res, next) {
     res.status(500).json({ error: 'Failed to resolve upload directory' });
   }
 }
+
+// Browse folders within allowed root
+exports.browseFolders = async (req, res) => {
+  try {
+    const requested = req.query.path || '';
+    const resolved = path.resolve(BROWSE_ROOT, requested);
+
+    ensureWithinRoot(resolved);
+
+    if (!fs.existsSync(resolved)) {
+      return res.status(404).json({ error: 'Path not found' });
+    }
+
+    const stat = fs.statSync(resolved);
+    if (!stat.isDirectory()) {
+      return res.status(400).json({ error: 'Path is not a directory' });
+    }
+
+    const entries = fs.readdirSync(resolved, { withFileTypes: true });
+    const mapped = entries.map((entry) => {
+      const entryPath = path.join(resolved, entry.name);
+      const relPath = path.relative(BROWSE_ROOT, entryPath).split(path.sep).join('/');
+      return {
+        name: entry.name,
+        type: entry.isDirectory() ? 'dir' : 'file',
+        path: relPath,
+        hasChildren: entry.isDirectory()
+      };
+    }).filter(e => e.type === 'dir');
+
+    const relCurrent = path.relative(BROWSE_ROOT, resolved).split(path.sep).join('/');
+    const parentRel = relCurrent ? path.posix.dirname(relCurrent) : null;
+
+    res.json({
+      root: BROWSE_ROOT,
+      path: resolved,
+      relativePath: relCurrent,
+      parent: parentRel === '.' ? '' : parentRel,
+      entries: mapped
+    });
+  } catch (err) {
+    console.error('Browse folders error:', err);
+    res.status(400).json({ error: err.message || 'Failed to browse folders' });
+  }
+};
 
 // Configure multer storage
 const storage = multer.diskStorage({

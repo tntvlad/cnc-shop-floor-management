@@ -215,6 +215,11 @@ const API = {
       return API.request(`/files/${fileId}`, {
         method: 'DELETE'
       });
+    },
+
+    async browseFolders(path = '') {
+      const query = path ? `?path=${encodeURIComponent(path)}` : '';
+      return API.request(`/folders/browse${query}`);
     }
   }
 };

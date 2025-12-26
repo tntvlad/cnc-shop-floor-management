@@ -5,6 +5,7 @@ let sessionTimerInterval = null;
 let jobTimerInterval = null;
 let jobStartTime = null;
 let activePdfId = null;
+let folderBrowserState = { root: null, relativePath: '', fullPath: '' };
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', () => {
@@ -286,6 +287,29 @@ function renderFileFolder(part) {
   }
 }
 
+async function saveFolderPath(folderPath) {
+  const status = document.getElementById('fileFolderStatus');
+  if (status) {
+    status.textContent = 'Saving folder...';
+    status.style.color = '#64748b';
+  }
+
+  try {
+    const result = await API.parts.setFolder(currentPart.id, folderPath);
+    currentPart.file_folder = result.fileFolder || null;
+    renderFileFolder(currentPart);
+    if (status) {
+      status.textContent = 'Saved';
+      status.style.color = '#16a34a';
+    }
+  } catch (error) {
+    if (status) {
+      status.textContent = error.message || 'Failed to save folder';
+      status.style.color = '#c53030';
+    }
+  }
+}
+
 // Load part files
 function loadPartFiles(part) {
   const filesContainer = document.getElementById('modalFiles');
@@ -370,6 +394,65 @@ function loadPartFiles(part) {
   } else {
     hidePdfPreview();
   }
+}
+
+// Folder browser helpers
+async function openFolderBrowser(initialPath) {
+  try {
+    const data = await API.files.browseFolders(initialPath || currentPart?.file_folder || '');
+    folderBrowserState = {
+      root: data.root,
+      relativePath: data.relativePath || '',
+      fullPath: data.path
+    };
+    renderFolderBrowser(data);
+    const modal = document.getElementById('folderBrowserModal');
+    if (modal) modal.style.display = 'flex';
+  } catch (error) {
+    alert(error.message || 'Failed to browse folders');
+  }
+}
+
+function renderFolderBrowser(data) {
+  const list = document.getElementById('folderBrowserList');
+  const pathLabel = document.getElementById('folderBrowserPath');
+  folderBrowserState.fullPath = data.path;
+  folderBrowserState.relativePath = data.relativePath || '';
+  folderBrowserState.root = data.root;
+
+  if (pathLabel) {
+    const rel = data.relativePath || '';
+    pathLabel.textContent = rel ? `${data.root}/${rel}` : data.root;
+  }
+
+  if (list) {
+    list.innerHTML = '';
+    if (!data.entries || data.entries.length === 0) {
+      list.innerHTML = '<p class="text-muted" style="margin:0;">No subfolders</p>';
+    } else {
+      data.entries.forEach((entry) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+        row.style.padding = '6px 8px';
+        row.style.borderBottom = '1px solid #e2e8f0';
+
+        const name = document.createElement('span');
+        name.textContent = `📁 ${entry.name}`;
+        name.style.cursor = 'pointer';
+        name.addEventListener('click', () => openFolderBrowser(entry.path));
+
+        row.appendChild(name);
+        list.appendChild(row);
+      });
+    }
+  }
+}
+
+function closeFolderBrowser() {
+  const modal = document.getElementById('folderBrowserModal');
+  if (modal) modal.style.display = 'none';
 }
 
 // Download file
@@ -580,29 +663,44 @@ function setupEventListeners() {
       if (!currentPart) return;
 
       const input = document.getElementById('fileFolderInput');
-      const status = document.getElementById('fileFolderStatus');
       const folderPath = input ? input.value.trim() : '';
-
-      if (status) {
-        status.textContent = 'Saving folder...';
-        status.style.color = '#64748b';
-      }
-
-      try {
-        const result = await API.parts.setFolder(currentPart.id, folderPath);
-        currentPart.file_folder = result.fileFolder || null;
-        renderFileFolder(currentPart);
-        if (status) {
-          status.textContent = 'Saved';
-          status.style.color = '#16a34a';
-        }
-      } catch (error) {
-        if (status) {
-          status.textContent = error.message || 'Failed to save folder';
-          status.style.color = '#c53030';
-        }
-      }
+      saveFolderPath(folderPath);
     });
+  }
+
+  // Browse server folder
+  const folderBrowseBtn = document.getElementById('fileFolderBrowseBtn');
+  if (folderBrowseBtn) {
+    folderBrowseBtn.addEventListener('click', () => {
+      if (!currentPart) return;
+      openFolderBrowser(currentPart.file_folder || '');
+    });
+  }
+
+  // Folder browser controls
+  const folderBrowserUpBtn = document.getElementById('folderBrowserUpBtn');
+  if (folderBrowserUpBtn) {
+    folderBrowserUpBtn.addEventListener('click', () => {
+      const parent = folderBrowserState.relativePath ? folderBrowserState.relativePath.split('/').slice(0, -1).join('/') : '';
+      openFolderBrowser(parent);
+    });
+  }
+
+  const folderBrowserUseBtn = document.getElementById('folderBrowserUseBtn');
+  if (folderBrowserUseBtn) {
+    folderBrowserUseBtn.addEventListener('click', () => {
+      if (!currentPart) return;
+      const pathToUse = folderBrowserState.fullPath || currentPart.file_folder || '';
+      const input = document.getElementById('fileFolderInput');
+      if (input) input.value = pathToUse;
+      saveFolderPath(pathToUse);
+      closeFolderBrowser();
+    });
+  }
+
+  const folderBrowserClose = document.getElementById('folderBrowserClose');
+  if (folderBrowserClose) {
+    folderBrowserClose.addEventListener('click', closeFolderBrowser);
   }
 
   // PDF fullscreen

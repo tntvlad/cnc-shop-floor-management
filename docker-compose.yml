@@ -36,11 +36,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
-      UPLOAD_DIR: /app/uploads
+      UPLOAD_DIR: ${UPLOAD_DIR:-/data/jobfiles}
+      FILE_BROWSE_ROOT: ${FILE_BROWSE_ROOT:-/data/jobfiles}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
       FRONTEND_URL: ${FRONTEND_URL:-*}
     volumes:
       - uploads_data:/app/uploads
+      - /home/vlad/hdd/Tools:/data/jobfiles
       - .:/app/project:ro  # Mount project for git operations (read-only)
       - /var/run/docker.sock:/var/run/docker.sock  # For docker-compose restart
     ports:
