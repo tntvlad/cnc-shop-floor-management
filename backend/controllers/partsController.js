@@ -56,7 +56,7 @@ exports.getPart = async (req, res) => {
           )
         ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
         COALESCE(json_agg(
-          DISTINCT jsonb_build_object(
+          jsonb_build_object(
             'id', fb.id,
             'text', fb.text,
             'userName', u.name,
