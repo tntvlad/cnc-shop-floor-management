@@ -1,4 +1,25 @@
+const fs = require('fs');
+const path = require('path');
 const pool = require('../config/database');
+
+function normalizeFolderPath(folderPath) {
+  if (folderPath === undefined || folderPath === null || folderPath === '') {
+    return null;
+  }
+
+  const resolved = path.resolve(folderPath);
+
+  if (!fs.existsSync(resolved)) {
+    throw new Error('Folder path does not exist on server');
+  }
+
+  const stats = fs.statSync(resolved);
+  if (!stats.isDirectory()) {
+    throw new Error('Path is not a directory');
+  }
+
+  return resolved;
+}
 
 // Get all parts with assignments
 exports.getAllParts = async (req, res) => {
@@ -172,13 +193,20 @@ exports.assignPart = async (req, res) => {
 // Create part
 exports.createPart = async (req, res) => {
   try {
-    const { name, material, quantity, treatment, targetTime, orderPosition } = req.body;
+    const { name, material, quantity, treatment, targetTime, orderPosition, fileFolder } = req.body;
+
+    let normalizedFolder = null;
+    try {
+      normalizedFolder = normalizeFolderPath(fileFolder);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
 
     const result = await pool.query(
-      `INSERT INTO parts (name, material, quantity, treatment, target_time, order_position, locked)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO parts (name, material, quantity, treatment, target_time, order_position, locked, file_folder)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [name, material, quantity, treatment || null, targetTime, orderPosition, orderPosition !== 1]
+      [name, material, quantity, treatment || null, targetTime, orderPosition, orderPosition !== 1, normalizedFolder]
     );
 
     res.status(201).json(result.rows[0]);
@@ -195,7 +223,17 @@ exports.createPart = async (req, res) => {
 exports.updatePart = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
+
+    if ('fileFolder' in updates || 'file_folder' in updates) {
+      const rawFolder = updates.fileFolder !== undefined ? updates.fileFolder : updates.file_folder;
+      try {
+        updates.fileFolder = normalizeFolderPath(rawFolder);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      delete updates.file_folder;
+    }
 
     // Build dynamic update query
     const fields = [];
@@ -224,6 +262,35 @@ exports.updatePart = async (req, res) => {
   } catch (error) {
     console.error('Update part error:', error);
     res.status(500).json({ error: 'Failed to update part' });
+  }
+};
+
+// Update only the file folder path for a part
+exports.updateFileFolder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { folderPath } = req.body;
+
+    let normalizedFolder = null;
+    try {
+      normalizedFolder = normalizeFolderPath(folderPath);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    const result = await pool.query(
+      'UPDATE parts SET file_folder = $1 WHERE id = $2 RETURNING file_folder',
+      [normalizedFolder, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Part not found' });
+    }
+
+    res.json({ message: 'Folder updated', fileFolder: result.rows[0].file_folder });
+  } catch (error) {
+    console.error('Update file folder error:', error);
+    res.status(500).json({ error: 'Failed to update file folder' });
   }
 };
 

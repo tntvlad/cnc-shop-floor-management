@@ -90,6 +90,13 @@ const API = {
       });
     },
 
+    async setFolder(id, folderPath) {
+      return API.request(`/parts/${id}/folder`, {
+        method: 'PUT',
+        body: JSON.stringify({ folderPath })
+      });
+    },
+
     async delete(id) {
       return API.request(`/parts/${id}`, {
         method: 'DELETE'

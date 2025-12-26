@@ -33,7 +33,8 @@ const schemas = {
     quantity: Joi.number().integer().min(1).required(),
     treatment: Joi.string().allow('', null),
     targetTime: Joi.number().integer().min(1).required(),
-    orderPosition: Joi.number().integer().min(1).required()
+    orderPosition: Joi.number().integer().min(1).required(),
+    fileFolder: Joi.string().trim().max(500).allow('', null)
   }),
   
   updatePart: Joi.object({
@@ -44,7 +45,8 @@ const schemas = {
     targetTime: Joi.number().integer().min(1),
     orderPosition: Joi.number().integer().min(1),
     completed: Joi.boolean(),
-    locked: Joi.boolean()
+    locked: Joi.boolean(),
+    fileFolder: Joi.string().trim().max(500).allow('', null)
   }).min(1),
   
   feedback: Joi.object({
@@ -53,6 +55,10 @@ const schemas = {
   
   completeTime: Joi.object({
     actualTime: Joi.number().integer().min(1).required()
+  }),
+
+  updateFolder: Joi.object({
+    folderPath: Joi.string().trim().max(500).allow('', null).required()
   }),
 
   // Allow numeric strings for flexibility with form inputs

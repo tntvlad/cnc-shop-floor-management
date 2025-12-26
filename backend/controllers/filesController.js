@@ -3,12 +3,49 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../config/database');
 
+async function resolveUploadDir(req, res, next) {
+  try {
+    const defaultDir = process.env.UPLOAD_DIR || './uploads';
+    let targetDir = defaultDir;
+
+    if (req.params && req.params.partId) {
+      const partRes = await pool.query('SELECT file_folder FROM parts WHERE id = $1', [req.params.partId]);
+      if (partRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+
+      const folder = partRes.rows[0].file_folder;
+      if (folder) {
+        targetDir = path.resolve(folder);
+      }
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    } else if (!fs.statSync(targetDir).isDirectory()) {
+      return res.status(400).json({ error: 'Upload path is not a directory' });
+    }
+
+    req.uploadDir = targetDir;
+    next();
+  } catch (err) {
+    console.error('Resolve upload dir error:', err);
+    res.status(500).json({ error: 'Failed to resolve upload directory' });
+  }
+}
+
 // Configure multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    const uploadDir = req.uploadDir || process.env.UPLOAD_DIR || './uploads';
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      } else if (!fs.statSync(uploadDir).isDirectory()) {
+        return cb(new Error('Upload path is not a directory'));
+      }
+    } catch (err) {
+      return cb(err);
     }
     cb(null, uploadDir);
   },
@@ -40,6 +77,7 @@ const upload = multer({
 
 // Upload file
 exports.uploadFile = [
+  resolveUploadDir,
   upload.single('file'),
   async (req, res) => {
     try {

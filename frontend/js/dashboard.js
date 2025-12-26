@@ -230,6 +230,8 @@ async function openPartModal(partId) {
     document.getElementById('modalTreatment').textContent = part.treatment || 'None';
     document.getElementById('modalTargetTime').textContent = `${part.target_time} minutes`;
 
+    renderFileFolder(part);
+
     // Load files
     activePdfId = null;
     loadPartFiles(part);
@@ -253,6 +255,34 @@ async function openPartModal(partId) {
   } catch (error) {
     console.error('Failed to load part:', error);
     alert('Failed to load part details');
+  }
+}
+
+// Render server folder info and edit controls
+function renderFileFolder(part) {
+  const display = document.getElementById('fileFolderDisplay');
+  const form = document.getElementById('fileFolderForm');
+  const input = document.getElementById('fileFolderInput');
+  const status = document.getElementById('fileFolderStatus');
+  const user = Auth.getUser();
+  const canEdit = user && typeof user.level === 'number' && user.level >= 400;
+
+  if (display) {
+    const folderText = part.file_folder || 'Not set';
+    display.textContent = `Server folder: ${folderText}`;
+  }
+
+  if (form) {
+    form.style.display = canEdit ? 'block' : 'none';
+  }
+
+  if (input) {
+    input.value = part.file_folder || '';
+  }
+
+  if (status) {
+    status.textContent = 'Folder must already exist on the server.';
+    status.style.color = '#64748b';
   }
 }
 
@@ -542,6 +572,38 @@ function setupEventListeners() {
       Auth.logout();
     }
   });
+
+  // Save server folder
+  const folderSaveBtn = document.getElementById('fileFolderSaveBtn');
+  if (folderSaveBtn) {
+    folderSaveBtn.addEventListener('click', async () => {
+      if (!currentPart) return;
+
+      const input = document.getElementById('fileFolderInput');
+      const status = document.getElementById('fileFolderStatus');
+      const folderPath = input ? input.value.trim() : '';
+
+      if (status) {
+        status.textContent = 'Saving folder...';
+        status.style.color = '#64748b';
+      }
+
+      try {
+        const result = await API.parts.setFolder(currentPart.id, folderPath);
+        currentPart.file_folder = result.fileFolder || null;
+        renderFileFolder(currentPart);
+        if (status) {
+          status.textContent = 'Saved';
+          status.style.color = '#16a34a';
+        }
+      } catch (error) {
+        if (status) {
+          status.textContent = error.message || 'Failed to save folder';
+          status.style.color = '#c53030';
+        }
+      }
+    });
+  }
 
   // PDF fullscreen
   const fullscreenBtn = document.getElementById('pdfFullscreenBtn');

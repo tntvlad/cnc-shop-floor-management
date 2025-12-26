@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 require('dotenv').config();
+const pool = require('./config/database');
 
 const authMiddleware = require('./middleware/auth');
 const { validateRequest, schemas } = require('./middleware/validation');
@@ -18,6 +19,17 @@ const adminController = require('./controllers/adminController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Ensure minimal schema updates are applied at startup
+async function ensureSchema() {
+  try {
+    await pool.query('ALTER TABLE parts ADD COLUMN IF NOT EXISTS file_folder TEXT');
+    console.log('✓ Schema check: parts.file_folder ready');
+  } catch (err) {
+    console.error('Schema check failed:', err.message || err);
+  }
+}
+ensureSchema();
 
 // Middleware - CORS configuration
 const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -71,6 +83,7 @@ app.get('/api/parts/statistics', authMiddleware, partsController.getStatistics);
 app.get('/api/parts/:id', authMiddleware, partsController.getPart);
 app.post('/api/parts', authMiddleware, requireSupervisor(), validateRequest(schemas.createPart), partsController.createPart);
 app.put('/api/parts/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updatePart), partsController.updatePart);
+app.put('/api/parts/:id/folder', authMiddleware, requireSupervisor(), validateRequest(schemas.updateFolder), partsController.updateFileFolder);
 app.delete('/api/parts/:id', authMiddleware, requireSupervisor(), partsController.deletePart);
 app.post('/api/parts/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignPart), partsController.assignPart);
 app.post('/api/parts/:id/start', authMiddleware, partsController.startJob);
