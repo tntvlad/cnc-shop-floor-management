@@ -135,8 +135,14 @@ exports.assignPart = async (req, res) => {
       usersData.push({ id: userId, level: targetLevel });
     }
 
-    // Sort by level (cutting=200, cnc=100, qc=300) to establish sequence
-    usersData.sort((a, b) => a.level - b.level);
+    // Establish sequence with desired order: Cutting (200) → CNC (100) → QC (300)
+    const priority = (lvl) => {
+      if (lvl === 200) return 1; // Cutting first
+      if (lvl === 100) return 2; // CNC second
+      if (lvl === 300) return 3; // QC third
+      return 99; // Others last
+    };
+    usersData.sort((a, b) => priority(a.level) - priority(b.level));
 
     // Assign to all users with sequence and status
     const results = [];

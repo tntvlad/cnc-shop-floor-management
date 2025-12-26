@@ -139,6 +139,15 @@ if [ -f "backend/db/migration-add-sequence.sql" ]; then
     
     if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration.sql; then
         echo -e "${GREEN}✅ Migration completed successfully (data preserved)${NC}"
+        # If resequencing script exists, run it to enforce updated order
+        if [ -f "backend/db/migration-resequence.sql" ]; then
+            docker cp backend/db/migration-resequence.sql "$DB_CONTAINER:/tmp/migration-resequence.sql"
+            if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration-resequence.sql; then
+                echo -e "${GREEN}✅ Resequenced assignments to Cutting → CNC → QC${NC}"
+            else
+                echo -e "${YELLOW}⚠️  Resequencing failed, continuing (data unchanged).${NC}"
+            fi
+        fi
     else
         echo -e "${RED}❌ Migration failed!${NC}"
         echo -e "${YELLOW}Rolling back is available. To restore:${NC}"

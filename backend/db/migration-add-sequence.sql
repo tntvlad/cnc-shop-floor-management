@@ -17,7 +17,15 @@ BEGIN
                 ja.id,
                 ja.part_id,
                 u.level,
-                ROW_NUMBER() OVER (PARTITION BY ja.part_id ORDER BY u.level ASC) as seq
+                ROW_NUMBER() OVER (
+                  PARTITION BY ja.part_id 
+                  ORDER BY CASE u.level 
+                             WHEN 200 THEN 1  -- Cutting first
+                             WHEN 100 THEN 2  -- CNC second
+                             WHEN 300 THEN 3  -- QC third
+                             ELSE 99          -- Others last
+                           END, ja.id
+                ) as seq
             FROM job_assignments ja
             JOIN users u ON ja.user_id = u.id
         )
