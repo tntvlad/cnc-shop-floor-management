@@ -234,6 +234,55 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
+// Internal: perform sync for one part folder
+async function performSyncForPart(partId, folderPath) {
+  const dirPath = path.resolve(folderPath.startsWith(BROWSE_ROOT) ? folderPath : path.join(BROWSE_ROOT, folderPath));
+  ensureWithinRoot(dirPath);
+
+  if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+    return { added: 0, files: [] };
+  }
+
+  const allowedExts = new Set(['.pdf', '.dxf', '.nc', '.txt']);
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  let added = 0;
+  const filesAdded = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const ext = path.extname(entry.name).toLowerCase();
+    if (!allowedExts.has(ext)) continue;
+
+    const fullPath = path.join(dirPath, entry.name);
+    // Skip broken files
+    try {
+      const st = fs.statSync(fullPath);
+      if (!st.isFile()) continue;
+    } catch (_) {
+      continue;
+    }
+
+    // Check if already present for this part
+    const existsRes = await pool.query(
+      'SELECT id FROM files WHERE part_id = $1 AND file_path = $2',
+      [partId, fullPath]
+    );
+    if (existsRes.rows.length > 0) continue;
+
+    const fileType = ext.substring(1).toUpperCase();
+    const insRes = await pool.query(
+      `INSERT INTO files (part_id, filename, file_type, file_path)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, filename, file_type`,
+      [partId, entry.name, fileType, fullPath]
+    );
+    added++;
+    filesAdded.push(insRes.rows[0]);
+  }
+
+  return { added, files: filesAdded };
+}
+
 // Sync files from part's folder into DB without copying
 exports.syncFromFolder = async (req, res) => {
   try {
@@ -249,53 +298,29 @@ exports.syncFromFolder = async (req, res) => {
       return res.status(400).json({ error: 'Part does not have a folder assigned' });
     }
 
-    const dirPath = path.resolve(folder.startsWith(BROWSE_ROOT) ? folder : path.join(BROWSE_ROOT, folder));
-    ensureWithinRoot(dirPath);
-
-    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
-      return res.status(404).json({ error: 'Assigned folder not found or not a directory' });
-    }
-
-    const allowedExts = new Set(['.pdf', '.dxf', '.nc', '.txt']);
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    let added = 0;
-    const filesAdded = [];
-
-    for (const entry of entries) {
-      if (!entry.isFile()) continue;
-      const ext = path.extname(entry.name).toLowerCase();
-      if (!allowedExts.has(ext)) continue;
-
-      const fullPath = path.join(dirPath, entry.name);
-      // Skip broken files
-      try {
-        const st = fs.statSync(fullPath);
-        if (!st.isFile()) continue;
-      } catch (_) {
-        continue;
-      }
-
-      // Check if already present for this part
-      const existsRes = await pool.query(
-        'SELECT id FROM files WHERE part_id = $1 AND file_path = $2',
-        [id, fullPath]
-      );
-      if (existsRes.rows.length > 0) continue;
-
-      const fileType = ext.substring(1).toUpperCase();
-      const insRes = await pool.query(
-        `INSERT INTO files (part_id, filename, file_type, file_path)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, filename, file_type`,
-        [id, entry.name, fileType, fullPath]
-      );
-      added++;
-      filesAdded.push(insRes.rows[0]);
-    }
-
-    res.json({ message: 'Sync completed', added, files: filesAdded });
+    const result = await performSyncForPart(id, folder);
+    res.json({ message: 'Sync completed', ...result });
   } catch (error) {
     console.error('Sync from folder error:', error);
     res.status(500).json({ error: 'Failed to sync files from folder' });
+  }
+};
+
+// Auto-sync all parts that have a folder
+exports.syncAllPartsFromFolders = async () => {
+  const partsRes = await pool.query('SELECT id, file_folder FROM parts WHERE file_folder IS NOT NULL');
+  let totalAdded = 0;
+  for (const row of partsRes.rows) {
+    const folder = row.file_folder;
+    if (!folder) continue;
+    try {
+      const { added } = await performSyncForPart(row.id, folder);
+      totalAdded += added;
+    } catch (err) {
+      console.error(`Auto-sync error for part ${row.id}:`, err.message || err);
+    }
+  }
+  if (totalAdded > 0) {
+    console.log(`✓ Auto-sync: ${totalAdded} new file(s) indexed`);
   }
 };

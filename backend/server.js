@@ -134,6 +134,22 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Server running on port ${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✓ CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+
+  // Auto sync scheduler
+  const autoEnabled = (process.env.AUTO_SYNC_ENABLED ?? 'true') !== 'false';
+  const intervalMs = parseInt(process.env.AUTO_SYNC_INTERVAL_MS || '60000');
+  if (autoEnabled) {
+    setInterval(async () => {
+      try {
+        await filesController.syncAllPartsFromFolders();
+      } catch (err) {
+        console.error('Auto-sync scheduler error:', err);
+      }
+    }, intervalMs);
+    console.log(`✓ Auto file sync enabled every ${intervalMs} ms`);
+  } else {
+    console.log('⏸ Auto file sync disabled');
+  }
 });
 
 // Graceful shutdown
