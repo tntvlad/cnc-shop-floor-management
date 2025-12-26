@@ -4,6 +4,7 @@ let sessionStartTime = Date.now();
 let sessionTimerInterval = null;
 let jobTimerInterval = null;
 let jobStartTime = null;
+let activePdfId = null;
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', () => {
@@ -230,6 +231,7 @@ async function openPartModal(partId) {
     document.getElementById('modalTargetTime').textContent = `${part.target_time} minutes`;
 
     // Load files
+    activePdfId = null;
     loadPartFiles(part);
 
     // Load feedback
@@ -271,6 +273,8 @@ function loadPartFiles(part) {
   
   part.files.forEach(file => {
     const fileType = (file.fileType || file.filetype || 'FILE').toUpperCase();
+    const isPdf = fileType === 'PDF';
+    const isActivePdf = isPdf && activePdfId === file.id;
     const fileDiv = document.createElement('div');
     fileDiv.style.display = 'flex';
     fileDiv.style.alignItems = 'center';
@@ -278,10 +282,30 @@ function loadPartFiles(part) {
     fileDiv.style.marginBottom = '8px';
     
     const btn = document.createElement('button');
-    btn.className = `file-btn file-${fileType.toLowerCase()}`;
-    btn.textContent = `${fileType} - ${file.filename}`;
+    btn.className = 'file-chip';
     btn.style.flex = '1';
-    btn.addEventListener('click', () => downloadFile(file.id, file.filename));
+    btn.style.borderRadius = '8px';
+    btn.style.border = isPdf ? '1px solid #c53030' : '1px solid #c53030';
+    if (isPdf) {
+      btn.style.background = isActivePdf ? '#c53030' : '#ffffff';
+      btn.style.color = isActivePdf ? '#ffffff' : '#111827';
+    } else {
+      btn.style.background = '#c53030';
+      btn.style.color = '#ffffff';
+    }
+    btn.textContent = `${fileType} - ${file.filename}`;
+    
+    if (isPdf) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activePdfId = file.id;
+        showPdfPreview(file.id);
+        // re-render to update chip highlighting
+        loadPartFiles(currentPart);
+      });
+    } else {
+      btn.addEventListener('click', () => downloadFile(file.id, file.filename));
+    }
     
     fileDiv.appendChild(btn);
     
@@ -309,7 +333,10 @@ function loadPartFiles(part) {
   
   // Show PDF preview if we found a PDF
   if (firstPdf) {
-    showPdfPreview(firstPdf.id);
+    if (!activePdfId) {
+      activePdfId = firstPdf.id;
+    }
+    showPdfPreview(activePdfId);
   } else {
     hidePdfPreview();
   }
