@@ -95,6 +95,7 @@ exports.getPart = async (req, res) => {
 };
 
 // Assign part to users (Supervisor+) - can assign to multiple operators
+// Sequential workflow: first operator gets 'ready', others get 'locked'
 exports.assignPart = async (req, res) => {
   try {
     const { id } = req.params;
@@ -120,7 +121,8 @@ exports.assignPart = async (req, res) => {
       return res.status(400).json({ error: 'No user IDs provided' });
     }
 
-    // Validate all users exist and have appropriate level
+    // Fetch users with their levels to determine sequence
+    const usersData = [];
     for (const userId of normalizedIds) {
       const userRes = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
       if (userRes.rows.length === 0) {
@@ -130,18 +132,26 @@ exports.assignPart = async (req, res) => {
       if (targetLevel > 300) {
         return res.status(400).json({ error: `Cannot assign to user with level > 300` });
       }
+      usersData.push({ id: userId, level: targetLevel });
     }
 
-    // Assign to all users (will update if already exists due to conflict handling)
+    // Sort by level (cutting=200, cnc=100, qc=300) to establish sequence
+    usersData.sort((a, b) => a.level - b.level);
+
+    // Assign to all users with sequence and status
     const results = [];
-    for (const userId of normalizedIds) {
+    for (let i = 0; i < usersData.length; i++) {
+      const userData = usersData[i];
+      const sequence = i + 1;
+      const status = sequence === 1 ? 'ready' : 'locked';
+      
       const result = await pool.query(
-        `INSERT INTO job_assignments (part_id, user_id, status)
-         VALUES ($1, $2, 'pending')
+        `INSERT INTO job_assignments (part_id, user_id, sequence, status)
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT (part_id, user_id) DO UPDATE
-         SET status = 'pending', assigned_at = CURRENT_TIMESTAMP
+         SET sequence = $3, status = $4, assigned_at = CURRENT_TIMESTAMP
          RETURNING *`,
-        [id, userId]
+        [id, userData.id, sequence, status]
       );
       results.push(result.rows[0]);
     }
@@ -266,6 +276,14 @@ exports.completePart = async (req, res) => {
       ['completed', actualTime, assignment.id]
     );
 
+    // Update next operator in sequence to 'ready'
+    await client.query(
+      `UPDATE job_assignments 
+       SET status = 'ready'
+       WHERE part_id = $1 AND sequence = $2 AND status IN ('locked', 'pending')`,
+      [id, assignment.sequence + 1]
+    );
+
     // Record in part_completions for history
     await client.query(
       'INSERT INTO part_completions (part_id, user_id, actual_time) VALUES ($1, $2, $3)',
@@ -380,27 +398,59 @@ exports.getOperatorJobs = async (req, res) => {
   }
 };
 
-// Start job (update job assignment status)
+// Start job (update job assignment status and unlock next in sequence)
 exports.startJob = async (req, res) => {
+  const client = await pool.connect();
+  
   try {
+    await client.query('BEGIN');
+    
     const { id } = req.params;
     const userId = req.user.id;
 
-    const result = await pool.query(
-      `UPDATE job_assignments 
-       SET status = 'in_progress', started_at = NOW()
-       WHERE part_id = $1 AND user_id = $2
-       RETURNING *`,
+    // Get current assignment
+    const assignmentRes = await client.query(
+      'SELECT * FROM job_assignments WHERE part_id = $1 AND user_id = $2',
       [id, userId]
     );
 
-    if (result.rows.length === 0) {
+    if (assignmentRes.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Job assignment not found' });
     }
 
-    res.json({ message: 'Job started', assignment: result.rows[0] });
+    const currentAssignment = assignmentRes.rows[0];
+
+    // Check if status allows starting
+    if (currentAssignment.status !== 'ready') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Cannot start job with status: ${currentAssignment.status}` });
+    }
+
+    // Update current assignment to in_progress
+    await client.query(
+      `UPDATE job_assignments 
+       SET status = 'in_progress', started_at = NOW()
+       WHERE id = $1`,
+      [currentAssignment.id]
+    );
+
+    // Update next operator in sequence to 'pending'
+    await client.query(
+      `UPDATE job_assignments 
+       SET status = 'pending'
+       WHERE part_id = $1 AND sequence = $2 AND status = 'locked'`,
+      [id, currentAssignment.sequence + 1]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({ message: 'Job started', assignment: currentAssignment });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Start job error:', error);
     res.status(500).json({ error: 'Failed to start job' });
+  } finally {
+    client.release();
   }
 };

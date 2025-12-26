@@ -35,11 +35,13 @@ CREATE TABLE parts (
 );
 
 -- Job Assignments table - allows same job to be assigned to multiple operators
+-- Status: 'locked'=waiting for prerequisites, 'ready'=can start, 'pending'=predecessor in progress, 'in_progress'=working, 'completed'=done
 CREATE TABLE job_assignments (
     id SERIAL PRIMARY KEY,
     part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status VARCHAR(50) DEFAULT 'pending', -- pending, in_progress, completed
+    sequence INTEGER NOT NULL, -- Execution order: 1=first, 2=second, etc. (based on user level at assignment time)
+    status VARCHAR(50) DEFAULT 'locked', -- locked, ready, pending, in_progress, completed
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,

@@ -150,14 +150,21 @@ function createPartCard(part, isOperator = false) {
   let statusBadge = 'badge-unlocked';
   
   if (isOperator && part.assignment) {
-    if (part.assignment.status === 'completed') {
+    const status = part.assignment.status;
+    if (status === 'completed') {
       statusText = 'Completed';
       statusBadge = 'badge-completed';
-    } else if (part.assignment.status === 'in_progress') {
+    } else if (status === 'in_progress') {
       statusText = 'In Progress';
       statusBadge = 'badge-unlocked';
-    } else if (part.assignment.status === 'pending') {
+    } else if (status === 'ready') {
+      statusText = 'Ready';
+      statusBadge = 'badge-unlocked';
+    } else if (status === 'pending') {
       statusText = 'Pending';
+      statusBadge = 'badge-locked';
+    } else if (status === 'locked') {
+      statusText = 'Locked';
       statusBadge = 'badge-locked';
     }
   } else if (part.locked) {
@@ -197,8 +204,10 @@ function createPartCard(part, isOperator = false) {
     </div>
   `;
 
-  // Allow clicking if operator has pending/in_progress assignment or if not completed/locked
-  const canClick = isOperator ? (part.assignment && part.assignment.status !== 'completed') : (!part.locked && !part.completed);
+  // Allow clicking if operator has ready/in_progress assignment or if not completed/locked
+  const canClick = isOperator 
+    ? (part.assignment && ['ready', 'in_progress'].includes(part.assignment.status)) 
+    : (!part.locked && !part.completed);
   if (canClick) {
     card.style.cursor = 'pointer';
     card.addEventListener('click', () => openPartModal(part.id));
