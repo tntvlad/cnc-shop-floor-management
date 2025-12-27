@@ -58,7 +58,7 @@ A complete, production-ready shop floor management system designed for CNC manuf
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/cnc-shop-floor-management.git
+   git clone https://github.com/tntvlad/cnc-shop-floor-management.git
    cd cnc-shop-floor-management
    ```
 

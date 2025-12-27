@@ -137,11 +137,11 @@ async function getOrderById(req, res) {
         p.quantity,
         p.description,
         p.status,
-        p.workflow_stage,
+        p.stage,
         p.material_id,
         m.material_name,
         p.estimated_setup_time,
-        p.estimated_run_time,
+        p.estimated_run_time_per_piece,
         p.batch_number,
         p.quantity_scrapped,
         p.created_at
