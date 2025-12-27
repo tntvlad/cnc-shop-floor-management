@@ -379,19 +379,13 @@ exports.getStatistics = async (req, res) => {
     const userId = req.user.id;
 
     const stats = await pool.query(`
-      SELECT 
-        COUNT(DISTINCT ja.part_id) as completed_parts,
-        COALESCE(SUM(tl.duration), 0) as total_time,
-        (
-          SELECT p.name 
-          FROM job_assignments ja2
-          JOIN parts p ON ja2.part_id = p.id
-          WHERE ja2.user_id = $1 AND ja2.status = 'in_progress'
-          LIMIT 1
-        ) as current_part
-      FROM job_assignments ja
-      LEFT JOIN time_logs tl ON tl.user_id = ja.user_id AND tl.part_id = ja.part_id
-      WHERE ja.user_id = $1 AND ja.status = 'completed'
+          SELECT 
+            (SELECT COUNT(*) FROM parts WHERE assigned_to = $1 AND status = 'completed') AS completed_parts,
+            (SELECT COALESCE(SUM(duration), 0) FROM time_logs WHERE user_id = $1) AS total_time,
+            (SELECT part_name FROM parts 
+               WHERE assigned_to = $1 AND status IN ('in_progress','assigned')
+               ORDER BY updated_at DESC NULLS LAST
+               LIMIT 1) AS current_part
     `, [userId]);
 
     res.json(stats.rows[0] || { completed_parts: 0, total_time: 0, current_part: null });
@@ -407,27 +401,22 @@ exports.getOperatorJobs = async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(`
-      SELECT 
-        p.*,
-        COALESCE(json_agg(
-          DISTINCT jsonb_build_object(
-            'id', f.id,
-            'filename', f.filename,
-            'fileType', f.file_type,
-            'uploadedAt', f.uploaded_at
-          )
-        ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
-        json_build_object(
-          'id', ja.id,
-          'status', ja.status,
-          'assignedAt', ja.assigned_at
-        ) as assignment
-      FROM job_assignments ja
-      JOIN parts p ON ja.part_id = p.id
-      LEFT JOIN files f ON p.id = f.part_id
-      WHERE ja.user_id = $1
-      GROUP BY p.id, ja.id, ja.status, ja.assigned_at
-      ORDER BY ja.status DESC, p.order_position ASC
+          SELECT 
+            p.*, m.material_name,
+            COALESCE(json_agg(
+              DISTINCT jsonb_build_object(
+                'id', f.id,
+                'filename', f.filename,
+                'fileType', f.file_type,
+                'uploadedAt', f.uploaded_at
+              )
+            ) FILTER (WHERE f.id IS NOT NULL), '[]') as files
+          FROM parts p
+          LEFT JOIN material_stock m ON p.material_id = m.id
+          LEFT JOIN files f ON p.id = f.part_id
+          WHERE p.assigned_to = $1
+          GROUP BY p.id, m.material_name
+          ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
     `, [userId]);
 
     res.json(result.rows);
@@ -512,8 +501,8 @@ exports.startWorkflowStage = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE parts 
-       SET workflow_stage = $1, 
-           status = 'in-progress',
+           SET stage = $1, 
+           status = 'in_progress',
            updated_at = NOW()
        WHERE id = $2
        RETURNING id, part_name, workflow_stage, status, batch_number`,
@@ -590,7 +579,7 @@ exports.completeWorkflowStage = async (req, res) => {
       success: true,
       message: `${currentStage} stage completed, moving to ${nextStage}`,
       part: result.rows[0]
-    });
+             SET stage = $1, 
   } catch (error) {
     console.error('Error completing stage:', error);
     res.status(500).json({ success: false, message: error.message });
