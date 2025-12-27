@@ -18,6 +18,7 @@ const filesController = require('./controllers/filesController');
 const adminController = require('./controllers/adminController');
 const ordersController = require('./controllers/ordersController');
 const materialsController = require('./controllers/materialsController');
+const phase1bController = require('./controllers/phase1bController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -132,6 +133,24 @@ app.post('/api/parts/:partId/workflow/complete', authMiddleware, requireSupervis
 app.post('/api/parts/:partId/hold', authMiddleware, requireSupervisor, partsController.holdPart);
 app.post('/api/parts/:partId/resume', authMiddleware, requireSupervisor, partsController.resumePart);
 app.post('/api/parts/:partId/scrap', authMiddleware, requireSupervisor, partsController.recordScrap);
+
+// ======================== PHASE 1B ROUTES (Batch, Revision, Time, Priority) ========================
+// Batch splitting
+app.post('/api/parts/:partId/split-batches', authMiddleware, requireSupervisor, phase1bController.splitPartIntoBatches);
+app.post('/api/parts/:parentPartId/merge-batches', authMiddleware, requireSupervisor, phase1bController.mergeBatches);
+
+// Drawing revision control
+app.put('/api/parts/:partId/revision', authMiddleware, requireSupervisor, phase1bController.updateDrawingRevision);
+app.get('/api/parts/:partId/revision-history', authMiddleware, phase1bController.getRevisionHistory);
+
+// Setup and runtime tracking
+app.post('/api/parts/:partId/time-estimates', authMiddleware, requireSupervisor, phase1bController.setTimeEstimates);
+app.post('/api/parts/:partId/record-times', authMiddleware, phase1bController.recordActualTimes);
+app.get('/api/parts/:partId/time-analysis', authMiddleware, phase1bController.getTimeAnalysis);
+
+// Priority calculation
+app.post('/api/parts/:partId/calculate-priority', authMiddleware, requireSupervisor, phase1bController.calculatePriority);
+app.get('/api/priority-queue', authMiddleware, phase1bController.getPriorityQueue);
 
 
 // File routes

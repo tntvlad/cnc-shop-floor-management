@@ -59,7 +59,7 @@ CREATE TABLE users (
 
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
-    order_number VARCHAR(50) UNIQUE NOT NULL,
+    order_number VARCHAR(50) UNIQUE DEFAULT ('ORD-' || LPAD(nextval('orders_id_seq')::TEXT, 6, '0')),
     customer_name VARCHAR(200) NOT NULL,
     customer_email VARCHAR(200),
     customer_phone VARCHAR(50),
@@ -96,9 +96,16 @@ CREATE TABLE parts (
     order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
     part_number VARCHAR(100),
     part_name VARCHAR(200) NOT NULL,
+    description TEXT,
     quantity INTEGER NOT NULL,
     quantity_completed INTEGER DEFAULT 0,
     quantity_scrapped INTEGER DEFAULT 0,
+    
+    -- Material reference
+    material_id INTEGER,
+    
+    -- Simple status for Phase 1A compatibility
+    status VARCHAR(50) DEFAULT 'pending',
     
     -- Batch management
     batch_number VARCHAR(50),
