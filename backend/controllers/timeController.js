@@ -61,10 +61,12 @@ exports.getActiveTimer = async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT tl.*, p.name as part_name
+      `SELECT tl.*, p.part_name
        FROM time_logs tl
        JOIN parts p ON tl.part_id = p.id
-       WHERE tl.user_id = $1 AND tl.end_time IS NULL`,
+       WHERE tl.user_id = $1 AND tl.ended_at IS NULL
+       ORDER BY tl.started_at DESC
+       LIMIT 1`,
       [userId]
     );
 

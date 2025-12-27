@@ -39,30 +39,12 @@ exports.getAllParts = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         p.*,
-        COALESCE(json_agg(
-          DISTINCT jsonb_build_object(
-            'id', f.id,
-            'filename', f.filename,
-            'fileType', f.file_type,
-            'uploadedAt', f.uploaded_at
-          )
-        ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
-        COALESCE(json_agg(
-          jsonb_build_object(
-            'id', ja.id,
-            'userId', ja.user_id,
-            'userName', u.name,
-            'employeeId', u.employee_id,
-            'status', ja.status,
-            'assignedAt', ja.assigned_at
-          ) ORDER BY ja.assigned_at
-        ) FILTER (WHERE ja.id IS NOT NULL), '[]') as assignments
+        m.material_name,
+        u.name as assigned_user_name
       FROM parts p
-      LEFT JOIN files f ON p.id = f.part_id
-      LEFT JOIN job_assignments ja ON p.id = ja.part_id
-      LEFT JOIN users u ON ja.user_id = u.id
-      GROUP BY p.id
-      ORDER BY p.order_position ASC
+      LEFT JOIN material_stock m ON p.material_id = m.id
+      LEFT JOIN users u ON p.assigned_to = u.id
+      ORDER BY p.created_at DESC
     `);
 
     res.json(result.rows);
@@ -80,40 +62,12 @@ exports.getPart = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         p.*,
-        COALESCE(json_agg(
-          DISTINCT jsonb_build_object(
-            'id', f.id,
-            'filename', f.filename,
-            'fileType', f.file_type,
-            'uploadedAt', f.uploaded_at
-          )
-        ) FILTER (WHERE f.id IS NOT NULL), '[]') as files,
-        COALESCE(json_agg(
-          jsonb_build_object(
-            'id', fb.id,
-            'text', fb.text,
-            'userName', u.name,
-            'createdAt', fb.created_at
-          ) ORDER BY fb.created_at DESC
-        ) FILTER (WHERE fb.id IS NOT NULL), '[]') as feedback,
-        COALESCE(json_agg(
-          jsonb_build_object(
-            'id', ja.id,
-            'userId', ja.user_id,
-            'userName', u2.name,
-            'employeeId', u2.employee_id,
-            'status', ja.status,
-            'assignedAt', ja.assigned_at
-          ) ORDER BY ja.assigned_at
-        ) FILTER (WHERE ja.id IS NOT NULL), '[]') as assignments
+        m.material_name,
+        u.name as assigned_user_name
       FROM parts p
-      LEFT JOIN files f ON p.id = f.part_id
-      LEFT JOIN feedback fb ON p.id = fb.part_id
-      LEFT JOIN users u ON fb.user_id = u.id
-      LEFT JOIN job_assignments ja ON p.id = ja.part_id
-      LEFT JOIN users u2 ON ja.user_id = u2.id
+      LEFT JOIN material_stock m ON p.material_id = m.id
+      LEFT JOIN users u ON p.assigned_to = u.id
       WHERE p.id = $1
-      GROUP BY p.id
     `, [id]);
 
     if (result.rows.length === 0) {
