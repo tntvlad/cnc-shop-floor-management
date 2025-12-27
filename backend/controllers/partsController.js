@@ -579,7 +579,7 @@ exports.completeWorkflowStage = async (req, res) => {
       success: true,
       message: `${currentStage} stage completed, moving to ${nextStage}`,
       part: result.rows[0]
-             SET stage = $1, 
+    });
   } catch (error) {
     console.error('Error completing stage:', error);
     res.status(500).json({ success: false, message: error.message });
