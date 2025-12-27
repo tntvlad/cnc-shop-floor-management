@@ -109,12 +109,13 @@ app.post('/api/parts/:partId/timer/stop', authMiddleware, timeController.stopTim
 app.get('/api/parts/:partId/timelogs', authMiddleware, timeController.getPartTimeLogs);
 
 // ======================== ORDERS ROUTES ========================
-app.post('/api/orders', authMiddleware, requireSupervisor, ordersController.createOrder);
+// Note: requireSupervisor must be INVOKED to return the middleware instance.
+app.post('/api/orders', authMiddleware, requireSupervisor(), ordersController.createOrder);
 app.get('/api/orders', authMiddleware, ordersController.getOrders);
 app.get('/api/orders/:id', authMiddleware, ordersController.getOrderById);
-app.put('/api/orders/:id', authMiddleware, requireSupervisor, ordersController.updateOrder);
-app.put('/api/orders/:id/status', authMiddleware, requireSupervisor, ordersController.updateOrderStatus);
-app.delete('/api/orders/:id', authMiddleware, requireSupervisor, ordersController.deleteOrder);
+app.put('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.updateOrder);
+app.put('/api/orders/:id/status', authMiddleware, requireSupervisor(), ordersController.updateOrderStatus);
+app.delete('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.deleteOrder);
 app.get('/api/orders/stats/summary', authMiddleware, ordersController.getOrderStats);
 
 // ======================== MATERIALS ROUTES ========================
