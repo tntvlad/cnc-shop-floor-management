@@ -19,6 +19,7 @@ const adminController = require('./controllers/adminController');
 const ordersController = require('./controllers/ordersController');
 const materialsController = require('./controllers/materialsController');
 const phase1bController = require('./controllers/phase1bController');
+const machinesController = require('./controllers/machinesController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -121,36 +122,43 @@ app.get('/api/orders/stats/summary', authMiddleware, ordersController.getOrderSt
 // ======================== MATERIALS ROUTES ========================
 app.get('/api/materials', authMiddleware, materialsController.getMaterials);
 app.get('/api/materials/:id', authMiddleware, materialsController.getMaterialById);
-app.post('/api/materials', authMiddleware, requireSupervisor, materialsController.createMaterial);
-app.put('/api/materials/:id', authMiddleware, requireSupervisor, materialsController.updateMaterialStock);
-app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor, materialsController.adjustMaterialStock);
+app.post('/api/materials', authMiddleware, requireSupervisor(), materialsController.createMaterial);
+app.put('/api/materials/:id', authMiddleware, requireSupervisor(), materialsController.updateMaterialStock);
+app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor(), materialsController.adjustMaterialStock);
 app.get('/api/materials/alerts/low-stock', authMiddleware, materialsController.getLowStockAlerts);
 app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsController.getOrderMaterialRequirements);
 app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
 
+// ======================== MACHINES ROUTES ========================
+app.get('/api/machines', authMiddleware, machinesController.getMachines);
+app.get('/api/machines/:id', authMiddleware, machinesController.getMachine);
+app.post('/api/machines', authMiddleware, requireSupervisor(), validateRequest(schemas.createMachine), machinesController.createMachine);
+app.put('/api/machines/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updateMachine), machinesController.updateMachine);
+app.post('/api/machines/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignMachineJob), machinesController.assignJob);
+
 // ======================== WORKFLOW TRANSITIONS ========================
-app.post('/api/parts/:partId/workflow/start', authMiddleware, requireSupervisor, partsController.startWorkflowStage);
-app.post('/api/parts/:partId/workflow/complete', authMiddleware, requireSupervisor, partsController.completeWorkflowStage);
-app.post('/api/parts/:partId/hold', authMiddleware, requireSupervisor, partsController.holdPart);
-app.post('/api/parts/:partId/resume', authMiddleware, requireSupervisor, partsController.resumePart);
-app.post('/api/parts/:partId/scrap', authMiddleware, requireSupervisor, partsController.recordScrap);
+app.post('/api/parts/:partId/workflow/start', authMiddleware, requireSupervisor(), partsController.startWorkflowStage);
+app.post('/api/parts/:partId/workflow/complete', authMiddleware, requireSupervisor(), partsController.completeWorkflowStage);
+app.post('/api/parts/:partId/hold', authMiddleware, requireSupervisor(), partsController.holdPart);
+app.post('/api/parts/:partId/resume', authMiddleware, requireSupervisor(), partsController.resumePart);
+app.post('/api/parts/:partId/scrap', authMiddleware, requireSupervisor(), partsController.recordScrap);
 
 // ======================== PHASE 1B ROUTES (Batch, Revision, Time, Priority) ========================
 // Batch splitting
-app.post('/api/parts/:partId/split-batches', authMiddleware, requireSupervisor, phase1bController.splitPartIntoBatches);
-app.post('/api/parts/:parentPartId/merge-batches', authMiddleware, requireSupervisor, phase1bController.mergeBatches);
+app.post('/api/parts/:partId/split-batches', authMiddleware, requireSupervisor(), phase1bController.splitPartIntoBatches);
+app.post('/api/parts/:parentPartId/merge-batches', authMiddleware, requireSupervisor(), phase1bController.mergeBatches);
 
 // Drawing revision control
-app.put('/api/parts/:partId/revision', authMiddleware, requireSupervisor, phase1bController.updateDrawingRevision);
+app.put('/api/parts/:partId/revision', authMiddleware, requireSupervisor(), phase1bController.updateDrawingRevision);
 app.get('/api/parts/:partId/revision-history', authMiddleware, phase1bController.getRevisionHistory);
 
 // Setup and runtime tracking
-app.post('/api/parts/:partId/time-estimates', authMiddleware, requireSupervisor, phase1bController.setTimeEstimates);
+app.post('/api/parts/:partId/time-estimates', authMiddleware, requireSupervisor(), phase1bController.setTimeEstimates);
 app.post('/api/parts/:partId/record-times', authMiddleware, phase1bController.recordActualTimes);
 app.get('/api/parts/:partId/time-analysis', authMiddleware, phase1bController.getTimeAnalysis);
 
 // Priority calculation
-app.post('/api/parts/:partId/calculate-priority', authMiddleware, requireSupervisor, phase1bController.calculatePriority);
+app.post('/api/parts/:partId/calculate-priority', authMiddleware, requireSupervisor(), phase1bController.calculatePriority);
 app.get('/api/priority-queue', authMiddleware, phase1bController.getPriorityQueue);
 
 

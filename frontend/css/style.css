@@ -237,6 +237,57 @@ body {
     width: 100%;
 }
 
+/* Priority visuals */
+.priority-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.priority-urgent {
+    background: #f43f5e;
+    color: #fff;
+}
+
+.priority-normal {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.priority-low {
+    background: #cbd5e1;
+    color: #0f172a;
+}
+
+.priority-row {
+    border-left: 4px solid transparent;
+}
+
+.priority-row.priority-urgent {
+    border-left-color: #f43f5e;
+}
+
+.priority-row.priority-normal {
+    border-left-color: #3b82f6;
+}
+
+.priority-row.priority-low {
+    border-left-color: #94a3b8;
+}
+
+.priority-score,
+.priority-note,
+.due-chip {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    display: block;
+}
+
 /* Header */
 .header {
     background: var(--dark-bg);

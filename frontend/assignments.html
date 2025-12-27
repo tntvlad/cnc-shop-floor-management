@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assignments</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="logo">CNC Shop Floor</div>
+    <nav class="nav">
+      <a href="index.html">Dashboard</a>
+      <a href="order-dashboard.html">Orders</a>
+      <a href="materials.html">Materials</a>
+      <a href="machines.html">Machines</a>
+      <a href="admin-settings.html">Admin</a>
+      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Assignments</h1>
+    <p class="muted">Supervisors can assign order parts to operators and machines.</p>
+
+    <section class="card">
+      <h2>Order Parts</h2>
+      <div class="form-grid">
+        <label>Order ID<input id="orderId" placeholder="Order ID"></label>
+        <label>Status
+          <select id="partStatus">
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="on_hold">On Hold</option>
+          </select>
+        </label>
+        <button class="btn" id="loadParts">Load Parts</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table" id="partsTable">
+          <thead>
+            <tr>
+              <th>Part</th><th>Order</th><th>Status</th><th>Operator</th><th>Machine</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Assign Selected Part</h2>
+      <form id="assignForm" class="form-grid">
+        <input type="hidden" id="partId">
+        <label>Operator
+          <input id="assigned_to_operator" placeholder="Operator ID" required>
+        </label>
+        <label>Machine
+          <select id="machine_id"></select>
+        </label>
+        <label>Due Date<input type="date" id="due_date"></label>
+        <button class="btn" type="submit">Assign</button>
+        <button class="btn btn-secondary" type="button" id="clearSelection">Clear</button>
+      </form>
+      <div id="assignMessage" class="muted"></div>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/assignments.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Machines</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="logo">CNC Shop Floor</div>
+    <nav class="nav">
+      <a href="index.html">Dashboard</a>
+      <a href="order-dashboard.html">Orders</a>
+      <a href="materials.html">Materials</a>
+      <a href="assignments.html">Assignments</a>
+      <a href="admin-settings.html">Admin</a>
+      <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Machines</h1>
+    <p class="muted">Add or edit CNC machines; toggle availability.</p>
+
+    <section class="card">
+      <h2>Add / Edit Machine</h2>
+      <form id="machineForm" class="form-grid">
+        <input type="hidden" id="machineId">
+        <label>Machine Type<input id="machine_type" required></label>
+        <label>Machine Number<input id="machine_number" required></label>
+        <label>Name<input id="name"></label>
+        <label>Model<input id="model"></label>
+        <label>Status
+          <select id="status">
+            <option value="active">Active</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="offline">Offline</option>
+          </select>
+        </label>
+        <label>Available
+          <select id="is_available">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </label>
+        <label>Notes<textarea id="notes" rows="2"></textarea></label>
+        <button class="btn" type="submit">Save Machine</button>
+        <button class="btn btn-secondary" type="button" id="resetForm">Reset</button>
+      </form>
+      <div id="formMessage" class="muted"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Machine List</h2>
+        <button class="btn" id="refreshMachines">Refresh</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table" id="machinesTable">
+          <thead>
+            <tr>
+              <th>Type</th><th>#</th><th>Name</th><th>Model</th><th>Status</th><th>Available</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/machines.js"></script>
+</body>
+</html>

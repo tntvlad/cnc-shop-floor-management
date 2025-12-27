@@ -605,9 +605,9 @@ exports.holdPart = async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO activity_log (part_id, action, details)
-       VALUES ($1, $2, $3)`,
-      [partId, 'part_held', `Part placed on hold: ${reason || 'No reason provided'}`]
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user?.id || null, 'part_held', 'part', partId, `Part placed on hold: ${reason || 'No reason provided'}`]
     );
 
     res.status(200).json({
@@ -627,7 +627,7 @@ exports.resumePart = async (req, res) => {
     const { partId } = req.params;
 
     const partResult = await pool.query(
-      'SELECT workflow_stage FROM parts WHERE id = $1',
+      'SELECT stage FROM parts WHERE id = $1',
       [partId]
     );
 
@@ -639,14 +639,14 @@ exports.resumePart = async (req, res) => {
       `UPDATE parts 
        SET status = 'in-progress', hold_reason = NULL, updated_at = NOW()
        WHERE id = $1
-       RETURNING id, part_name, status, workflow_stage`,
+       RETURNING id, part_name, status, stage`,
       [partId]
     );
 
     await pool.query(
-      `INSERT INTO activity_log (part_id, action, details)
-       VALUES ($1, $2, $3)`,
-      [partId, 'part_resumed', `Part resumed from hold in ${result.rows[0].workflow_stage} stage`]
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user?.id || null, 'part_resumed', 'part', partId, `Part resumed from hold in ${result.rows[0].stage} stage`]
     );
 
     res.status(200).json({
@@ -664,7 +664,7 @@ exports.resumePart = async (req, res) => {
 exports.recordScrap = async (req, res) => {
   try {
     const { partId } = req.params;
-    const { quantity_scrapped, reason, notes } = req.body;
+    const { quantity_scrapped, reason, notes, stage } = req.body;
 
     const partResult = await pool.query(
       'SELECT quantity, batch_number FROM parts WHERE id = $1',
@@ -685,17 +685,17 @@ exports.recordScrap = async (req, res) => {
       [quantity_scrapped, partId]
     );
 
-    // Record in scrap table
+    // Record in scrap table (aligns with schema columns)
     await pool.query(
-      `INSERT INTO scrap_records (part_id, quantity, reason, notes, recorded_by)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [partId, quantity_scrapped, reason || 'unspecified', notes || '', req.user?.id || 'system']
+      `INSERT INTO scrap_records (part_id, quantity, stage, reason, operator_id, cost_impact)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [partId, quantity_scrapped, stage || null, reason || 'unspecified', req.user?.id || null, null]
     );
 
     await pool.query(
-      `INSERT INTO activity_log (part_id, action, details)
-       VALUES ($1, $2, $3)`,
-      [partId, 'scrap_recorded', `${quantity_scrapped} units scrapped (${reason || 'no reason'})`]
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, description)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user?.id || null, 'scrap_recorded', 'part', partId, `${quantity_scrapped} units scrapped (${reason || 'no reason'})`]
     );
 
     res.status(200).json({

@@ -1,4 +1,11 @@
 let currentFilter = 'all';
+const PRIORITY_WEIGHT = {
+  urgent: 3,
+  high: 3,
+  normal: 2,
+  medium: 2,
+  low: 1
+};
 
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
@@ -76,14 +83,29 @@ function renderOrders(orders) {
     return;
   }
 
+  const sorted = [...orders].sort((a, b) => {
+    const pa = getPriorityMeta(a).weight;
+    const pb = getPriorityMeta(b).weight;
+    if (pb !== pa) return pb - pa;
+    const da = new Date(a.due_date || 0).getTime();
+    const db = new Date(b.due_date || 0).getTime();
+    return da - db;
+  });
+
   emptyState.style.display = 'none';
-  tbody.innerHTML = orders.map(order => {
-    const dueDate = new Date(order.due_date).toLocaleDateString();
+  tbody.innerHTML = sorted.map(order => {
+    const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '—';
+    const dueLabel = formatDueLabel(order.due_date);
     const progress = order.part_count > 0 ? Math.round((order.completed_parts / order.part_count) * 100) : 0;
+    const priority = getPriorityMeta(order);
 
     return `
-      <tr onclick="openOrderDetails(${order.id})">
+      <tr class="priority-row ${priority.rowClass}" onclick="openOrderDetails(${order.id})">
         <td><strong>#${order.id}</strong></td>
+        <td>
+          <span class="priority-badge ${priority.badgeClass}">${priority.label}</span>
+          ${priority.weight ? `<div class="priority-score">Score ${priority.weight}</div>` : ''}
+        </td>
         <td>
           <div style="font-weight: 600;">${order.customer_name}</div>
           <div style="font-size: 0.85rem; color: #999;">${order.customer_email}</div>
@@ -99,7 +121,10 @@ function renderOrders(orders) {
           </div>
           <div style="font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">${progress}%</div>
         </td>
-        <td>${dueDate}</td>
+        <td>
+          <div>${dueDate}</div>
+          <div class="due-chip">${dueLabel}</div>
+        </td>
         <td>
           <span class="status-badge status-${order.status}">
             ${order.status.toUpperCase()}
@@ -190,4 +215,40 @@ function showSuccess(message) {
   successEl.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #d1e7dd; color: #0f5132; padding: 1rem; border-radius: 4px; z-index: 2000;';
   document.body.appendChild(successEl);
   setTimeout(() => successEl.remove(), 5000);
+}
+
+function getPriorityMeta(item) {
+  const key = (item.priority || '').toLowerCase();
+  const label = key ? key.replace(/_/g, ' ') : 'normal';
+  const weight = typeof item.priority_score === 'number'
+    ? item.priority_score
+    : (PRIORITY_WEIGHT[key] || 0);
+  const badgeClass = priorityClass(key);
+  const rowClass = priorityClass(key);
+  return {
+    label: label.toUpperCase(),
+    weight,
+    badgeClass,
+    rowClass
+  };
+}
+
+function priorityClass(key) {
+  if (key === 'urgent' || key === 'high') return 'priority-urgent';
+  if (key === 'normal' || key === 'medium') return 'priority-normal';
+  if (key === 'low') return 'priority-low';
+  return 'priority-normal';
+}
+
+function formatDueLabel(dueDate) {
+  if (!dueDate) return 'No due date';
+  const now = new Date();
+  const target = new Date(dueDate);
+  const diffMs = target.getTime() - now.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `Late ${Math.abs(diffDays)}d`;
+  if (diffDays === 0) return 'Due today';
+  if (diffDays === 1) return 'Due in 1 day';
+  if (diffDays <= 3) return `Due in ${diffDays} days`;
+  return target.toLocaleDateString();
 }

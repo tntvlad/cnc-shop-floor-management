@@ -147,6 +147,37 @@ const schemas = {
       ))
       .min(1)
   }).or('userId', 'userIds')
+  ,
+
+  // Machines
+  updateMachine: Joi.object({
+    status: Joi.string(),
+    is_available: Joi.boolean(),
+    current_job: Joi.alternatives().try(Joi.number().integer(), Joi.valid(null)),
+    current_operator: Joi.alternatives().try(Joi.number().integer(), Joi.valid(null)),
+    maintenance_scheduled_start: Joi.date().allow(null),
+    maintenance_scheduled_end: Joi.date().allow(null),
+    maintenance_notes: Joi.string().allow('', null),
+    notes: Joi.string().allow('', null),
+    next_maintenance_due: Joi.date().allow(null),
+    last_maintenance: Joi.date().allow(null)
+  }).min(1),
+
+  assignMachineJob: Joi.object({
+    current_job: Joi.number().integer().required(),
+    current_operator: Joi.alternatives().try(Joi.number().integer(), Joi.valid(null)),
+    status: Joi.string().allow('', null)
+  }),
+
+  createMachine: Joi.object({
+    machine_type: Joi.string().valid('mill', 'lathe').required(),
+    machine_number: Joi.number().integer().min(1).required(),
+    machine_name: Joi.string().allow('', null),
+    machine_model: Joi.string().allow('', null),
+    status: Joi.string().allow('', null),
+    is_available: Joi.boolean(),
+    notes: Joi.string().allow('', null)
+  })
 };
 
 module.exports = { validateRequest, schemas };

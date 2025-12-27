@@ -51,6 +51,14 @@ function renderOrderDetails() {
   document.getElementById('order-date').textContent = new Date(currentOrder.order_date).toLocaleDateString();
   document.getElementById('due-date').textContent = new Date(currentOrder.due_date).toLocaleDateString();
 
+  const priority = getPriorityMeta(currentOrder);
+  const priorityEl = document.getElementById('order-priority');
+  priorityEl.className = `priority-badge ${priority.badgeClass}`;
+  priorityEl.textContent = priority.label;
+  const priorityScoreEl = document.getElementById('order-priority-score');
+  priorityScoreEl.textContent = priority.weight ? `(Score ${priority.weight})` : '';
+  document.getElementById('order-due-countdown').textContent = formatDueLabel(currentOrder.due_date);
+
   const statusBadge = `<span class="status-badge status-${currentOrder.status}">${currentOrder.status.toUpperCase()}</span>`;
   document.getElementById('order-status').innerHTML = statusBadge;
 
@@ -69,7 +77,14 @@ function renderParts() {
   }
 
   const tbody = document.getElementById('parts-tbody');
-  tbody.innerHTML = currentOrder.parts.map(part => {
+  const sortedParts = [...currentOrder.parts].sort((a, b) => {
+    const pa = getPriorityMeta(a).weight;
+    const pb = getPriorityMeta(b).weight;
+    if (pb !== pa) return pb - pa;
+    return (a.order_position || 0) - (b.order_position || 0);
+  });
+
+  tbody.innerHTML = sortedParts.map(part => {
     const workflowStage = part.workflow_stage || 'pending';
     const workflowEmoji = {
       'cutting': '✂️',
@@ -256,6 +271,47 @@ function showError(message) {
   errorEl.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #f8d7da; color: #842029; padding: 1rem; border-radius: 4px; z-index: 2000;';
   document.body.appendChild(errorEl);
   setTimeout(() => errorEl.remove(), 5000);
+}
+
+function getPriorityMeta(item) {
+  const key = (item.priority || '').toLowerCase();
+  const label = key ? key.replace(/_/g, ' ') : 'normal';
+  const weight = typeof item.priority_score === 'number'
+    ? item.priority_score
+    : priorityWeight(key);
+  const badgeClass = priorityClass(key);
+  return {
+    label: label.toUpperCase(),
+    weight,
+    badgeClass
+  };
+}
+
+function priorityClass(key) {
+  if (key === 'urgent' || key === 'high') return 'priority-urgent';
+  if (key === 'normal' || key === 'medium') return 'priority-normal';
+  if (key === 'low') return 'priority-low';
+  return 'priority-normal';
+}
+
+function priorityWeight(key) {
+  if (key === 'urgent' || key === 'high') return 3;
+  if (key === 'normal' || key === 'medium') return 2;
+  if (key === 'low') return 1;
+  return 0;
+}
+
+function formatDueLabel(dueDate) {
+  if (!dueDate) return 'No due date';
+  const now = new Date();
+  const target = new Date(dueDate);
+  const diffMs = target.getTime() - now.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `Late ${Math.abs(diffDays)}d`;
+  if (diffDays === 0) return 'Due today';
+  if (diffDays === 1) return 'Due in 1 day';
+  if (diffDays <= 3) return `Due in ${diffDays} days`;
+  return target.toLocaleDateString();
 }
 
 function showSuccess(message) {

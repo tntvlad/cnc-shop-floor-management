@@ -6,6 +6,7 @@ let jobTimerInterval = null;
 let jobStartTime = null;
 let activePdfId = null;
 let folderBrowserState = { root: null, relativePath: '', fullPath: '' };
+const PRIORITY_WEIGHT = { urgent: 3, high: 3, normal: 2, medium: 2, low: 1 };
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', () => {
@@ -73,6 +74,27 @@ function stopJobTimer() {
   jobStartTime = null;
 }
 
+function getPriorityMeta(item) {
+  const key = (item.priority || '').toLowerCase();
+  const label = key ? key.replace(/_/g, ' ') : 'normal';
+  const weight = typeof item.priority_score === 'number'
+    ? item.priority_score
+    : (PRIORITY_WEIGHT[key] || 0);
+  const badgeClass = priorityClass(key);
+  return {
+    label: label.toUpperCase(),
+    weight,
+    badgeClass
+  };
+}
+
+function priorityClass(key) {
+  if (key === 'urgent' || key === 'high') return 'priority-urgent';
+  if (key === 'normal' || key === 'medium') return 'priority-normal';
+  if (key === 'low') return 'priority-low';
+  return 'priority-normal';
+}
+
 function updateJobTimer() {
   if (!jobStartTime) return;
   const elapsed = Math.floor((Date.now() - jobStartTime) / 1000);
@@ -127,6 +149,15 @@ async function loadParts() {
     } else {
       parts = await API.parts.getAll();
     }
+
+    parts = [...parts].sort((a, b) => {
+      const pa = getPriorityMeta(a).weight;
+      const pb = getPriorityMeta(b).weight;
+      if (pb !== pa) return pb - pa;
+      const da = new Date(a.due_date || 0).getTime();
+      const db = new Date(b.due_date || 0).getTime();
+      return da - db;
+    });
     
     if (parts.length === 0) {
       partsGrid.innerHTML = '<div class="loading">No jobs assigned</div>';
@@ -148,6 +179,7 @@ async function loadParts() {
 function createPartCard(part, isOperator = false) {
   const card = document.createElement('div');
   card.className = 'part-card';
+  const priority = getPriorityMeta(part);
   
   // Determine status from assignment if operator
   let statusText = 'Available';
@@ -187,6 +219,10 @@ function createPartCard(part, isOperator = false) {
     <div class="part-card-header">
       <div class="part-name">${escapeHtml(part.name)}</div>
       <span class="part-badge ${statusBadge}">${statusText}</span>
+    </div>
+    <div style="margin: 4px 0 8px 0; display: flex; align-items: center; gap: 8px;">
+      <span class="priority-badge ${priority.badgeClass}">${priority.label}</span>
+      ${priority.weight ? `<span class="priority-note">Score ${priority.weight}</span>` : ''}
     </div>
     <div class="part-info">
       <div class="info-row">
