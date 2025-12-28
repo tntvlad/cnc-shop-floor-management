@@ -30,7 +30,8 @@ echo ""
 echo "=== STEP 2: UPDATE DATABASE SCHEMA ==="
 echo "Running schema migration..."
 
-psql -U $DB_USER -d $DB_NAME -f backend/db/schema.sql
+psql -U $DB_USER -d $DB_NAME -f backend/db/schema-v2-complete.sql
+psql -U $DB_USER -d $DB_NAME -f backend/db/migration-customers.sql
 
 if [ $? -eq 0 ]; then
     echo "✅ Schema updated successfully"
