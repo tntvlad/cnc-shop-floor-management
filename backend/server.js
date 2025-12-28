@@ -36,6 +36,7 @@ async function ensureSchema() {
 
   // Create customers table if it doesn't exist
   try {
+    // Create table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
@@ -59,12 +60,14 @@ async function ensureSchema() {
         billing_notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      CREATE INDEX IF NOT EXISTS idx_customers_company ON customers(company_name);
-      CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
-      CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+      )
     `);
+    
+    // Create indexes separately
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_company ON customers(company_name)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+    
     console.log('✓ Schema check: customers table ready');
   } catch (err) {
     console.error('Customers table creation failed:', err.message || err);
