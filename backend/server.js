@@ -115,7 +115,10 @@ app.delete('/api/auth/users/:userId', authMiddleware, authController.deleteUser)
 app.get('/api/auth/users', authMiddleware, authController.listUsers);
 
 // Admin routes
+app.get('/api/admin/git-branch', authMiddleware, adminController.getGitBranch);
+app.get('/api/admin/check-updates', authMiddleware, adminController.checkForUpdates);
 app.post('/api/admin/git-pull', authMiddleware, adminController.gitPull);
+app.post('/api/admin/git-switch', authMiddleware, adminController.switchBranch);
 app.post('/api/admin/restart', authMiddleware, adminController.restartServices);
 app.get('/api/admin/database/backup', authMiddleware, adminController.databaseBackup);
 app.post('/api/admin/database/restore', authMiddleware, adminController.databaseRestore);

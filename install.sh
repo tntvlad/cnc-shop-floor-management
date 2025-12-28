@@ -53,6 +53,55 @@ echo -e "${GREEN}✓ Docker daemon is running${NC}"
 
 echo ""
 echo -e "${CYAN}========================================"
+echo -e "Branch Selection"
+echo -e "========================================${NC}"
+echo ""
+
+# Detect available branches from remote
+echo -e "${YELLOW}Fetching available branches...${NC}"
+git fetch origin --quiet 2>/dev/null || true
+
+# Get list of remote branches
+BRANCHES=$(git branch -r 2>/dev/null | grep -E 'origin/(main|beta)' | sed 's/origin\///' | tr -d ' ' | sort -u)
+
+if [ -z "$BRANCHES" ]; then
+    echo -e "${YELLOW}Could not detect remote branches. Using current branch.${NC}"
+    SELECTED_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+else
+    echo -e "${GREEN}Available branches:${NC}"
+    i=1
+    for branch in $BRANCHES; do
+        echo -e "  ${CYAN}$i) $branch${NC}"
+        i=$((i + 1))
+    done
+    echo ""
+    
+    # Get current branch
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    echo -e "${YELLOW}Current branch: $CURRENT_BRANCH${NC}"
+    echo ""
+    
+    read -p "Select branch to install (1=main, 2=beta, Enter=keep $CURRENT_BRANCH): " BRANCH_CHOICE
+    
+    case "$BRANCH_CHOICE" in
+        1) SELECTED_BRANCH="main" ;;
+        2) SELECTED_BRANCH="beta" ;;
+        *) SELECTED_BRANCH="$CURRENT_BRANCH" ;;
+    esac
+    
+    # Switch branch if different
+    if [ "$SELECTED_BRANCH" != "$CURRENT_BRANCH" ]; then
+        echo -e "${YELLOW}Switching to branch: $SELECTED_BRANCH${NC}"
+        git checkout "$SELECTED_BRANCH" 2>/dev/null || git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null
+        git pull origin "$SELECTED_BRANCH" --no-edit 2>/dev/null || true
+        echo -e "${GREEN}✓ Switched to $SELECTED_BRANCH${NC}"
+    else
+        echo -e "${GREEN}✓ Staying on $SELECTED_BRANCH${NC}"
+    fi
+fi
+
+echo ""
+echo -e "${CYAN}========================================"
 echo -e "Configuration Setup"
 echo -e "========================================${NC}"
 echo ""

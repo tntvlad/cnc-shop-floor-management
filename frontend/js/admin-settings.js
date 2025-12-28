@@ -24,6 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = 'login.html';
   });
 
+  // Git settings button
+  const gitBtn = document.getElementById('gitSettingsBtn');
+  gitBtn.addEventListener('click', openGitSettings);
+
   // Update level hints when selecting a level
   const levelSelect = document.getElementById('newLevel');
   const levelHint = document.getElementById('levelHint');
@@ -115,6 +119,140 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshUsersBtn').addEventListener('click', loadUsers);
   loadUsers();
 });
+// Git Settings modal handlers
+function openGitSettings() {
+  document.getElementById('git-settings-modal').classList.add('active');
+  
+  // Reset UI
+  document.getElementById('local-version').textContent = 'Loading...';
+  document.getElementById('remote-version').textContent = 'Loading...';
+  document.getElementById('update-status').style.display = 'none';
+  document.getElementById('installUpdateBtn').style.display = 'none';
+  
+  // Load current branch
+  fetch(`${config.API_BASE_URL}/admin/git-branch`, {
+    headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+  })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('currentBranch').textContent = data.branch || 'unknown';
+      const radios = document.querySelectorAll('input[name="branch"]');
+      radios.forEach(r => { r.checked = (r.value === data.branch); });
+    })
+    .catch(() => {
+      document.getElementById('currentBranch').textContent = 'error';
+    });
+  
+  // Check for updates
+  checkForUpdates();
+}
+
+async function checkForUpdates() {
+  const localEl = document.getElementById('local-version');
+  const remoteEl = document.getElementById('remote-version');
+  const statusEl = document.getElementById('update-status');
+  const updateBtn = document.getElementById('installUpdateBtn');
+  
+  try {
+    const resp = await fetch(`${config.API_BASE_URL}/admin/check-updates`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    const data = await resp.json();
+    
+    if (!resp.ok) throw new Error(data.error || 'Failed to check updates');
+    
+    localEl.textContent = `${data.local.commit} (${new Date(data.local.date).toLocaleDateString()})`;
+    remoteEl.textContent = `${data.remote.commit} (${new Date(data.remote.date).toLocaleDateString()})`;
+    
+    if (data.updateAvailable) {
+      statusEl.style.display = 'block';
+      statusEl.style.background = '#fef3c7';
+      statusEl.style.color = '#92400e';
+      statusEl.innerHTML = `⚠️ Update available! ${data.commitsBehind} commit(s) behind.`;
+      updateBtn.style.display = 'inline-block';
+    } else {
+      statusEl.style.display = 'block';
+      statusEl.style.background = '#d1fae5';
+      statusEl.style.color = '#065f46';
+      statusEl.innerHTML = '✓ You are up to date!';
+      updateBtn.style.display = 'none';
+    }
+  } catch (err) {
+    localEl.textContent = 'Error';
+    remoteEl.textContent = 'Error';
+    statusEl.style.display = 'block';
+    statusEl.style.background = '#fee2e2';
+    statusEl.style.color = '#991b1b';
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+async function installUpdate() {
+  const logEl = document.getElementById('gitLog');
+  const updateBtn = document.getElementById('installUpdateBtn');
+  
+  logEl.style.display = 'block';
+  logEl.textContent = '⏳ Installing update...\n';
+  updateBtn.disabled = true;
+  
+  try {
+    const resp = await fetch(`${config.API_BASE_URL}/admin/git-pull`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    const data = await resp.json();
+    
+    if (!resp.ok) throw new Error(data.error || 'Update failed');
+    
+    logEl.textContent += `✓ ${data.message}\n`;
+    closeGitSettings();
+    logEl.textContent += '\n⏳ Restarting services...\n';
+    setTimeout(() => restartServices(), 1500);
+  } catch (err) {
+    logEl.textContent += `✗ Error: ${err.message}\n`;
+    updateBtn.disabled = false;
+  }
+}
+
+function closeGitSettings() {
+  document.getElementById('git-settings-modal').classList.remove('active');
+}
+
+async function applyGitBranch() {
+  const selected = document.querySelector('input[name="branch"]:checked');
+  if (!selected) { alert('Select a branch'); return; }
+
+  const branch = selected.value;
+  const logEl = document.getElementById('gitLog');
+  
+  // Close modal immediately
+  closeGitSettings();
+  
+  logEl.style.display = 'block';
+  logEl.textContent = `⏳ Switching to ${branch} ...\n`;
+
+  try {
+    const resp = await fetch(`${config.API_BASE_URL}/admin/git-switch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify({ branch })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Switch failed');
+
+    logEl.textContent += `✓ ${data.message}\n`;
+    logEl.textContent += '\n⏳ Restarting services...\n';
+    setTimeout(() => restartServices(), 1500);
+  } catch (err) {
+    logEl.textContent += `✗ Error: ${err.message}\n`;
+  }
+}
 
 async function checkStatus() {
   try {

@@ -46,7 +46,7 @@ services:
     volumes:
       - uploads_data:/app/uploads
       - /home/vlad/hdd/Tools:/data/jobfiles
-      - .:/app/project:ro  # Mount project for git operations (read-only)
+      - .:/app/project  # Mount project for git operations (writable for branch switch)
       - /var/run/docker.sock:/var/run/docker.sock  # For docker-compose restart
     ports:
       - "${BACKEND_PORT:-5000}:5000"

@@ -2,6 +2,29 @@ const { execSync } = require('child_process');
 const pool = require('../config/database');
 const { LEVELS, getLevelName } = require('../middleware/permissions');
 
+// Get current git branch (admin only)
+exports.getGitBranch = async (req, res) => {
+  try {
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can view git branch. Your level: ${getLevelName(req.user.level)}`
+      });
+    }
+
+    // Mark directory as safe
+    execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
+
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      encoding: 'utf-8',
+      cwd: '/app/project'
+    }).trim();
+
+    res.json({ branch });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get git branch', details: error.message });
+  }
+};
+
 // Git pull (admin only)
 exports.gitPull = async (req, res) => {
   try {
@@ -13,7 +36,8 @@ exports.gitPull = async (req, res) => {
     }
 
     try {
-      // Configure git if not already done
+      // Mark directory as safe and configure git
+      execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
       execSync('git config --global user.email "admin@cnc-shop.local" 2>/dev/null || true', {
         encoding: 'utf-8',
         cwd: '/app/project'
@@ -23,14 +47,20 @@ exports.gitPull = async (req, res) => {
         cwd: '/app/project'
       });
 
-      const output = execSync('cd /app/project && git pull origin main --no-edit 2>&1', {
+      // Get current branch and pull from it
+      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      const output = execSync(`cd /app/project && git pull origin ${currentBranch} --no-edit 2>&1`, {
         encoding: 'utf-8',
         timeout: 30000,
         maxBuffer: 10 * 1024 * 1024
       });
 
       res.json({
-        message: 'Git pull completed successfully',
+        message: `Git pull from ${currentBranch} completed successfully`,
         output
       });
     } catch (error) {
@@ -42,6 +72,47 @@ exports.gitPull = async (req, res) => {
   } catch (error) {
     console.error('Git pull error:', error);
     res.status(500).json({ error: 'Failed to pull updates' });
+  }
+};
+
+// Switch git branch (admin only)
+exports.switchBranch = async (req, res) => {
+  try {
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can switch branch. Your level: ${getLevelName(req.user.level)}`
+      });
+    }
+
+    const branch = (req.body && req.body.branch) ? String(req.body.branch) : 'main';
+    if (!['main', 'beta'].includes(branch)) {
+      return res.status(400).json({ error: 'Invalid branch. Allowed: main, beta' });
+    }
+
+    try {
+      // Mark directory as safe
+      execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
+
+      const cmds = [
+        'git fetch origin 2>&1',
+        `git checkout ${branch} 2>&1`,
+        `git pull origin ${branch} --no-edit 2>&1`
+      ];
+
+      let output = '';
+      cmds.forEach(cmd => {
+        output += execSync(cmd, { encoding: 'utf-8', cwd: '/app/project', timeout: 60000 });
+      });
+
+      const current = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8', cwd: '/app/project' }).trim();
+
+      res.json({ message: `Switched to ${current}`, output });
+    } catch (error) {
+      res.status(500).json({ error: 'Branch switch failed', details: error.message });
+    }
+  } catch (error) {
+    console.error('Switch branch error:', error);
+    res.status(500).json({ error: 'Failed to switch branch' });
   }
 };
 
@@ -172,5 +243,92 @@ exports.databaseRestore = async (req, res) => {
   } catch (error) {
     console.error('Restore error:', error);
     res.status(500).json({ error: 'Failed to restore database' });
+  }
+};
+
+// Check for updates (admin only)
+exports.checkForUpdates = async (req, res) => {
+  try {
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can check for updates. Your level: ${getLevelName(req.user.level)}`
+      });
+    }
+
+    try {
+      // Mark directory as safe
+      execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
+
+      // Get current branch
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      // Get local commit
+      const localCommit = execSync('git rev-parse HEAD', {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      const localCommitShort = localCommit.substring(0, 7);
+
+      // Get local commit date
+      const localDate = execSync('git log -1 --format=%ci', {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      // Fetch remote
+      execSync('git fetch origin 2>&1', {
+        encoding: 'utf-8',
+        cwd: '/app/project',
+        timeout: 30000
+      });
+
+      // Get remote commit
+      const remoteCommit = execSync(`git rev-parse origin/${branch}`, {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      const remoteCommitShort = remoteCommit.substring(0, 7);
+
+      // Get remote commit date
+      const remoteDate = execSync(`git log -1 --format=%ci origin/${branch}`, {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      // Count commits behind
+      const behindCount = execSync(`git rev-list HEAD..origin/${branch} --count`, {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      const updateAvailable = localCommit !== remoteCommit;
+
+      res.json({
+        branch,
+        local: {
+          commit: localCommitShort,
+          date: localDate
+        },
+        remote: {
+          commit: remoteCommitShort,
+          date: remoteDate
+        },
+        updateAvailable,
+        commitsBehind: parseInt(behindCount, 10) || 0
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Failed to check for updates',
+        details: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Check updates error:', error);
+    res.status(500).json({ error: 'Failed to check for updates' });
   }
 };
