@@ -191,7 +191,298 @@
       content: " *";
       color: #dc3545;
     }
-  </style>
+
+    /* Customer Search Styles */
+    .customer-search-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #customer-search {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    #customer-search:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .customer-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .customer-dropdown.active {
+      display: block;
+    }
+
+    .customer-option {
+      padding: 0.75rem;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
+    }
+
+    .customer-option:hover {
+      background: #f8f9fa;
+    }
+
+    .customer-option-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .customer-option-email {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+
+    .customer-details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 4px;
+      border-left: 4px solid #28a745;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+      color: #333;
+      word-break: break-word;
+    }
+
+    .link-btn {
+      background: none;
+      border: none;
+      color: #667eea;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: inherit;
+      padding: 0;
+    }
+
+    .link-btn:hover {
+      color: #5568d3;
+    }
+
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .modal-body {
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+
+    .btn-modal-cancel {
+      padding: 0.75rem 1.5rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-modal-cancel:hover {
+      background: #5a6268;
+    }
+
+    .btn-modal-submit {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-modal-submit:hover {
+      background: #5568d3;
+    }
+
+    /* Add Customer Form */
+    #add-customer-form .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    #add-customer-form .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #add-customer-form label {
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.9rem;
+    }
+
+    #add-customer-form input,
+    #add-customer-form textarea {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    #add-customer-form input:focus,
+    #add-customer-form textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+    }
+
+    #add-customer-form textarea {
+      resize: vertical;
+      min-height: 60px;
+      grid-column: 1 / -1;
+    }
+
+    /* CSV Import Styles */
+    #import-csv-modal .modal-content {
+      max-width: 800px;
+    }
+
+    #csv-file {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    #csv-preview {
+      margin: 1rem 0;
+    }
+
+    .csv-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .csv-table thead {
+      background: #f8f9fa;
+    }
+
+    .csv-table th,
+    .csv-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+      font-size: 0.9rem;
+    }
+
+    .csv-table th {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .csv-table tr.selected {
+      background: #e7f3ff;
+    }
+
+    .csv-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    .csv-table input[type="checkbox"] {
+      cursor: pointer;
+    }
+
 </head>
 <body>
   <div class="container">
@@ -215,18 +506,41 @@
           <!-- Customer Information -->
           <div class="form-section">
             <h3>Customer Information</h3>
-            <div class="form-grid">
-              <div class="form-group">
-                <label for="customer-name" class="required">Customer Name</label>
-                <input type="text" id="customer-name" name="customer_name" required>
+            
+            <!-- Customer Selection/Search -->
+            <div class="form-group customer-search-wrapper" style="margin-bottom: 1rem;">
+              <label class="required">Search or Select Customer</label>
+              <div style="position: relative;">
+                <input type="text" id="customer-search" placeholder="Type customer name, email, phone, or contact person...">
+                <div id="customer-dropdown" class="customer-dropdown"></div>
               </div>
-              <div class="form-group">
-                <label for="customer-email" class="required">Email</label>
-                <input type="email" id="customer-email" name="customer_email" required>
-              </div>
-              <div class="form-group">
-                <label for="customer-phone">Phone</label>
-                <input type="tel" id="customer-phone" name="customer_phone">
+              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> or <button type="button" class="link-btn" onclick="openImportCsvModal(); return false;">Import from CSV</button></small>
+            </div>
+
+            <input type="hidden" id="customer-id" value="">
+
+            <!-- Selected Customer Info Grid -->
+            <div id="selected-customer-info" style="display: none; margin-bottom: 1.5rem;">
+              <h4 style="margin-top: 0; margin-bottom: 1rem; color: #333;">Selected Customer Details:</h4>
+              <div id="customer-details-grid" class="customer-details-grid"></div>
+            </div>
+
+            <!-- Manual Entry (fallback) -->
+            <div id="manual-customer-fields" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+              <h4 style="margin-top: 0; color: #666;">Manual Customer Entry:</h4>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="manual-customer-name" class="required">Customer Name</label>
+                  <input type="text" id="manual-customer-name" name="customer_name">
+                </div>
+                <div class="form-group">
+                  <label for="manual-customer-email" class="required">Email</label>
+                  <input type="email" id="manual-customer-email" name="customer_email">
+                </div>
+                <div class="form-group">
+                  <label for="manual-customer-phone">Phone</label>
+                  <input type="tel" id="manual-customer-phone" name="customer_phone">
+                </div>
               </div>
             </div>
           </div>
@@ -242,6 +556,15 @@
               <div class="form-group">
                 <label for="due-date" class="required">Due Date</label>
                 <input type="date" id="due-date" name="due_date" required>
+              </div>
+              <div class="form-group">
+                <label for="priority">Priority</label>
+                <select id="priority" name="priority">
+                  <option value="low">Low</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
               </div>
             </div>
             <div class="form-group">
@@ -267,6 +590,108 @@
             <button type="submit" class="btn-submit">Create Order</button>
           </div>
         </form>
+
+        <!-- Add Customer Modal -->
+        <div class="modal" id="add-customer-modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Add New Customer</h2>
+              <button class="modal-close" onclick="closeAddCustomerModal()">✕</button>
+            </div>
+            <form id="add-customer-form" onsubmit="handleAddCustomer(event)">
+              <div class="modal-body">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="ac-company-name">Company Name *</label>
+                    <input type="text" id="ac-company-name" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-email">Email *</label>
+                    <input type="email" id="ac-email" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-phone">Phone</label>
+                    <input type="tel" id="ac-phone">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-cif">CIF</label>
+                    <input type="text" id="ac-cif">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-address">Address</label>
+                    <input type="text" id="ac-address">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-city">City</label>
+                    <input type="text" id="ac-city">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-contact-person">Contact Person</label>
+                    <input type="text" id="ac-contact-person">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-contact-phone">Contact Phone</label>
+                    <input type="tel" id="ac-contact-phone">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-contact-email">Contact Email</label>
+                    <input type="email" id="ac-contact-email">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-technical-contact">Technical Contact</label>
+                    <input type="text" id="ac-technical-contact">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-technical-phone">Technical Phone</label>
+                    <input type="tel" id="ac-technical-phone">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-technical-email">Technical Email</label>
+                    <input type="email" id="ac-technical-email">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-processing-notes">Processing Notes</label>
+                    <textarea id="ac-processing-notes"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-delivery-notes">Delivery Notes</label>
+                    <textarea id="ac-delivery-notes"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-billing-notes">Billing Notes</label>
+                    <textarea id="ac-billing-notes"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeAddCustomerModal()">Cancel</button>
+                <button type="submit" class="btn-modal-submit">Add Customer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Import CSV Modal -->
+        <div class="modal" id="import-csv-modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Import Customers from CSV</h2>
+              <button class="modal-close" onclick="closeImportCsvModal()">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label for="csv-file">Select CSV File</label>
+                <input type="file" id="csv-file" accept=".csv" onchange="handleCsvFile(event)">
+                <small style="color: #666; margin-top: 0.25rem;">Expected columns: Company Name, Email, Phone, City, CIF, Address, Contact Person, Technical Contact, etc.</small>
+              </div>
+              <div id="csv-preview"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-modal-cancel" onclick="closeImportCsvModal()">Cancel</button>
+              <button type="button" class="btn-modal-submit" id="csv-import-btn" onclick="handleImportCsv()" style="display: none;">Import Selected Rows</button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -274,183 +699,6 @@
   <script src="js/auth.js"></script>
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
-  <script>
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-      ensureAuthed();
-      setTodayDate();
-      addPartField(); // Add initial part field
-    });
-
-    function setTodayDate() {
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('order-date').value = today;
-    }
-
-    function addPartField() {
-      const partsList = document.getElementById('parts-list');
-      const partIndex = partsList.children.length;
-
-      const partItem = document.createElement('div');
-      partItem.className = 'part-item';
-      partItem.innerHTML = `
-        <input type="text" placeholder="Part name" name="parts[${partIndex}][part_name]">
-        <textarea placeholder="Description" name="parts[${partIndex}][description]" style="resize: none; min-height: auto;"></textarea>
-        <input type="number" placeholder="Qty" name="parts[${partIndex}][quantity]" min="1" value="1">
-        <select name="parts[${partIndex}][material_id]">
-          <option value="">Select Material</option>
-        </select>
-        <button type="button" class="btn-remove-part" onclick="this.parentElement.remove()">Remove</button>
-      `;
-
-      partsList.appendChild(partItem);
-
-      // Load materials for this select
-      loadMaterialsForSelect(partItem.querySelector('select'));
-    }
-
-    async function loadMaterialsForSelect(selectElement) {
-      try {
-        console.log('Loading materials from:', `${API_URL}/materials`);
-        console.log('Auth token:', getToken() ? 'Present' : 'Missing');
-        
-        const response = await fetch(`${API_URL}/materials`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        });
-        
-        console.log('Materials API response status:', response.status);
-        
-        if (!response.ok) {
-          console.error('Materials API error:', response.status, response.statusText);
-          selectElement.innerHTML = '<option value="">Error loading materials</option>';
-          return;
-        }
-
-        const data = await response.json();
-        console.log('Materials data received:', data);
-
-        selectElement.innerHTML = '<option value="">Select Material</option>';
-        
-        if (data.success && data.materials && Array.isArray(data.materials)) {
-          console.log(`Found ${data.materials.length} materials`);
-          data.materials.forEach(material => {
-            const option = document.createElement('option');
-            option.value = material.id;
-            option.textContent = `${material.material_name} (${material.current_stock} ${material.unit})`;
-            selectElement.appendChild(option);
-          });
-        } else if (data.materials && Array.isArray(data.materials)) {
-          // If no success flag but has materials array
-          console.log(`Found ${data.materials.length} materials (no success flag)`);
-          data.materials.forEach(material => {
-            const option = document.createElement('option');
-            option.value = material.id;
-            option.textContent = `${material.material_name} (${material.current_stock} ${material.unit})`;
-            selectElement.appendChild(option);
-          });
-        } else {
-          console.warn('No materials in response:', data);
-          selectElement.innerHTML = '<option value="">No materials available</option>';
-        }
-      } catch (error) {
-        console.error('Error loading materials:', error);
-        selectElement.innerHTML = '<option value="">Error: ' + error.message + '</option>';
-      }
-    }
-
-    async function handleCreateOrder(event) {
-      event.preventDefault();
-      
-      // Clear previous messages
-      document.getElementById('error-message').style.display = 'none';
-      document.getElementById('success-message').style.display = 'none';
-
-      const formData = new FormData(document.getElementById('create-order-form'));
-      const order = {
-        customer_name: formData.get('customer_name'),
-        customer_email: formData.get('customer_email'),
-        customer_phone: formData.get('customer_phone'),
-        order_date: formData.get('order_date'),
-        due_date: formData.get('due_date'),
-        notes: formData.get('notes'),
-        parts: []
-      };
-
-      // Validate required fields
-      if (!order.customer_name || !order.customer_email || !order.order_date || !order.due_date) {
-        showError('Please fill in all required fields (Customer name, email, order date, due date)');
-        return;
-      }
-
-      // Collect parts
-      const partsList = document.getElementById('parts-list');
-      partsList.querySelectorAll('.part-item').forEach((item, index) => {
-        const partName = item.querySelector('input[name*="part_name"]').value.trim();
-        const description = item.querySelector('textarea[name*="description"]').value.trim();
-        const quantity = parseInt(item.querySelector('input[name*="quantity"]').value) || 1;
-        const materialId = item.querySelector('select[name*="material_id"]').value;
-
-        // Only include parts with a name
-        if (partName) {
-          const part = {
-            part_name: partName,
-            description: description || '',
-            quantity: quantity,
-            material_id: materialId ? parseInt(materialId) : null
-          };
-          order.parts.push(part);
-        }
-      });
-
-      if (order.parts.length === 0) {
-        showError('Please add at least one part with a name');
-        return;
-      }
-
-      console.log('Creating order:', JSON.stringify(order, null, 2));
-
-      try {
-        const response = await fetch(`${API_URL}/orders`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`
-          },
-          body: JSON.stringify(order)
-        });
-
-        const data = await response.json();
-        
-        console.log('Response status:', response.status);
-        console.log('Response data:', data);
-
-        if (!response.ok) {
-          const errorMsg = data.message || data.details || JSON.stringify(data) || 'Failed to create order';
-          showError(errorMsg);
-          return;
-        }
-
-        showSuccess('Order created successfully! Redirecting...');
-        setTimeout(() => {
-          navigateTo('order-dashboard.html');
-        }, 1500);
-      } catch (error) {
-        console.error('Request failed:', error);
-        showError('Error: ' + error.message);
-      }
-    }
-
-    function showError(message) {
-      const errorEl = document.getElementById('error-message');
-      errorEl.textContent = message;
-      errorEl.style.display = 'block';
-    }
-
-    function showSuccess(message) {
-      const successEl = document.getElementById('success-message');
-      successEl.textContent = message;
-      successEl.style.display = 'block';
-    }
-  </script>
+  <script src="js/create-order.js"></script>
 </body>
 </html>

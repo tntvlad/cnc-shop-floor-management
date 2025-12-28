@@ -20,6 +20,7 @@ const ordersController = require('./controllers/ordersController');
 const materialsController = require('./controllers/materialsController');
 const phase1bController = require('./controllers/phase1bController');
 const machinesController = require('./controllers/machinesController');
+const customersController = require('./controllers/customersController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,6 +32,42 @@ async function ensureSchema() {
     console.log('✓ Schema check: parts.file_folder ready');
   } catch (err) {
     console.error('Schema check failed:', err.message || err);
+  }
+
+  // Create customers table if it doesn't exist
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        company_name VARCHAR(255) NOT NULL,
+        cif VARCHAR(50),
+        reg_com VARCHAR(50),
+        address TEXT,
+        city VARCHAR(100),
+        postal_code VARCHAR(20),
+        country VARCHAR(100) DEFAULT 'Romania',
+        contact_person VARCHAR(100),
+        contact_phone VARCHAR(20),
+        contact_email VARCHAR(100),
+        email VARCHAR(100) UNIQUE NOT NULL,
+        phone VARCHAR(20),
+        technical_contact_person VARCHAR(100),
+        technical_phone VARCHAR(20),
+        technical_email VARCHAR(100),
+        processing_notes TEXT,
+        delivery_notes TEXT,
+        billing_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_customers_company ON customers(company_name);
+      CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+      CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+    `);
+    console.log('✓ Schema check: customers table ready');
+  } catch (err) {
+    console.error('Customers table creation failed:', err.message || err);
   }
 }
 ensureSchema();
@@ -128,6 +165,14 @@ app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor(), mater
 app.get('/api/materials/alerts/low-stock', authMiddleware, materialsController.getLowStockAlerts);
 app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsController.getOrderMaterialRequirements);
 app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
+
+// ======================== CUSTOMERS ROUTES ========================
+app.get('/api/customers', authMiddleware, customersController.getCustomers);
+app.get('/api/customers/:id', authMiddleware, customersController.getCustomer);
+app.post('/api/customers', authMiddleware, requireSupervisor(), customersController.createCustomer);
+app.put('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.updateCustomer);
+app.delete('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.deleteCustomer);
+app.post('/api/customers/import/csv', authMiddleware, requireSupervisor(), customersController.importCustomers);
 
 // ======================== MACHINES ROUTES ========================
 app.get('/api/machines', authMiddleware, machinesController.getMachines);
