@@ -483,6 +483,7 @@
       cursor: pointer;
     }
 
+</style>
 </head>
 <body>
   <div class="container">
@@ -514,7 +515,7 @@
                 <input type="text" id="customer-search" placeholder="Type customer name, email, phone, or contact person...">
                 <div id="customer-dropdown" class="customer-dropdown"></div>
               </div>
-              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> or <button type="button" class="link-btn" onclick="openImportCsvModal(); return false;">Import from CSV</button></small>
+              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> or <button type="button" class="link-btn" onclick="openImportCsvModal(); return false;">Import from CSV</button> · <button type="button" class="link-btn" onclick="openEditCustomerModal(); return false;">Edit</button> · <button type="button" class="link-btn" onclick="openDeleteCustomerModal(); return false;">Delete</button></small>
             </div>
 
             <input type="hidden" id="customer-id" value="">
@@ -649,15 +650,15 @@
                     <label for="ac-technical-email">Technical Email</label>
                     <input type="email" id="ac-technical-email">
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="grid-column: 1 / -1;">
                     <label for="ac-processing-notes">Processing Notes</label>
                     <textarea id="ac-processing-notes"></textarea>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="grid-column: 1 / -1;">
                     <label for="ac-delivery-notes">Delivery Notes</label>
                     <textarea id="ac-delivery-notes"></textarea>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="grid-column: 1 / -1;">
                     <label for="ac-billing-notes">Billing Notes</label>
                     <textarea id="ac-billing-notes"></textarea>
                   </div>
@@ -666,6 +667,89 @@
               <div class="modal-footer">
                 <button type="button" class="btn-modal-cancel" onclick="closeAddCustomerModal()">Cancel</button>
                 <button type="submit" class="btn-modal-submit">Add Customer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Edit Customer Modal -->
+        <div class="modal" id="edit-customer-modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Edit Customer</h2>
+              <button class="modal-close" onclick="closeEditCustomerModal()">✕</button>
+            </div>
+            <form id="edit-customer-form" onsubmit="handleEditCustomer(event)">
+              <div class="modal-body">
+                <div class="form-group">
+                  <label for="edit-customer-select">Select Customer</label>
+                  <select id="edit-customer-select" onchange="prefillEditCustomerFields(this.value)"></select>
+                </div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="ec-company-name">Company Name</label>
+                    <input type="text" id="ec-company-name">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-email">Email</label>
+                    <input type="email" id="ec-email">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-phone">Phone</label>
+                    <input type="tel" id="ec-phone">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-cif">CIF</label>
+                    <input type="text" id="ec-cif">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-address">Address</label>
+                    <input type="text" id="ec-address">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-city">City</label>
+                    <input type="text" id="ec-city">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-contact-person">Contact Person</label>
+                    <input type="text" id="ec-contact-person">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-contact-phone">Contact Phone</label>
+                    <input type="tel" id="ec-contact-phone">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-contact-email">Contact Email</label>
+                    <input type="email" id="ec-contact-email">
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeEditCustomerModal()">Cancel</button>
+                <button type="submit" class="btn-modal-submit">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Delete Customer Modal -->
+        <div class="modal" id="delete-customer-modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Delete Customer</h2>
+              <button class="modal-close" onclick="closeDeleteCustomerModal()">✕</button>
+            </div>
+            <form id="delete-customer-form" onsubmit="handleDeleteCustomer(event)">
+              <div class="modal-body">
+                <div class="form-group">
+                  <label for="delete-customer-select">Select Customer</label>
+                  <select id="delete-customer-select"></select>
+                  <small style="color: #b45309; display: block; margin-top: 0.5rem;">This cannot be undone.</small>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-modal-cancel" onclick="closeDeleteCustomerModal()">Cancel</button>
+                <button type="submit" class="btn-modal-submit" style="background: #dc3545;">Delete</button>
               </div>
             </form>
           </div>

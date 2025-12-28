@@ -175,6 +175,172 @@ async function handleAddCustomer(event) {
   }
 }
 
+// Edit Customer Modal
+function populateCustomerSelect(selectId, preselectId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  select.innerHTML = '<option value="">Select customer</option>';
+  allCustomers.forEach(c => {
+    const option = document.createElement('option');
+    option.value = c.id;
+    option.textContent = `${c.company_name}${c.email ? ' (' + c.email + ')' : ''}`;
+    select.appendChild(option);
+  });
+  if (preselectId) {
+    select.value = preselectId;
+  }
+}
+
+function openEditCustomerModal() {
+  populateCustomerSelect('edit-customer-select', selectedCustomer?.id);
+  if (selectedCustomer) {
+    prefillEditCustomerFields(selectedCustomer.id);
+  } else {
+    prefillEditCustomerFields('');
+  }
+  document.getElementById('edit-customer-modal').classList.add('active');
+}
+
+function closeEditCustomerModal() {
+  document.getElementById('edit-customer-modal').classList.remove('active');
+  document.getElementById('edit-customer-form').reset();
+}
+
+function prefillEditCustomerFields(customerId) {
+  const customer = allCustomers.find(c => String(c.id) === String(customerId));
+  const fields = {
+    'ec-company-name': customer?.company_name || '',
+    'ec-email': customer?.email || '',
+    'ec-phone': customer?.phone || '',
+    'ec-cif': customer?.cif || '',
+    'ec-address': customer?.address || '',
+    'ec-city': customer?.city || '',
+    'ec-contact-person': customer?.contact_person || '',
+    'ec-contact-phone': customer?.contact_phone || '',
+    'ec-contact-email': customer?.contact_email || ''
+  };
+
+  Object.entries(fields).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+}
+
+async function handleEditCustomer(event) {
+  event.preventDefault();
+  const customerId = document.getElementById('edit-customer-select').value;
+
+  if (!customerId) {
+    showError('Select a customer to edit');
+    return;
+  }
+
+  const payload = {
+    company_name: document.getElementById('ec-company-name').value.trim() || null,
+    email: document.getElementById('ec-email').value.trim() || null,
+    phone: document.getElementById('ec-phone').value.trim() || null,
+    cif: document.getElementById('ec-cif').value.trim() || null,
+    address: document.getElementById('ec-address').value.trim() || null,
+    city: document.getElementById('ec-city').value.trim() || null,
+    contact_person: document.getElementById('ec-contact-person').value.trim() || null,
+    contact_phone: document.getElementById('ec-contact-phone').value.trim() || null,
+    contact_email: document.getElementById('ec-contact-email').value.trim() || null
+  };
+
+  try {
+    const response = await fetch(`${API_URL}/customers/${customerId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showError(data.message || 'Failed to update customer');
+      return;
+    }
+
+    const idx = allCustomers.findIndex(c => String(c.id) === String(customerId));
+    if (idx !== -1) {
+      allCustomers[idx] = data.customer;
+    }
+
+    if (selectedCustomer && String(selectedCustomer.id) === String(customerId)) {
+      selectedCustomer = data.customer;
+      showCustomerInfo(selectedCustomer);
+    }
+
+    populateCustomerSelect('edit-customer-select', customerId);
+    populateCustomerSelect('delete-customer-select');
+
+    closeEditCustomerModal();
+    showSuccess('Customer updated successfully');
+  } catch (error) {
+    showError('Error: ' + error.message);
+  }
+}
+
+// Delete Customer Modal
+function openDeleteCustomerModal() {
+  populateCustomerSelect('delete-customer-select', selectedCustomer?.id);
+  document.getElementById('delete-customer-modal').classList.add('active');
+}
+
+function closeDeleteCustomerModal() {
+  document.getElementById('delete-customer-modal').classList.remove('active');
+  document.getElementById('delete-customer-form').reset();
+}
+
+async function handleDeleteCustomer(event) {
+  event.preventDefault();
+  const customerId = document.getElementById('delete-customer-select').value;
+
+  if (!customerId) {
+    showError('Select a customer to delete');
+    return;
+  }
+
+  const confirmDelete = window.confirm('Delete this customer? This cannot be undone.');
+  if (!confirmDelete) return;
+
+  try {
+    const response = await fetch(`${API_URL}/customers/${customerId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showError(data.message || 'Failed to delete customer');
+      return;
+    }
+
+    allCustomers = allCustomers.filter(c => String(c.id) !== String(customerId));
+
+    if (selectedCustomer && String(selectedCustomer.id) === String(customerId)) {
+      selectedCustomer = null;
+      document.getElementById('customer-id').value = '';
+      document.getElementById('customer-search').value = '';
+      document.getElementById('selected-customer-info').style.display = 'none';
+      document.getElementById('customer-details-grid').innerHTML = '';
+    }
+
+    populateCustomerSelect('edit-customer-select');
+    populateCustomerSelect('delete-customer-select');
+    closeDeleteCustomerModal();
+    showSuccess('Customer deleted');
+  } catch (error) {
+    showError('Error: ' + error.message);
+  }
+}
+
 // CSV Import Modal
 function openImportCsvModal() {
   document.getElementById('import-csv-modal').classList.add('active');
@@ -184,6 +350,11 @@ function closeImportCsvModal() {
   document.getElementById('import-csv-modal').classList.remove('active');
   document.getElementById('csv-file').value = '';
   document.getElementById('csv-preview').innerHTML = '';
+  const importBtn = document.getElementById('csv-import-btn');
+  if (importBtn) {
+    importBtn.style.display = 'none';
+    importBtn.disabled = true;
+  }
   csvData = [];
   csvSelectedRows = [];
 }
@@ -246,8 +417,13 @@ function normalizeHeaderName(header) {
 
 function renderCsvPreview() {
   const preview = document.getElementById('csv-preview');
+  const importBtn = document.getElementById('csv-import-btn');
   if (csvData.length === 0) {
     preview.innerHTML = '<p style="color: #999;">No valid rows found</p>';
+    if (importBtn) {
+      importBtn.style.display = 'none';
+      importBtn.disabled = true;
+    }
     return;
   }
 
@@ -280,6 +456,12 @@ function renderCsvPreview() {
 
   preview.innerHTML = `<p><strong>${csvData.length} rows found</strong> - Select rows to import:</p>`;
   preview.appendChild(table);
+
+  if (importBtn) {
+    importBtn.style.display = 'inline-block';
+    importBtn.disabled = false;
+    importBtn.textContent = `Import ${csvSelectedRows.length} Selected Rows`;
+  }
 }
 
 function toggleCsvRow(idx, event) {
@@ -302,6 +484,7 @@ function toggleCsvRow(idx, event) {
   }
 
   updateSelectAllCheckbox();
+  updateImportButton();
 }
 
 function toggleAllCsvRows(checked) {
@@ -319,6 +502,8 @@ function toggleAllCsvRows(checked) {
       checkbox.checked = false;
     }
   });
+
+  updateImportButton();
 }
 
 function updateSelectAllCheckbox() {
@@ -327,6 +512,15 @@ function updateSelectAllCheckbox() {
   if (selectAll) {
     selectAll.checked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(cb => cb.checked);
   }
+}
+
+function updateImportButton() {
+  const importBtn = document.getElementById('csv-import-btn');
+  if (!importBtn) return;
+  importBtn.disabled = csvSelectedRows.length === 0;
+  importBtn.textContent = csvSelectedRows.length > 0
+    ? `Import ${csvSelectedRows.length} Selected Rows`
+    : 'Import Selected Rows';
 }
 
 async function handleImportCsv() {
