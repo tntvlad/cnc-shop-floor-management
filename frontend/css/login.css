@@ -1,0 +1,524 @@
+/* Login Page - Fero-Pact Style */
+
+/* Custom Font for Logo */
+@font-face {
+    font-family: 'Techover';
+    src: url('../fonts/techover.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* Login Page Body */
+.login-page-new {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top Navigation Bar */
+.login-navbar {
+    background: #fff;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.login-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.login-brand {
+    font-family: 'Techover', sans-serif;
+    font-size: 2.25rem;
+    color: #0000aa;
+    letter-spacing: 1px;
+}
+
+.login-nav-right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Dropdown Styles */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.dropdown-btn:hover {
+    background: #f0f0f0;
+}
+
+.globe-icon, .help-icon {
+    font-size: 1rem;
+}
+
+.arrow {
+    font-size: 0.7rem;
+    margin-left: 2px;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: #fff;
+    min-width: 160px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.dropdown-content a {
+    color: #333;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    transition: background 0.2s;
+}
+
+.dropdown-content a:hover {
+    background: #f5f5f5;
+}
+
+.dropdown-content a.active {
+    background: #e8f0fe;
+    color: #1a73e8;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/* Main Login Container */
+.login-main-container {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 60px 0;
+}
+
+.login-card {
+    background: #fff;
+    border-radius: 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 30px 40px;
+    width: 100%;
+    max-width: 100%;
+}
+
+.login-title {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: #333;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Form Styles */
+.login-form-new {
+    margin: 0;
+}
+
+.form-group-new {
+    margin-bottom: 20px;
+}
+
+.form-group-new label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+.form-group-new input[type="text"],
+.form-group-new input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.form-group-new input[type="text"]:focus,
+.form-group-new input[type="password"]:focus {
+    outline: none;
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+/* Error Message */
+.error-message-new {
+    background: #fdecea;
+    color: #c62828;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    border-left: 4px solid #c62828;
+}
+
+/* Login Actions */
+.login-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.btn-login {
+    background: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+    padding: 8px 20px;
+    font-size: 0.95rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-login:hover {
+    background: #f8f8f8;
+    border-color: #999;
+}
+
+.btn-login:active {
+    background: #eee;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    .login-navbar {
+        flex-direction: column;
+        gap: 15px;
+        padding: 1rem;
+    }
+    
+    .login-nav-left {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .login-nav-right {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .login-card {
+        padding: 25px 20px;
+        margin: 0 10px;
+    }
+    
+    .login-main-container {
+        padding: 30px 10px;
+    }
+}
+
+/* ========================================
+   Fero-Pact Style Modal (Source Control)
+   ======================================== */
+
+.modal-fero {
+    background: #fff;
+    border-radius: 0;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header-fero {
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+}
+
+.modal-brand {
+    font-size: 1.25rem;
+    font-weight: 400;
+    color: #333;
+}
+
+.modal-close-fero {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close-fero:hover {
+    color: #333;
+}
+
+.modal-body-fero {
+    padding: 20px;
+    background: #fff;
+}
+
+.modal-footer-fero {
+    padding: 16px 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+}
+
+/* Version Info Box */
+.version-info-box {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.version-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.version-right {
+    text-align: right;
+}
+
+.version-text {
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.update-status {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    display: none;
+}
+
+.update-status.show {
+    display: block;
+}
+
+.update-status.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.update-status.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.update-status.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Section Title */
+.section-title {
+    color: #666;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+/* Radio Group - Square Style */
+.radio-group {
+    margin-bottom: 10px;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 0;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.radio-label input[type="radio"] {
+    display: none;
+}
+
+.radio-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.radio-label input[type="radio"]:checked + .radio-custom {
+    border-color: #c62828;
+}
+
+.radio-label input[type="radio"]:checked + .radio-custom::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: #c62828;
+    border-radius: 50%;
+}
+
+/* Checkbox Group - Square Style */
+.checkbox-group-fero {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.checkbox-label-fero {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.checkbox-label-fero input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ccc;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    background: #fff;
+}
+
+.checkbox-label-fero input[type="checkbox"]:checked + .checkbox-custom {
+    background: #0000aa;
+    border-color: #0000aa;
+}
+
+.checkbox-label-fero input[type="checkbox"]:checked + .checkbox-custom::after {
+    content: '✓';
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Releases Dropdown */
+.releases-section {
+    margin-top: 16px;
+}
+
+.releases-dropdown-container {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.releases-dropdown-container label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.release-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.release-select:focus {
+    outline: none;
+    border-color: #0000aa;
+}
+
+/* Fero Buttons */
+.btn-fero {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #333;
+}
+
+.btn-fero:hover {
+    background: #f5f5f5;
+    border-color: #999;
+}
+
+.btn-cancel {
+    background: #fff;
+}
+
+.btn-apply {
+    background: #fff;
+}
+
+.btn-update {
+    background: #0000aa;
+    color: #fff;
+    border-color: #0000aa;
+}
+
+.btn-update:hover {
+    background: #000088;
+}
+
+.footer-actions {
+    display: flex;
+    gap: 8px;
+}

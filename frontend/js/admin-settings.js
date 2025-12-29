@@ -118,7 +118,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load users list
   document.getElementById('refreshUsersBtn').addEventListener('click', loadUsers);
   loadUsers();
+  
+  // Release checkbox toggle
+  const useReleaseCheckbox = document.getElementById('useReleaseCheckbox');
+  if (useReleaseCheckbox) {
+    useReleaseCheckbox.addEventListener('change', function() {
+      const container = document.getElementById('releasesDropdownContainer');
+      const branchRadios = document.querySelectorAll('input[name="branch"]');
+      if (this.checked) {
+        container.style.display = 'block';
+        branchRadios.forEach(r => { r.disabled = true; r.parentElement.style.opacity = '0.5'; });
+      } else {
+        container.style.display = 'none';
+        branchRadios.forEach(r => { r.disabled = false; r.parentElement.style.opacity = '1'; });
+      }
+    });
+  }
 });
+
 // Git Settings modal handlers
 function openGitSettings() {
   document.getElementById('git-settings-modal').classList.add('active');
@@ -126,8 +143,19 @@ function openGitSettings() {
   // Reset UI
   document.getElementById('local-version').textContent = 'Loading...';
   document.getElementById('remote-version').textContent = 'Loading...';
-  document.getElementById('update-status').style.display = 'none';
+  const statusEl = document.getElementById('update-status');
+  statusEl.style.display = 'none';
+  statusEl.className = 'update-status';
   document.getElementById('installUpdateBtn').style.display = 'none';
+  
+  // Reset releases
+  const useReleaseCheckbox = document.getElementById('useReleaseCheckbox');
+  if (useReleaseCheckbox) {
+    useReleaseCheckbox.checked = false;
+    document.getElementById('releasesDropdownContainer').style.display = 'none';
+    const branchRadios = document.querySelectorAll('input[name="branch"]');
+    branchRadios.forEach(r => { r.disabled = false; r.parentElement.style.opacity = '1'; });
+  }
   
   // Load current branch
   fetch(`${config.API_BASE_URL}/admin/git-branch`, {
@@ -143,8 +171,47 @@ function openGitSettings() {
       document.getElementById('currentBranch').textContent = 'error';
     });
   
+  // Load releases
+  loadReleases();
+  
   // Check for updates
   checkForUpdates();
+}
+
+async function loadReleases() {
+  const select = document.getElementById('releaseSelect');
+  if (!select) return;
+  
+  select.innerHTML = '<option value="">Loading releases...</option>';
+  
+  try {
+    const resp = await fetch(`${config.API_BASE_URL}/admin/git-releases`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    const data = await resp.json();
+    
+    if (!resp.ok) throw new Error(data.error || 'Failed to load releases');
+    
+    if (data.releases && data.releases.length > 0) {
+      select.innerHTML = '<option value="">-- Select a release --</option>';
+      data.releases.forEach(rel => {
+        const date = new Date(rel.date).toLocaleDateString();
+        const option = document.createElement('option');
+        option.value = rel.tag;
+        option.textContent = `${rel.tag} (${rel.commit} - ${date})`;
+        if (data.currentTag === rel.tag) {
+          option.textContent += ' ✓ current';
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+    } else {
+      select.innerHTML = '<option value="">No releases found</option>';
+    }
+  } catch (err) {
+    select.innerHTML = '<option value="">Error loading releases</option>';
+  }
 }
 
 async function checkForUpdates() {
@@ -218,6 +285,49 @@ async function installUpdate() {
 
 function closeGitSettings() {
   document.getElementById('git-settings-modal').classList.remove('active');
+}
+
+async function applySourceControl() {
+  const useRelease = document.getElementById('useReleaseCheckbox')?.checked;
+  const logEl = document.getElementById('gitLog');
+  
+  if (useRelease) {
+    // Apply release
+    const releaseSelect = document.getElementById('releaseSelect');
+    const tag = releaseSelect?.value;
+    
+    if (!tag) {
+      alert('Please select a release version');
+      return;
+    }
+    
+    closeGitSettings();
+    logEl.style.display = 'block';
+    logEl.textContent = `⏳ Checking out release ${tag}...\n`;
+    
+    try {
+      const resp = await fetch(`${config.API_BASE_URL}/admin/git-checkout-release`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Auth.getToken()}`
+        },
+        body: JSON.stringify({ tag })
+      });
+      
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Checkout failed');
+      
+      logEl.textContent += `✓ ${data.message}\n`;
+      logEl.textContent += '\n⏳ Restarting services...\n';
+      setTimeout(() => restartServices(), 1500);
+    } catch (err) {
+      logEl.textContent += `✗ Error: ${err.message}\n`;
+    }
+  } else {
+    // Apply branch (existing logic)
+    await applyGitBranch();
+  }
 }
 
 async function applyGitBranch() {

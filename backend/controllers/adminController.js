@@ -2,6 +2,133 @@ const { execSync } = require('child_process');
 const pool = require('../config/database');
 const { LEVELS, getLevelName } = require('../middleware/permissions');
 
+// Get git releases/tags (admin only)
+exports.getGitReleases = async (req, res) => {
+  try {
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can view releases. Your level: ${getLevelName(req.user.level)}`
+      });
+    }
+
+    try {
+      // Mark directory as safe
+      execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
+
+      // Fetch tags from remote
+      execSync('git fetch --tags origin 2>&1', {
+        encoding: 'utf-8',
+        cwd: '/app/project',
+        timeout: 30000
+      });
+
+      // Get all tags sorted by version (newest first)
+      const tagsOutput = execSync('git tag -l --sort=-version:refname', {
+        encoding: 'utf-8',
+        cwd: '/app/project'
+      }).trim();
+
+      const tags = tagsOutput ? tagsOutput.split('\n').filter(t => t.trim()) : [];
+
+      // Get details for each tag (limit to last 10)
+      const releases = [];
+      for (const tag of tags.slice(0, 10)) {
+        try {
+          const date = execSync(`git log -1 --format=%ci ${tag}`, {
+            encoding: 'utf-8',
+            cwd: '/app/project'
+          }).trim();
+
+          const commit = execSync(`git rev-list -n 1 ${tag}`, {
+            encoding: 'utf-8',
+            cwd: '/app/project'
+          }).trim().substring(0, 7);
+
+          releases.push({
+            tag,
+            commit,
+            date
+          });
+        } catch (e) {
+          // Skip tags with errors
+        }
+      }
+
+      // Get current tag if on a release
+      let currentTag = null;
+      try {
+        currentTag = execSync('git describe --tags --exact-match 2>/dev/null || echo ""', {
+          encoding: 'utf-8',
+          cwd: '/app/project'
+        }).trim();
+      } catch (e) {
+        currentTag = null;
+      }
+
+      res.json({
+        releases,
+        currentTag: currentTag || null
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Failed to get releases',
+        details: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Get releases error:', error);
+    res.status(500).json({ error: 'Failed to get releases' });
+  }
+};
+
+// Checkout specific release/tag (admin only)
+exports.checkoutRelease = async (req, res) => {
+  try {
+    if (req.user.level !== LEVELS.ADMIN) {
+      return res.status(403).json({
+        error: `Only Admin (500) can checkout releases. Your level: ${getLevelName(req.user.level)}`
+      });
+    }
+
+    const tag = req.body?.tag;
+    if (!tag) {
+      return res.status(400).json({ error: 'Tag is required' });
+    }
+
+    try {
+      // Mark directory as safe
+      execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
+
+      // Fetch latest tags
+      execSync('git fetch --tags origin 2>&1', {
+        encoding: 'utf-8',
+        cwd: '/app/project',
+        timeout: 30000
+      });
+
+      // Checkout the tag
+      const output = execSync(`git checkout tags/${tag} 2>&1`, {
+        encoding: 'utf-8',
+        cwd: '/app/project',
+        timeout: 30000
+      });
+
+      res.json({
+        message: `Checked out release ${tag}`,
+        output
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Failed to checkout release',
+        details: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Checkout release error:', error);
+    res.status(500).json({ error: 'Failed to checkout release' });
+  }
+};
+
 // Get current git branch (admin only)
 exports.getGitBranch = async (req, res) => {
   try {

@@ -5,36 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - CNC Shop Floor Management</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/login.css">
 </head>
-<body class="login-page">
-    <div class="login-container">
-        <div class="login-box">
-            <div class="login-header">
-                <h1>CNC Shop Floor Management</h1>
-                <p>Employee Login</p>
+<body class="login-page-new">
+    <!-- Top Navigation Bar -->
+    <nav class="login-navbar">
+        <div class="login-nav-left">
+            <span class="login-brand">Fero-Pact</span>
+        </div>
+        <div class="login-nav-right">
+            <div class="dropdown">
+                <button class="dropdown-btn" id="languageBtn">
+                    <span class="globe-icon">🌐</span> English <span class="arrow">▾</span>
+                </button>
+                <div class="dropdown-content" id="languageDropdown">
+                    <a href="#" data-lang="en" class="active">English</a>
+                    <a href="#" data-lang="ro">Română</a>
+                    <a href="#" data-lang="nl">Nederlands</a>
+                </div>
             </div>
+            <div class="dropdown">
+                <button class="dropdown-btn" id="helpBtn">
+                    <span class="help-icon">❓</span> Help <span class="arrow">▾</span>
+                </button>
+                <div class="dropdown-content" id="helpDropdown">
+                    <a href="#">Documentation</a>
+                    <a href="#">Contact Support</a>
+                    <a href="#">About</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login Form Container -->
+    <div class="login-main-container">
+        <div class="login-card">
+            <h2 class="login-title">Authentication Required</h2>
             
-            <form id="loginForm" class="login-form">
-                <div class="form-group">
-                    <label for="employeeId">Employee ID</label>
+            <form id="loginForm" class="login-form-new">
+                <div class="form-group-new">
+                    <label for="employeeId">User</label>
                     <input type="text" id="employeeId" name="employeeId" required autofocus>
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group-new">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
                 
-                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                <div id="errorMessage" class="error-message-new" style="display: none;"></div>
                 
-                <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
-                    Login
-                </button>
+                <div class="login-actions">
+                    <button type="submit" class="btn-login" id="loginBtn">Log In</button>
+                </div>
             </form>
-            
-            <div class="login-footer">
-                <p class="text-muted">Default Login: ADMIN001 / admin123</p>
-            </div>
         </div>
     </div>
     
