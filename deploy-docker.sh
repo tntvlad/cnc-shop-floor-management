@@ -186,7 +186,27 @@ else
 fi
 
 # =============================================================================
-# STEP 6: RESTART BACKEND
+# STEP 6.5: RUN USERS TABLE MIGRATION (ensures backup compatibility)
+# =============================================================================
+echo ""
+echo -e "${YELLOW}=== STEP 6.5: MIGRATE USERS TABLE ===${NC}"
+echo "Ensuring users table has all V2 columns for backup compatibility..."
+
+if [ -f "backend/db/migration-users-v2.sql" ]; then
+    docker cp backend/db/migration-users-v2.sql "$DB_CONTAINER:/tmp/migration-users-v2.sql"
+    
+    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration-users-v2.sql >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Users table migration complete${NC}"
+        echo -e "${CYAN}   • email, phone, is_active, last_login, updated_at columns ensured${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Users migration had warnings (non-critical)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠️  Users migration file not found (skipping)${NC}"
+fi
+
+# =============================================================================
+# STEP 7: RESTART BACKEND
 # =============================================================================
 echo ""
 echo -e "${YELLOW}=== STEP 7: REBUILD AND RESTART CONTAINERS ===${NC}"

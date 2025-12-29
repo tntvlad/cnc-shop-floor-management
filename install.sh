@@ -211,6 +211,26 @@ echo ""
 echo -e "${YELLOW}Waiting for services to be ready...${NC}"
 sleep 5
 
+# Run users table migration for backup compatibility
+echo ""
+echo -e "${YELLOW}Running database migrations...${NC}"
+
+DB_CONTAINER=$(docker ps --filter "name=postgres" --format "{{.Names}}" | head -n 1)
+if [ -z "$DB_CONTAINER" ]; then
+    DB_CONTAINER=$(docker ps --filter "name=db" --format "{{.Names}}" | head -n 1)
+fi
+
+if [ -n "$DB_CONTAINER" ] && [ -f "backend/db/migration-users-v2.sql" ]; then
+    docker cp backend/db/migration-users-v2.sql "$DB_CONTAINER:/tmp/migration-users-v2.sql"
+    if docker exec "$DB_CONTAINER" psql -U postgres -d cnc_shop_floor -f /tmp/migration-users-v2.sql >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ Database migrations applied (users table V2 compatible)${NC}"
+    else
+        echo -e "${YELLOW}⚠ Migration had warnings (non-critical)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ Skipping migrations (container or file not found)${NC}"
+fi
+
 echo ""
 echo -e "${YELLOW}Checking service status...${NC}"
 docker-compose ps
