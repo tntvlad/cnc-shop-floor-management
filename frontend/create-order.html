@@ -392,45 +392,137 @@
       background: #5568d3;
     }
 
-    /* Add Customer Form */
-    #add-customer-form .form-grid {
+    /* Customer Warning Styles */
+    .customer-warning {
+      background: #fff3cd;
+      border: 1px solid #ffecb5;
+      color: #664d03;
+    }
+
+    .customer-warning.danger {
+      background: #f8d7da;
+      border: 1px solid #f5c2c7;
+      color: #842029;
+    }
+
+    .customer-warning h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+    }
+
+    .customer-warning ul {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .customer-warning li {
+      margin-bottom: 0.25rem;
+    }
+
+    .param-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-right: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .param-badge.status-active { background: #d1e7dd; color: #0f5132; }
+    .param-badge.status-inactive { background: #fff3cd; color: #664d03; }
+    .param-badge.status-bankrupt { background: #f8d7da; color: #842029; }
+    .param-badge.status-closed { background: #e2e3e5; color: #41464b; }
+
+    .param-badge.payment-good { background: #d1e7dd; color: #0f5132; }
+    .param-badge.payment-new_customer { background: #cff4fc; color: #055160; }
+    .param-badge.payment-delayed { background: #fff3cd; color: #664d03; }
+    .param-badge.payment-bad { background: #f8d7da; color: #842029; }
+
+    .param-badge.discount { background: #d1e7dd; color: #0f5132; }
+    .param-badge.fee { background: #f8d7da; color: #842029; }
+
+    /* Add/Edit Customer Form - Match customers.html styling */
+    #add-customer-form .form-grid,
+    #edit-customer-form .form-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 1rem;
     }
 
-    #add-customer-form .form-group {
+    #add-customer-form .form-group,
+    #edit-customer-form .form-group {
       display: flex;
       flex-direction: column;
     }
 
-    #add-customer-form label {
-      margin-bottom: 0.25rem;
+    #add-customer-form label,
+    #edit-customer-form label {
+      margin-bottom: 0.5rem;
       font-weight: 600;
       color: #333;
-      font-size: 0.9rem;
+      font-size: 1rem;
     }
 
     #add-customer-form input,
-    #add-customer-form textarea {
-      padding: 0.5rem;
+    #add-customer-form select,
+    #add-customer-form textarea,
+    #edit-customer-form input,
+    #edit-customer-form select,
+    #edit-customer-form textarea {
+      padding: 0.75rem;
       border: 1px solid #ddd;
       border-radius: 4px;
-      font-size: 0.9rem;
+      font-size: 1rem;
       font-family: inherit;
     }
 
     #add-customer-form input:focus,
-    #add-customer-form textarea:focus {
+    #add-customer-form select:focus,
+    #add-customer-form textarea:focus,
+    #edit-customer-form input:focus,
+    #edit-customer-form select:focus,
+    #edit-customer-form textarea:focus {
       outline: none;
       border-color: #667eea;
-      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    #add-customer-form textarea {
+    #add-customer-form textarea,
+    #edit-customer-form textarea {
       resize: vertical;
-      min-height: 60px;
-      grid-column: 1 / -1;
+      min-height: 80px;
+    }
+
+    #add-customer-modal .modal-content,
+    #edit-customer-modal .modal-content {
+      max-width: 650px;
+      padding: 2rem;
+    }
+
+    #add-customer-modal .modal-header h2,
+    #edit-customer-modal .modal-header h2 {
+      font-size: 1.5rem;
+      color: #333;
+    }
+
+    #add-customer-modal .modal-footer,
+    #edit-customer-modal .modal-footer {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+    }
+
+    #add-customer-modal .btn-modal-cancel,
+    #edit-customer-modal .btn-modal-cancel {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+    }
+
+    #add-customer-modal .btn-modal-submit,
+    #edit-customer-modal .btn-modal-submit {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
     }
 
     /* CSV Import Styles */
@@ -515,7 +607,7 @@
                 <input type="text" id="customer-search" placeholder="Type customer name, email, phone, or contact person...">
                 <div id="customer-dropdown" class="customer-dropdown"></div>
               </div>
-              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> or <button type="button" class="link-btn" onclick="openImportCsvModal(); return false;">Import from CSV</button> · <button type="button" class="link-btn" onclick="openEditCustomerModal(); return false;">Edit</button> · <button type="button" class="link-btn" onclick="openDeleteCustomerModal(); return false;">Delete</button></small>
+              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> or <button type="button" class="link-btn" onclick="openImportCsvModal(); return false;">Import from CSV</button> · <button type="button" class="link-btn" onclick="openEditCustomerModal(); return false;">Edit</button> · <button type="button" class="link-btn" onclick="openDeleteCustomerModal(); return false;">Delete</button> · <button type="button" class="link-btn" onclick="navigateTo('customers.html'); return false;">Manage All</button></small>
             </div>
 
             <input type="hidden" id="customer-id" value="">
@@ -523,7 +615,17 @@
             <!-- Selected Customer Info Grid -->
             <div id="selected-customer-info" style="display: none; margin-bottom: 1.5rem;">
               <h4 style="margin-top: 0; margin-bottom: 1rem; color: #333;">Selected Customer Details:</h4>
+              
+              <!-- Customer Warning Banner (shows for problematic customers) -->
+              <div id="customer-warning-banner" style="display: none; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"></div>
+              
               <div id="customer-details-grid" class="customer-details-grid"></div>
+              
+              <!-- Customer Parameters Summary -->
+              <div id="customer-parameters-summary" style="display: none; margin-top: 1rem; padding: 1rem; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #667eea;">
+                <h5 style="margin: 0 0 0.5rem 0; color: #667eea;">📊 Customer Parameters</h5>
+                <div id="customer-params-content"></div>
+              </div>
             </div>
 
             <!-- Manual Entry (fallback) -->
@@ -542,6 +644,39 @@
                   <label for="manual-customer-phone">Phone</label>
                   <input type="tel" id="manual-customer-phone" name="customer_phone">
                 </div>
+              </div>
+            </div>
+
+            <!-- Contact Selection -->
+            <div id="contacts-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
+              <h4 style="margin-top: 0; margin-bottom: 1rem; color: #333;">Select Contacts (Optional)</h4>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="invoice-contact">Invoice Contact</label>
+                  <select id="invoice-contact" name="invoice_contact_id">
+                    <option value="">None</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="order-contact">Order Contact</label>
+                  <select id="order-contact" name="order_contact_id">
+                    <option value="">None</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="technical-contact">Technical Contact</label>
+                  <select id="technical-contact" name="technical_contact_id">
+                    <option value="">None</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Delivery Address Override -->
+            <div id="delivery-section" style="display: none; margin-top: 1.5rem;">
+              <div class="form-group">
+                <label for="delivery-address">Delivery Address <small style="font-weight: normal; color: #666;">(Override default HQ address)</small></label>
+                <textarea id="delivery-address" name="delivery_address" placeholder="Leave empty to use customer headquarters address" style="min-height: 80px;"></textarea>
               </div>
             </div>
           </div>
@@ -603,11 +738,15 @@
               <div class="modal-body">
                 <div class="form-grid">
                   <div class="form-group">
-                    <label for="ac-company-name">Company Name *</label>
+                    <label for="ac-company-name" class="required">Company Name</label>
                     <input type="text" id="ac-company-name" required>
                   </div>
                   <div class="form-group">
-                    <label for="ac-email">Email *</label>
+                    <label for="ac-customer-id">Customer ID</label>
+                    <input type="text" id="ac-customer-id" placeholder="e.g., CUST-001">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-email" class="required">Email</label>
                     <input type="email" id="ac-email" required>
                   </div>
                   <div class="form-group">
@@ -615,52 +754,73 @@
                     <input type="tel" id="ac-phone">
                   </div>
                   <div class="form-group">
-                    <label for="ac-cif">CIF</label>
-                    <input type="text" id="ac-cif">
+                    <label for="ac-cif">CIF (Tax ID)</label>
+                    <input type="text" id="ac-cif" placeholder="e.g., RO1234567890">
                   </div>
                   <div class="form-group">
-                    <label for="ac-address">Address</label>
-                    <input type="text" id="ac-address">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-city">City</label>
-                    <input type="text" id="ac-city">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-contact-person">Contact Person</label>
-                    <input type="text" id="ac-contact-person">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-contact-phone">Contact Phone</label>
-                    <input type="tel" id="ac-contact-phone">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-contact-email">Contact Email</label>
-                    <input type="email" id="ac-contact-email">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-technical-contact">Technical Contact</label>
-                    <input type="text" id="ac-technical-contact">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-technical-phone">Technical Phone</label>
-                    <input type="tel" id="ac-technical-phone">
-                  </div>
-                  <div class="form-group">
-                    <label for="ac-technical-email">Technical Email</label>
-                    <input type="email" id="ac-technical-email">
+                    <label for="ac-trade-register">Trade Register Number</label>
+                    <input type="text" id="ac-trade-register" placeholder="e.g., J01/1234/2023">
                   </div>
                   <div class="form-group" style="grid-column: 1 / -1;">
-                    <label for="ac-processing-notes">Processing Notes</label>
-                    <textarea id="ac-processing-notes"></textarea>
+                    <label for="ac-headquarters">Headquarters Address</label>
+                    <textarea id="ac-headquarters" placeholder="Main office address" style="min-height: 60px;"></textarea>
                   </div>
                   <div class="form-group" style="grid-column: 1 / -1;">
-                    <label for="ac-delivery-notes">Delivery Notes</label>
-                    <textarea id="ac-delivery-notes"></textarea>
+                    <label for="ac-delivery-address">Delivery Address <small style="font-weight: normal;">(Optional - defaults to headquarters)</small></label>
+                    <textarea id="ac-delivery-address" placeholder="Leave empty to use headquarters address" style="min-height: 60px;"></textarea>
+                  </div>
+                  
+                  <!-- Customer Parameters Section -->
+                  <div class="form-group" style="grid-column: 1 / -1; border-top: 2px solid #eee; padding-top: 1rem; margin-top: 0.5rem;">
+                    <h4 style="margin: 0 0 1rem 0; color: #667eea;">📊 Customer Parameters</h4>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-status">Status</label>
+                    <select id="ac-status">
+                      <option value="active">✅ Active</option>
+                      <option value="inactive">⏸️ Inactive</option>
+                      <option value="bankrupt">⚠️ Bankrupt</option>
+                      <option value="closed">❌ Closed</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-payment-terms">Payment Terms</label>
+                    <select id="ac-payment-terms">
+                      <option value="standard_credit">💳 Standard Credit</option>
+                      <option value="prepayment_required">💰 Prepayment Required</option>
+                      <option value="cod">📦 Cash on Delivery</option>
+                      <option value="custom">📝 Custom Terms</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-payment-history">Payment History</label>
+                    <select id="ac-payment-history">
+                      <option value="new_customer">🆕 New Customer</option>
+                      <option value="good">✅ Good</option>
+                      <option value="delayed">⚠️ Delayed Payments</option>
+                      <option value="bad">❌ Bad Payment History</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-discount-percentage">Discount/Fee % <small style="font-weight: normal;">(negative = fee)</small></label>
+                    <input type="number" id="ac-discount-percentage" step="0.01" min="-100" max="100" value="0" placeholder="e.g., 10 or -5">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-credit-limit">Credit Limit (€)</label>
+                    <input type="number" id="ac-credit-limit" step="0.01" min="0" placeholder="e.g., 10000">
+                  </div>
+                  <div class="form-group">
+                    <label for="ac-approval-threshold">Approval Threshold (€)</label>
+                    <input type="number" id="ac-approval-threshold" step="0.01" min="0" placeholder="Orders above this need approval">
                   </div>
                   <div class="form-group" style="grid-column: 1 / -1;">
-                    <label for="ac-billing-notes">Billing Notes</label>
-                    <textarea id="ac-billing-notes"></textarea>
+                    <label for="ac-custom-terms-notes">Custom Payment Terms Notes</label>
+                    <textarea id="ac-custom-terms-notes" placeholder="Special payment arrangements" style="min-height: 60px;"></textarea>
+                  </div>
+                  
+                  <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="ac-notes">General Notes</label>
+                    <textarea id="ac-notes" placeholder="Additional information about this customer" style="min-height: 60px;"></textarea>
                   </div>
                 </div>
               </div>
@@ -683,44 +843,93 @@
               <div class="modal-body">
                 <div class="form-group">
                   <label for="edit-customer-select">Select Customer</label>
-                  <select id="edit-customer-select" onchange="prefillEditCustomerFields(this.value)"></select>
+                  <select id="edit-customer-select" onchange="prefillEditCustomerFields(this.value)" required></select>
                 </div>
                 <div class="form-grid">
                   <div class="form-group">
-                    <label for="ec-company-name">Company Name</label>
-                    <input type="text" id="ec-company-name">
+                    <label for="ec-company-name" class="required">Company Name</label>
+                    <input type="text" id="ec-company-name" required>
                   </div>
                   <div class="form-group">
-                    <label for="ec-email">Email</label>
-                    <input type="email" id="ec-email">
+                    <label for="ec-customer-id">Customer ID</label>
+                    <input type="text" id="ec-customer-id" placeholder="e.g., CUST-001">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-email" class="required">Email</label>
+                    <input type="email" id="ec-email" required>
                   </div>
                   <div class="form-group">
                     <label for="ec-phone">Phone</label>
                     <input type="tel" id="ec-phone">
                   </div>
                   <div class="form-group">
-                    <label for="ec-cif">CIF</label>
-                    <input type="text" id="ec-cif">
+                    <label for="ec-cif">CIF (Tax ID)</label>
+                    <input type="text" id="ec-cif" placeholder="e.g., RO1234567890">
                   </div>
                   <div class="form-group">
-                    <label for="ec-address">Address</label>
-                    <input type="text" id="ec-address">
+                    <label for="ec-trade-register">Trade Register Number</label>
+                    <input type="text" id="ec-trade-register" placeholder="e.g., J01/1234/2023">
+                  </div>
+                  <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="ec-headquarters">Headquarters Address</label>
+                    <textarea id="ec-headquarters" placeholder="Main office address" style="min-height: 60px;"></textarea>
+                  </div>
+                  <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="ec-delivery-address">Delivery Address <small style="font-weight: normal;">(Optional - defaults to headquarters)</small></label>
+                    <textarea id="ec-delivery-address" placeholder="Leave empty to use headquarters address" style="min-height: 60px;"></textarea>
+                  </div>
+                  
+                  <!-- Customer Parameters Section -->
+                  <div class="form-group" style="grid-column: 1 / -1; border-top: 2px solid #eee; padding-top: 1rem; margin-top: 0.5rem;">
+                    <h4 style="margin: 0 0 1rem 0; color: #667eea;">📊 Customer Parameters</h4>
                   </div>
                   <div class="form-group">
-                    <label for="ec-city">City</label>
-                    <input type="text" id="ec-city">
+                    <label for="ec-status">Status</label>
+                    <select id="ec-status">
+                      <option value="active">✅ Active</option>
+                      <option value="inactive">⏸️ Inactive</option>
+                      <option value="bankrupt">⚠️ Bankrupt</option>
+                      <option value="closed">❌ Closed</option>
+                    </select>
                   </div>
                   <div class="form-group">
-                    <label for="ec-contact-person">Contact Person</label>
-                    <input type="text" id="ec-contact-person">
+                    <label for="ec-payment-terms">Payment Terms</label>
+                    <select id="ec-payment-terms">
+                      <option value="standard_credit">💳 Standard Credit</option>
+                      <option value="prepayment_required">💰 Prepayment Required</option>
+                      <option value="cod">📦 Cash on Delivery</option>
+                      <option value="custom">📝 Custom Terms</option>
+                    </select>
                   </div>
                   <div class="form-group">
-                    <label for="ec-contact-phone">Contact Phone</label>
-                    <input type="tel" id="ec-contact-phone">
+                    <label for="ec-payment-history">Payment History</label>
+                    <select id="ec-payment-history">
+                      <option value="new_customer">🆕 New Customer</option>
+                      <option value="good">✅ Good</option>
+                      <option value="delayed">⚠️ Delayed Payments</option>
+                      <option value="bad">❌ Bad Payment History</option>
+                    </select>
                   </div>
                   <div class="form-group">
-                    <label for="ec-contact-email">Contact Email</label>
-                    <input type="email" id="ec-contact-email">
+                    <label for="ec-discount-percentage">Discount/Fee % <small style="font-weight: normal;">(negative = fee)</small></label>
+                    <input type="number" id="ec-discount-percentage" step="0.01" min="-100" max="100" value="0" placeholder="e.g., 10 or -5">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-credit-limit">Credit Limit (€)</label>
+                    <input type="number" id="ec-credit-limit" step="0.01" min="0" placeholder="e.g., 10000">
+                  </div>
+                  <div class="form-group">
+                    <label for="ec-approval-threshold">Approval Threshold (€)</label>
+                    <input type="number" id="ec-approval-threshold" step="0.01" min="0" placeholder="Orders above this need approval">
+                  </div>
+                  <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="ec-custom-terms-notes">Custom Payment Terms Notes</label>
+                    <textarea id="ec-custom-terms-notes" placeholder="Special payment arrangements" style="min-height: 60px;"></textarea>
+                  </div>
+                  
+                  <div class="form-group" style="grid-column: 1 / -1;">
+                    <label for="ec-notes">General Notes</label>
+                    <textarea id="ec-notes" placeholder="Additional information about this customer" style="min-height: 60px;"></textarea>
                   </div>
                 </div>
               </div>

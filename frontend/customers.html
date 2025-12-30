@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Management - CNC Shop Floor</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .customers-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .customers-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .search-bar {
+      flex: 1;
+      min-width: 300px;
+      max-width: 500px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .customers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .customer-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .customer-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .customer-card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+    }
+
+    .customer-card-header h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.2rem;
+    }
+
+    .customer-id-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+
+    .status-active { background: #d1e7dd; color: #0f5132; }
+    .status-inactive { background: #fff3cd; color: #664d03; }
+    .status-bankrupt { background: #f8d7da; color: #842029; }
+    .status-closed { background: #e2e3e5; color: #41464b; }
+
+    .payment-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .payment-good { background: #d1e7dd; color: #0f5132; }
+    .payment-new_customer { background: #cff4fc; color: #055160; }
+    .payment-delayed { background: #fff3cd; color: #664d03; }
+    .payment-bad { background: #f8d7da; color: #842029; }
+
+    .customer-badges {
+      margin-top: 0.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+
+    .discount-badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .discount-positive { background: #d1e7dd; color: #0f5132; }
+    .discount-negative { background: #f8d7da; color: #842029; }
+
+    .warning-banner {
+      background: #fff3cd;
+      border: 1px solid #ffecb5;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+      color: #664d03;
+    }
+
+    .warning-banner.danger {
+      background: #f8d7da;
+      border-color: #f5c2c7;
+      color: #842029;
+    }
+
+    .customer-card-body {
+      padding: 1.5rem;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: #666;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .info-value {
+      color: #333;
+      text-align: right;
+      max-width: 60%;
+      word-break: break-word;
+    }
+
+    .contacts-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid #eee;
+    }
+
+    .contacts-section h4 {
+      margin: 0 0 0.75rem 0;
+      color: #333;
+      font-size: 0.95rem;
+    }
+
+    .contact-type-group {
+      margin-bottom: 0.75rem;
+    }
+
+    .contact-type-label {
+      font-weight: 600;
+      color: #667eea;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .contact-item {
+      background: #f8f9fa;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 0.25rem;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .contact-item .contact-info {
+      flex: 1;
+    }
+
+    .contact-item .contact-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .contact-item .contact-details {
+      color: #666;
+      font-size: 0.85rem;
+    }
+
+    .contact-item .contact-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .contact-item .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      font-size: 1rem;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .contact-item .btn-icon:hover {
+      opacity: 1;
+    }
+
+    .customer-card-actions {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.5rem;
+      background: #f8f9fa;
+      border-top: 1px solid #eee;
+    }
+
+    .customer-card-actions button {
+      flex: 1;
+      padding: 0.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    .btn-edit {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-edit:hover {
+      background: #5568d3;
+    }
+
+    .btn-contacts {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-contacts:hover {
+      background: #218838;
+    }
+
+    .btn-delete {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-delete:hover {
+      background: #c82333;
+    }
+
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-group label {
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+    }
+
+    .btn-cancel {
+      padding: 0.75rem 1.5rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-submit {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .required::after {
+      content: " *";
+      color: #dc3545;
+    }
+
+    .contacts-list {
+      margin-top: 1rem;
+    }
+
+    .contact-type-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .contact-type-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .contact-type-header h4 {
+      margin: 0;
+      color: #667eea;
+    }
+
+    .btn-add-contact {
+      padding: 0.25rem 0.5rem;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .empty-contacts {
+      color: #999;
+      font-style: italic;
+      padding: 0.5rem 0;
+    }
+
+    .alert {
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .alert-success {
+      background: #d1e7dd;
+      color: #0f5132;
+    }
+
+    .alert-danger {
+      background: #f8d7da;
+      color: #842029;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-left">
+        <h1>👥 Customer Management</h1>
+      </div>
+      <div class="nav-right">
+        <button class="btn-nav" onclick="navigateTo('order-dashboard.html')">← Orders</button>
+        <button class="btn-nav" onclick="navigateTo('index.html')">Dashboard</button>
+        <button class="btn-nav" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="customers-container">
+        <!-- Alert Messages -->
+        <div id="alert-container"></div>
+
+        <!-- Header with Search and Add Button -->
+        <div class="customers-header">
+          <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search customers by name, email, CIF, or ID...">
+          </div>
+          <button class="btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
+        </div>
+
+        <!-- Customers Grid -->
+        <div id="customers-grid" class="customers-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Customer Modal -->
+  <div id="customer-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="customer-modal-title">Add Customer</h2>
+        <button class="modal-close" onclick="closeCustomerModal()">✕</button>
+      </div>
+      <form id="customer-form" onsubmit="handleSaveCustomer(event)">
+        <input type="hidden" id="customer-id">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="company-name" class="required">Company Name</label>
+            <input type="text" id="company-name" required>
+          </div>
+          <div class="form-group">
+            <label for="customer-code">Customer ID</label>
+            <input type="text" id="customer-code" placeholder="e.g., CUST-001">
+          </div>
+          <div class="form-group">
+            <label for="email" class="required">Email</label>
+            <input type="email" id="email" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone">
+          </div>
+          <div class="form-group">
+            <label for="cif">CIF (Tax ID)</label>
+            <input type="text" id="cif" placeholder="e.g., RO1234567890">
+          </div>
+          <div class="form-group">
+            <label for="trade-register">Trade Register Number</label>
+            <input type="text" id="trade-register" placeholder="e.g., J01/1234/2023">
+          </div>
+          <div class="form-group full-width">
+            <label for="headquarters">Headquarters Address</label>
+            <textarea id="headquarters" placeholder="Main office address"></textarea>
+          </div>
+          <div class="form-group full-width">
+            <label for="delivery-address">Delivery Address <small style="font-weight: normal;">(Optional - defaults to headquarters)</small></label>
+            <textarea id="delivery-address" placeholder="Leave empty to use headquarters address"></textarea>
+          </div>
+          
+          <!-- Customer Parameters Section -->
+          <div class="form-group full-width" style="border-top: 2px solid #eee; padding-top: 1rem; margin-top: 0.5rem;">
+            <h4 style="margin: 0 0 1rem 0; color: #667eea;">📊 Customer Parameters</h4>
+          </div>
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status">
+              <option value="active">✅ Active</option>
+              <option value="inactive">⏸️ Inactive</option>
+              <option value="bankrupt">⚠️ Bankrupt</option>
+              <option value="closed">❌ Closed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="payment-terms">Payment Terms</label>
+            <select id="payment-terms">
+              <option value="standard_credit">💳 Standard Credit</option>
+              <option value="prepayment_required">💰 Prepayment Required</option>
+              <option value="cod">📦 Cash on Delivery</option>
+              <option value="custom">📝 Custom Terms</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="payment-history">Payment History</label>
+            <select id="payment-history">
+              <option value="new_customer">🆕 New Customer</option>
+              <option value="good">✅ Good</option>
+              <option value="delayed">⚠️ Delayed Payments</option>
+              <option value="bad">❌ Bad Payment History</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="discount-percentage">Discount/Fee % <small style="font-weight: normal;">(negative = extra fee)</small></label>
+            <input type="number" id="discount-percentage" step="0.01" min="-100" max="100" value="0" placeholder="e.g., 10 or -5">
+          </div>
+          <div class="form-group">
+            <label for="credit-limit">Credit Limit (€)</label>
+            <input type="number" id="credit-limit" step="0.01" min="0" placeholder="e.g., 10000">
+          </div>
+          <div class="form-group">
+            <label for="approval-threshold">Approval Threshold (€) <small style="font-weight: normal;">(orders above this need approval)</small></label>
+            <input type="number" id="approval-threshold" step="0.01" min="0" placeholder="e.g., 5000">
+          </div>
+          <div class="form-group full-width">
+            <label for="custom-terms-notes">Custom Payment Terms Notes</label>
+            <textarea id="custom-terms-notes" placeholder="Special payment arrangements or notes"></textarea>
+          </div>
+          
+          <div class="form-group full-width">
+            <label for="notes">General Notes</label>
+            <textarea id="notes" placeholder="Additional information"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeCustomerModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Save Customer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage Contacts Modal -->
+  <div id="contacts-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Manage Contacts - <span id="contacts-customer-name"></span></h2>
+        <button class="modal-close" onclick="closeContactsModal()">✕</button>
+      </div>
+      <div class="contacts-list">
+        <!-- Invoice Contacts -->
+        <div class="contact-type-section">
+          <div class="contact-type-header">
+            <h4>📧 Invoice Contacts</h4>
+            <button class="btn-add-contact" onclick="openAddContactModal('invoice')">+ Add</button>
+          </div>
+          <div id="invoice-contacts-list"></div>
+        </div>
+
+        <!-- Order Contacts -->
+        <div class="contact-type-section">
+          <div class="contact-type-header">
+            <h4>📦 Order Contacts</h4>
+            <button class="btn-add-contact" onclick="openAddContactModal('order')">+ Add</button>
+          </div>
+          <div id="order-contacts-list"></div>
+        </div>
+
+        <!-- Technical Contacts -->
+        <div class="contact-type-section">
+          <div class="contact-type-header">
+            <h4>🔧 Technical Contacts</h4>
+            <button class="btn-add-contact" onclick="openAddContactModal('technical')">+ Add</button>
+          </div>
+          <div id="technical-contacts-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeContactsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Contact Modal -->
+  <div id="contact-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="contact-modal-title">Add Contact</h2>
+        <button class="modal-close" onclick="closeContactModal()">✕</button>
+      </div>
+      <form id="contact-form" onsubmit="handleSaveContact(event)">
+        <input type="hidden" id="contact-id">
+        <input type="hidden" id="contact-customer-id">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="contact-type" class="required">Contact Type</label>
+            <select id="contact-type" required>
+              <option value="invoice">Invoice Contact</option>
+              <option value="order">Order Contact</option>
+              <option value="technical">Technical Contact</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="contact-name" class="required">Name</label>
+            <input type="text" id="contact-name" required>
+          </div>
+          <div class="form-group">
+            <label for="contact-phone">Phone</label>
+            <input type="tel" id="contact-phone">
+          </div>
+          <div class="form-group">
+            <label for="contact-email">Email</label>
+            <input type="email" id="contact-email">
+          </div>
+          <div class="form-group full-width">
+            <label>
+              <input type="checkbox" id="contact-primary"> Set as primary contact for this type
+            </label>
+          </div>
+          <div class="form-group full-width">
+            <label for="contact-notes">Notes</label>
+            <textarea id="contact-notes" placeholder="Additional notes about this contact"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeContactModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Save Contact</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/customers.js"></script>
+</body>
+</html>

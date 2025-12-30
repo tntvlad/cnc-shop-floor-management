@@ -90,6 +90,7 @@ function selectCustomer(id, name, email, phone) {
 
   if (selectedCustomer) {
     showCustomerInfo(selectedCustomer);
+    loadCustomerContacts(id);
   }
 }
 
@@ -99,13 +100,12 @@ function showCustomerInfo(customer) {
 
   const items = [
     { label: 'Company', value: customer.company_name },
+    { label: 'Customer ID', value: customer.customer_id || '—' },
     { label: 'Email', value: customer.email },
     { label: 'Phone', value: customer.phone || '—' },
-    { label: 'Contact', value: customer.contact_person || '—' },
     { label: 'CIF', value: customer.cif || '—' },
-    { label: 'Address', value: customer.address || '—' },
-    { label: 'Tech Contact', value: customer.technical_contact_person || '—' },
-    { label: 'Tech Email', value: customer.technical_email || '—' }
+    { label: 'Trade Register', value: customer.trade_register_number || '—' },
+    { label: 'Headquarters', value: customer.headquarters_address || '—' }
   ];
 
   grid.innerHTML = items.map(item => `
@@ -115,7 +115,170 @@ function showCustomerInfo(customer) {
     </div>
   `).join('');
 
+  // Show customer warning banner if needed
+  showCustomerWarningBanner(customer);
+  
+  // Show customer parameters summary
+  showCustomerParametersSummary(customer);
+
   info.style.display = 'block';
+}
+
+function showCustomerWarningBanner(customer) {
+  const banner = document.getElementById('customer-warning-banner');
+  if (!banner) return;
+  
+  const warnings = [];
+  let isDanger = false;
+  
+  // Status warnings
+  if (customer.status === 'inactive') {
+    warnings.push('⏸️ This customer is marked as <strong>inactive</strong>');
+  } else if (customer.status === 'bankrupt') {
+    warnings.push('⚠️ This customer is in <strong>bankruptcy</strong> - order may require approval');
+    isDanger = true;
+  } else if (customer.status === 'closed') {
+    warnings.push('❌ This company is <strong>closed/dead</strong> - consider blocking this order');
+    isDanger = true;
+  }
+  
+  // Payment history warnings
+  if (customer.payment_history === 'bad') {
+    warnings.push('❌ This customer has a <strong>bad payment history</strong> - order may require approval');
+    isDanger = true;
+  } else if (customer.payment_history === 'delayed') {
+    warnings.push('⚠️ This customer has a history of <strong>delayed payments</strong>');
+  }
+  
+  // Payment terms warnings
+  if (customer.payment_terms === 'prepayment_required') {
+    warnings.push('💰 <strong>Prepayment required</strong> before processing this order');
+  }
+  
+  // Approval threshold warning
+  if (customer.approval_threshold) {
+    warnings.push(`📋 Orders above €${parseFloat(customer.approval_threshold).toLocaleString()} require admin approval`);
+  }
+  
+  if (warnings.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+  
+  banner.className = 'customer-warning' + (isDanger ? ' danger' : '');
+  banner.innerHTML = `
+    <h4>${isDanger ? '⚠️ Important Warnings' : '📋 Customer Notices'}</h4>
+    <ul>${warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+  `;
+  banner.style.display = 'block';
+}
+
+function showCustomerParametersSummary(customer) {
+  const container = document.getElementById('customer-parameters-summary');
+  const content = document.getElementById('customer-params-content');
+  if (!container || !content) return;
+  
+  const statusLabels = {
+    'active': '✅ Active',
+    'inactive': '⏸️ Inactive',
+    'bankrupt': '⚠️ Bankrupt',
+    'closed': '❌ Closed'
+  };
+  
+  const paymentHistoryLabels = {
+    'good': '💰 Good',
+    'new_customer': '🆕 New Customer',
+    'delayed': '⚠️ Delayed',
+    'bad': '❌ Bad'
+  };
+  
+  const paymentTermsLabels = {
+    'standard_credit': '💳 Standard Credit',
+    'prepayment_required': '💰 Prepayment Required',
+    'cod': '📦 Cash on Delivery',
+    'custom': '📝 Custom Terms'
+  };
+  
+  const status = customer.status || 'active';
+  const paymentHistory = customer.payment_history || 'new_customer';
+  const paymentTerms = customer.payment_terms || 'standard_credit';
+  const discount = parseFloat(customer.discount_percentage) || 0;
+  
+  let html = `
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+      <span class="param-badge status-${status}">${statusLabels[status]}</span>
+      <span class="param-badge payment-${paymentHistory}">${paymentHistoryLabels[paymentHistory]}</span>
+      <span style="color: #666; font-size: 0.85rem;">${paymentTermsLabels[paymentTerms]}</span>
+  `;
+  
+  if (discount !== 0) {
+    const discountClass = discount > 0 ? 'discount' : 'fee';
+    const discountLabel = discount > 0 ? `${discount}% Discount` : `${Math.abs(discount)}% Extra Fee`;
+    html += `<span class="param-badge ${discountClass}">${discountLabel}</span>`;
+  }
+  
+  if (customer.credit_limit) {
+    html += `<span style="color: #666; font-size: 0.85rem;">Credit Limit: €${parseFloat(customer.credit_limit).toLocaleString()}</span>`;
+  }
+  
+  html += '</div>';
+  
+  if (customer.custom_terms_notes) {
+    html += `<div style="margin-top: 0.5rem; font-size: 0.85rem; color: #666;"><strong>Notes:</strong> ${escapeHtml(customer.custom_terms_notes)}</div>`;
+  }
+  
+  content.innerHTML = html;
+  container.style.display = 'block';
+}
+
+async function loadCustomerContacts(customerId) {
+  try {
+    const response = await fetch(`${API_URL}/customers/${customerId}/contacts`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const data = await response.json();
+
+    if (!data.success) {
+      console.error('Error loading contacts:', data.message);
+      return;
+    }
+
+    const contacts = data.contacts || [];
+    
+    // Show contact sections if contacts exist
+    const contactsSection = document.getElementById('contacts-section');
+    const deliverySection = document.getElementById('delivery-section');
+    
+    if (contacts.length > 0) {
+      contactsSection.style.display = 'block';
+      deliverySection.style.display = 'block';
+      
+      // Populate contact selects by type
+      populateContactSelect('invoice-contact', contacts, 'invoice');
+      populateContactSelect('order-contact', contacts, 'order');
+      populateContactSelect('technical-contact', contacts, 'technical');
+    } else {
+      contactsSection.style.display = 'none';
+      deliverySection.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error loading contacts:', error);
+  }
+}
+
+function populateContactSelect(selectId, contacts, type) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  select.innerHTML = '<option value="">None</option>';
+  
+  const typeContacts = contacts.filter(c => c.contact_type === type);
+  typeContacts.forEach(contact => {
+    const option = document.createElement('option');
+    option.value = contact.id;
+    option.textContent = `${contact.name}${contact.phone ? ' • ' + contact.phone : ''}`;
+    select.appendChild(option);
+  });
 }
 
 // Add Customer Modal
@@ -133,20 +296,22 @@ async function handleAddCustomer(event) {
 
   const customer = {
     company_name: document.getElementById('ac-company-name').value.trim(),
+    customer_id: document.getElementById('ac-customer-id').value.trim() || null,
     email: document.getElementById('ac-email').value.trim(),
-    phone: document.getElementById('ac-phone').value.trim(),
-    cif: document.getElementById('ac-cif').value.trim(),
-    address: document.getElementById('ac-address').value.trim(),
-    city: document.getElementById('ac-city').value.trim(),
-    contact_person: document.getElementById('ac-contact-person').value.trim(),
-    contact_phone: document.getElementById('ac-contact-phone').value.trim(),
-    contact_email: document.getElementById('ac-contact-email').value.trim(),
-    technical_contact_person: document.getElementById('ac-technical-contact').value.trim(),
-    technical_phone: document.getElementById('ac-technical-phone').value.trim(),
-    technical_email: document.getElementById('ac-technical-email').value.trim(),
-    processing_notes: document.getElementById('ac-processing-notes').value.trim(),
-    delivery_notes: document.getElementById('ac-delivery-notes').value.trim(),
-    billing_notes: document.getElementById('ac-billing-notes').value.trim()
+    phone: document.getElementById('ac-phone').value.trim() || null,
+    cif: document.getElementById('ac-cif').value.trim() || null,
+    trade_register_number: document.getElementById('ac-trade-register').value.trim() || null,
+    headquarters_address: document.getElementById('ac-headquarters').value.trim() || null,
+    delivery_address: document.getElementById('ac-delivery-address').value.trim() || null,
+    notes: document.getElementById('ac-notes').value.trim() || null,
+    // Customer parameters
+    status: document.getElementById('ac-status').value,
+    payment_terms: document.getElementById('ac-payment-terms').value,
+    payment_history: document.getElementById('ac-payment-history').value,
+    discount_percentage: parseFloat(document.getElementById('ac-discount-percentage').value) || 0,
+    credit_limit: parseFloat(document.getElementById('ac-credit-limit').value) || null,
+    approval_threshold: parseFloat(document.getElementById('ac-approval-threshold').value) || null,
+    custom_terms_notes: document.getElementById('ac-custom-terms-notes').value.trim() || null
   };
 
   try {
@@ -210,14 +375,22 @@ function prefillEditCustomerFields(customerId) {
   const customer = allCustomers.find(c => String(c.id) === String(customerId));
   const fields = {
     'ec-company-name': customer?.company_name || '',
+    'ec-customer-id': customer?.customer_id || '',
     'ec-email': customer?.email || '',
     'ec-phone': customer?.phone || '',
     'ec-cif': customer?.cif || '',
-    'ec-address': customer?.address || '',
-    'ec-city': customer?.city || '',
-    'ec-contact-person': customer?.contact_person || '',
-    'ec-contact-phone': customer?.contact_phone || '',
-    'ec-contact-email': customer?.contact_email || ''
+    'ec-trade-register': customer?.trade_register_number || '',
+    'ec-headquarters': customer?.headquarters_address || '',
+    'ec-delivery-address': customer?.delivery_address || '',
+    'ec-notes': customer?.notes || '',
+    // Customer parameters
+    'ec-status': customer?.status || 'active',
+    'ec-payment-terms': customer?.payment_terms || 'standard_credit',
+    'ec-payment-history': customer?.payment_history || 'new_customer',
+    'ec-discount-percentage': customer?.discount_percentage || 0,
+    'ec-credit-limit': customer?.credit_limit || '',
+    'ec-approval-threshold': customer?.approval_threshold || '',
+    'ec-custom-terms-notes': customer?.custom_terms_notes || ''
   };
 
   Object.entries(fields).forEach(([id, value]) => {
@@ -237,14 +410,22 @@ async function handleEditCustomer(event) {
 
   const payload = {
     company_name: document.getElementById('ec-company-name').value.trim() || null,
+    customer_id: document.getElementById('ec-customer-id').value.trim() || null,
     email: document.getElementById('ec-email').value.trim() || null,
     phone: document.getElementById('ec-phone').value.trim() || null,
     cif: document.getElementById('ec-cif').value.trim() || null,
-    address: document.getElementById('ec-address').value.trim() || null,
-    city: document.getElementById('ec-city').value.trim() || null,
-    contact_person: document.getElementById('ec-contact-person').value.trim() || null,
-    contact_phone: document.getElementById('ec-contact-phone').value.trim() || null,
-    contact_email: document.getElementById('ec-contact-email').value.trim() || null
+    trade_register_number: document.getElementById('ec-trade-register').value.trim() || null,
+    headquarters_address: document.getElementById('ec-headquarters').value.trim() || null,
+    delivery_address: document.getElementById('ec-delivery-address').value.trim() || null,
+    notes: document.getElementById('ec-notes').value.trim() || null,
+    // Customer parameters
+    status: document.getElementById('ec-status').value,
+    payment_terms: document.getElementById('ec-payment-terms').value,
+    payment_history: document.getElementById('ec-payment-history').value,
+    discount_percentage: parseFloat(document.getElementById('ec-discount-percentage').value) || 0,
+    credit_limit: parseFloat(document.getElementById('ec-credit-limit').value) || null,
+    approval_threshold: parseFloat(document.getElementById('ec-approval-threshold').value) || null,
+    custom_terms_notes: document.getElementById('ec-custom-terms-notes').value.trim() || null
   };
 
   try {
@@ -623,15 +804,50 @@ async function handleCreateOrder(event) {
     return;
   }
 
+  // Check if customer is closed/dead - block order creation
+  if (selectedCustomer && selectedCustomer.status === 'closed') {
+    if (!confirm('⚠️ Warning: This company is marked as CLOSED/DEAD.\n\nAre you sure you want to create an order for this customer?')) {
+      return;
+    }
+  }
+
+  // Check if customer is bankrupt - warn
+  if (selectedCustomer && selectedCustomer.status === 'bankrupt') {
+    if (!confirm('⚠️ Warning: This customer is in BANKRUPTCY.\n\nThis order may require admin approval. Continue?')) {
+      return;
+    }
+  }
+
+  // Check for bad payment history
+  if (selectedCustomer && selectedCustomer.payment_history === 'bad') {
+    if (!confirm('⚠️ Warning: This customer has a BAD PAYMENT HISTORY.\n\nThis order may require admin approval. Continue?')) {
+      return;
+    }
+  }
+
+  // Determine if order requires approval
+  const requiresApproval = selectedCustomer && checkIfRequiresApproval(selectedCustomer);
+  
+  // Get discount percentage from customer
+  const discountApplied = selectedCustomer ? (parseFloat(selectedCustomer.discount_percentage) || 0) : 0;
+
   const order = {
     customer_id: customerId || null,
     customer_name: selectedCustomer?.company_name || manualName,
     customer_email: selectedCustomer?.email || manualEmail,
     customer_phone: selectedCustomer?.phone || manualPhone,
+    invoice_contact_id: document.getElementById('invoice-contact').value || null,
+    order_contact_id: document.getElementById('order-contact').value || null,
+    technical_contact_id: document.getElementById('technical-contact').value || null,
+    delivery_address: document.getElementById('delivery-address').value.trim() || null,
     order_date: document.getElementById('order-date').value,
     due_date: document.getElementById('due-date').value,
     priority: document.getElementById('priority').value,
     notes: document.getElementById('notes').value.trim(),
+    // Order approval fields (Phase 2 ready)
+    discount_applied: discountApplied,
+    requires_approval: requiresApproval,
+    approval_status: requiresApproval ? 'pending_approval' : 'approved',
     parts: []
   };
 
@@ -675,11 +891,40 @@ async function handleCreateOrder(event) {
       return;
     }
 
-    showSuccess('Order created! Redirecting...');
+    let successMsg = 'Order created!';
+    if (requiresApproval) {
+      successMsg += ' (Requires approval)';
+    }
+    if (discountApplied !== 0) {
+      successMsg += discountApplied > 0 ? ` (${discountApplied}% discount applied)` : ` (${Math.abs(discountApplied)}% fee applied)`;
+    }
+    successMsg += ' Redirecting...';
+    
+    showSuccess(successMsg);
     setTimeout(() => navigateTo('order-dashboard.html'), 1500);
   } catch (error) {
     showError('Error: ' + error.message);
   }
+}
+
+// Check if customer requires approval for orders
+function checkIfRequiresApproval(customer) {
+  // Status-based rules
+  if (['inactive', 'bankrupt', 'closed'].includes(customer.status)) {
+    return true;
+  }
+  
+  // Payment history rules
+  if (['bad', 'delayed'].includes(customer.payment_history)) {
+    return true;
+  }
+  
+  // Prepayment required
+  if (customer.payment_terms === 'prepayment_required') {
+    return true;
+  }
+  
+  return false;
 }
 
 function showError(message) {

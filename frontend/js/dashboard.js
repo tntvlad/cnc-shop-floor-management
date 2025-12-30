@@ -39,12 +39,14 @@ function loadUserInfo() {
   const adminLink = document.getElementById('adminLink');
   const supervisorLink = document.getElementById('supervisorLink');
   const ordersLink = document.getElementById('ordersLink');
+  const customersLink = document.getElementById('customersLink');
   const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
     || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
   if (isSupervisorPlus) {
     adminLink.style.display = 'inline-block';
     if (supervisorLink) supervisorLink.style.display = 'inline-block';
     if (ordersLink) ordersLink.style.display = 'inline-block';
+    if (customersLink) customersLink.style.display = 'inline-block';
   }
 }
 

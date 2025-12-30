@@ -8,6 +8,15 @@ document.addEventListener('DOMContentLoaded', function() {
   setInterval(() => {
     loadOrderDetails();
   }, 20000);
+
+  // Expose workflow navigation once order loads
+  window.openWorkflowMonitor = function() {
+    if (!currentOrder || !currentOrder.id) {
+      alert('Order not loaded yet');
+      return;
+    }
+    navigateTo(`workflow-monitor.html?id=${currentOrder.id}`);
+  };
 });
 
 async function loadOrderDetails() {

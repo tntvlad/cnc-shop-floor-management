@@ -330,18 +330,42 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 For issues and questions:
-- GitHub Issues: [Report a bug](https://github.com/yourusername/cnc-shop-floor-management/issues)
-- Documentation: [Wiki](https://github.com/yourusername/cnc-shop-floor-management/wiki)
+- GitHub Issues: [Report a bug](https://github.com/tntvlad/cnc-shop-floor-management/issues)
+- Documentation: See the `docs/` folder
+
+## Documentation
+
+All detailed documentation is located in the `docs/` folder:
+
+| Document | Description |
+|----------|-------------|
+| [ROADMAP.md](docs/ROADMAP.md) | Implementation roadmap and phases |
+| [SETUP_GUIDE.md](docs/SETUP_GUIDE.md) | Detailed installation instructions |
+| [ROLE_SYSTEM.md](docs/ROLE_SYSTEM.md) | User roles and permissions |
+| [WORKFLOW_DIAGRAM.md](docs/WORKFLOW_DIAGRAM.md) | Manufacturing workflow stages |
+| [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) | API quick reference |
+| [CUSTOMER_MANAGEMENT.md](docs/CUSTOMER_MANAGEMENT.md) | Customer system documentation |
 
 ## Roadmap
 
-- [ ] Multi-tenant support
+### Implemented ✅
+- [x] Core order and parts management
+- [x] Material stock and ordering
+- [x] Machine tracking
+- [x] Time tracking
+- [x] Customer management with parameters
+- [x] Contact person system (Invoice/Order/Technical)
+- [x] Customer status and payment tracking
+
+### Coming Soon
+- [ ] Order approval workflow
+- [ ] Payment confirmation for prepayment customers
+- [ ] Invoice generation
+- [ ] Credit limit enforcement
 - [ ] Advanced reporting and analytics
 - [ ] Mobile app (iOS/Android)
 - [ ] Real-time notifications
-- [ ] Integration with ERP systems
 - [ ] Barcode/QR code scanning
-- [ ] Machine monitoring integration
 
 ## Acknowledgments
 

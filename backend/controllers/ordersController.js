@@ -3,19 +3,77 @@ const pool = require('../config/database');
 // Create a new order
 async function createOrder(req, res) {
   try {
-    const { customer_name, customer_email, customer_phone, order_date, due_date, notes, parts } = req.body;
+    const { 
+      customer_id,
+      customer_name, 
+      customer_email, 
+      customer_phone, 
+      order_date, 
+      due_date, 
+      notes, 
+      parts,
+      invoice_contact_id,
+      order_contact_id,
+      technical_contact_id,
+      delivery_address,
+      priority,
+      // Order approval fields (Phase 2)
+      discount_applied,
+      requires_approval,
+      approval_status
+    } = req.body;
 
     // Start transaction
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // Insert order
+      // If customer_id provided, get customer details
+      let customerDetails = { name: customer_name, email: customer_email, phone: customer_phone };
+      if (customer_id) {
+        const customerResult = await client.query(
+          'SELECT company_name, email, phone, delivery_address, headquarters_address FROM customers WHERE id = $1',
+          [customer_id]
+        );
+        if (customerResult.rows.length > 0) {
+          const cust = customerResult.rows[0];
+          customerDetails = {
+            name: cust.company_name,
+            email: cust.email,
+            phone: cust.phone
+          };
+        }
+      }
+
+      // Insert order with new fields
       const orderResult = await client.query(
-        `INSERT INTO orders (customer_name, customer_email, customer_phone, order_date, due_date, notes, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, customer_name, customer_email, order_date, due_date, status, created_at`,
-        [customer_name, customer_email, customer_phone, order_date, due_date, notes, 'pending']
+        `INSERT INTO orders (
+          customer_id, customer_name, customer_email, customer_phone, 
+          order_date, due_date, notes, status, priority,
+          invoice_contact_id, order_contact_id, technical_contact_id,
+          delivery_address,
+          discount_applied, requires_approval, approval_status
+        )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+         RETURNING id, customer_id, customer_name, customer_email, order_date, due_date, status, priority, created_at, approval_status, requires_approval`,
+        [
+          customer_id || null,
+          customerDetails.name,
+          customerDetails.email,
+          customerDetails.phone,
+          order_date,
+          due_date,
+          notes,
+          'pending',
+          priority || 'normal',
+          invoice_contact_id || null,
+          order_contact_id || null,
+          technical_contact_id || null,
+          delivery_address || null,
+          discount_applied || 0,
+          requires_approval || false,
+          approval_status || 'approved'
+        ]
       );
 
       const orderId = orderResult.rows[0].id;
@@ -58,17 +116,27 @@ async function getOrders(req, res) {
     let query = `
       SELECT 
         o.id,
+        o.customer_id,
         o.customer_name,
         o.customer_email,
         o.customer_phone,
         o.order_date,
         o.due_date,
         o.status,
+        o.priority,
         o.notes,
         o.created_at,
+        o.invoice_contact_id,
+        o.order_contact_id,
+        o.technical_contact_id,
+        o.delivery_address,
+        c.headquarters_address,
+        c.cif,
+        c.trade_register_number,
         COUNT(p.id) as part_count,
         SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed_parts
       FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
       LEFT JOIN parts p ON o.id = p.order_id
       WHERE 1=1
     `;
@@ -85,7 +153,7 @@ async function getOrders(req, res) {
       params.push(`%${customer}%`, `%${customer}%`);
     }
 
-    query += ` GROUP BY o.id ORDER BY o.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    query += ` GROUP BY o.id, c.id ORDER BY o.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const result = await pool.query(query, params);
@@ -101,7 +169,7 @@ async function getOrders(req, res) {
   }
 }
 
-// Get single order with parts and materials
+// Get single order with parts, materials, and contact info
 async function getOrderById(req, res) {
   try {
     const { id } = req.params;
@@ -109,16 +177,43 @@ async function getOrderById(req, res) {
     const orderResult = await pool.query(
       `SELECT 
         o.id,
+        o.customer_id,
         o.customer_name,
         o.customer_email,
         o.customer_phone,
         o.order_date,
         o.due_date,
         o.status,
+        o.priority,
         o.notes,
         o.created_at,
-        o.updated_at
+        o.updated_at,
+        o.invoice_contact_id,
+        o.order_contact_id,
+        o.technical_contact_id,
+        o.delivery_address as order_delivery_address,
+        c.headquarters_address,
+        c.delivery_address as customer_delivery_address,
+        c.cif,
+        c.trade_register_number,
+        c.customer_id as customer_code,
+        -- Invoice contact
+        ic.name as invoice_contact_name,
+        ic.phone as invoice_contact_phone,
+        ic.email as invoice_contact_email,
+        -- Order contact
+        oc.name as order_contact_name,
+        oc.phone as order_contact_phone,
+        oc.email as order_contact_email,
+        -- Technical contact
+        tc.name as technical_contact_name,
+        tc.phone as technical_contact_phone,
+        tc.email as technical_contact_email
       FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN contact_persons ic ON o.invoice_contact_id = ic.id
+      LEFT JOIN contact_persons oc ON o.order_contact_id = oc.id
+      LEFT JOIN contact_persons tc ON o.technical_contact_id = tc.id
       WHERE o.id = $1`,
       [id]
     );
@@ -128,6 +223,11 @@ async function getOrderById(req, res) {
     }
 
     const order = orderResult.rows[0];
+    
+    // Compute effective delivery address
+    order.effective_delivery_address = order.order_delivery_address 
+      || order.customer_delivery_address 
+      || order.headquarters_address;
 
     // Get parts for this order
     const partsResult = await pool.query(
@@ -244,6 +344,14 @@ async function deleteOrder(req, res) {
     try {
       await client.query('BEGIN');
 
+      // Clear machine references that point to parts from this order (FK protection)
+      await client.query(
+        `UPDATE machines
+         SET current_job = NULL, current_operator = NULL
+         WHERE current_job IN (SELECT id FROM parts WHERE order_id = $1)`,
+        [id]
+      );
+
       // Delete parts first (foreign key constraint)
       await client.query('DELETE FROM parts WHERE order_id = $1', [id]);
 
@@ -272,7 +380,7 @@ async function deleteOrder(req, res) {
     }
   } catch (error) {
     console.error('Error deleting order:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: 'Failed to delete order. Clear active machine assignments and try again.' });
   }
 }
 

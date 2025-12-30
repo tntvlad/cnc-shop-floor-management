@@ -85,26 +85,27 @@ npm restart
 
 ## 📚 Documentation Provided
 
-Everything you need to understand, deploy, and maintain this system:
+All documentation is in the `docs/` folder:
 
-### For Quick Start (READ THESE FIRST)
-- 📄 **SUMMARY_SHEET.md** (2 pages) - One-page visual overview
-- 📄 **QUICK_REFERENCE.md** (4 pages) - API, roles, troubleshooting
+### For Quick Start
+- 📄 **docs/SUMMARY_SHEET.md** - One-page visual overview
+- 📄 **docs/QUICK_REFERENCE.md** - API, roles, troubleshooting
 
 ### For Deployment
-- 📄 **SETUP_GUIDE.md** (8 pages) - Step-by-step deployment
-- 📄 **DEPLOYMENT_CHECKLIST.md** (10 pages) - Pre/post launch checklist
+- 📄 **docs/SETUP_GUIDE.md** - Step-by-step deployment
+- 📄 **docs/DEPLOYMENT_CHECKLIST.md** - Pre/post launch checklist
 
 ### For Understanding
-- 📄 **IMPLEMENTATION_SUMMARY.md** (6 pages) - Technical deep dive
-- 📄 **WORKFLOW_DIAGRAM.md** (8 pages) - Visual flows & examples
-- 📄 **IMPLEMENTATION_COMPLETE.md** (6 pages) - Full summary
+- 📄 **docs/ROADMAP.md** - Implementation roadmap and phases
+- 📄 **docs/WORKFLOW_DIAGRAM.md** - Visual flows & examples
+- 📄 **docs/ROLE_SYSTEM.md** - User roles and permissions
+
+### For Customer Management
+- 📄 **docs/CUSTOMER_MANAGEMENT.md** - Customer system documentation
+- 📄 **docs/CUSTOMER_FEATURE_SUMMARY.md** - Customer features overview
 
 ### For Database Work
-- 📄 **MIGRATION_GUIDE.md** (10 pages) - Backup, migrate, verify, rollback
-
-### For Navigation
-- 📄 **README_DOCUMENTATION.md** - Index of all documents
+- 📄 **docs/MIGRATION_GUIDE.md** - Backup, migrate, verify, rollback
 
 ---
 

@@ -1,0 +1,630 @@
+I need to redesign my CNC Shop Floor Management system to match my real manufacturing workflow.
+
+## MY SHOP SETUP:
+
+**Machines:**
+- 5 CNC Mills
+- 1 CNC Lathe
+
+**Personnel:**
+- 1 Supervisor (Level 400)
+- 4 CNC Operators (Level 100):
+  - 3 Mill Operators
+  - 1 Lathe Operator
+- 1 Material Cutting Operator (Level 200)
+- 1 Quality Control Inspector (Level 300)
+
+---
+
+## COMPLETE WORKFLOW STAGES:
+
+### Stage 1: ORDER CREATION
+**Who:** Supervisor
+**Actions:**
+- Create new order (customer info, due date, priority)
+- Add multiple parts to order
+- Each part has: name, quantity, material type, dimensions, drawings
+- Set order priority (urgent, normal, low)
+
+### Stage 2: MATERIAL PLANNING
+**Who:** Supervisor
+**Actions:**
+- Review material requirements for all parts in order
+- Check current stock levels
+- Mark materials as:
+  - ✅ Available in stock
+  - 🛒 Need to order
+  - ⏳ Ordered (with expected delivery date)
+- When material arrives, mark as "Ready for Cutting"
+
+### Stage 3: MATERIAL CUTTING
+**Who:** Material Cutting Operator
+**Actions:**
+- View all parts that need material cutting
+- See material specs: type, dimensions, quantity
+- Start cutting job (timer starts)
+- Mark pieces as cut
+- Add notes (e.g., "Cut 10 pieces of 100x50x25mm aluminum")
+- Complete cutting (timer stops)
+- Parts automatically move to "Ready for Programming"
+
+### Stage 4: CAM PROGRAMMING
+**Who:** Supervisor (or dedicated programmer)
+**Actions:**
+- View parts ready for programming
+- Upload files:
+  - 3D model (STEP, STL, etc.)
+  - 2D drawings (PDF, DXF)
+  - CAM file (if applicable)
+  - G-Code/NC program
+- Add programming notes
+- Set machine type: Mill or Lathe
+- Mark as "Ready for Machining"
+
+### Stage 5: JOB ASSIGNMENT
+**Who:** Supervisor
+**Actions:**
+- View all parts ready for machining
+- See operator workload dashboard:
+  - Mill Operator 1: 3 jobs (12 hours remaining)
+  - Mill Operator 2: 1 job (4 hours remaining)
+  - Mill Operator 3: 0 jobs
+  - Lathe Operator: 2 jobs (8 hours remaining)
+- Assign job to specific operator
+- Select machine number (Mill 1-5, or Lathe 1)
+- Set estimated time
+- Add setup instructions
+- Job appears in operator's queue
+
+### Stage 6: MACHINING (Operator View)
+**Who:** CNC Operators
+**What they see:**
+- My assigned jobs (in priority order)
+- Current job details:
+  - Part name, quantity, material
+  - Machine assigned
+  - Drawings and NC programs (download)
+  - Setup instructions
+  - Estimated time
+- Actions:
+  - Start job (timer starts)
+  - Pause job (with reason)
+  - Skip job (with mandatory explanation)
+  - Complete job (timer stops)
+  - Upload photos of completed parts
+  - Add notes/issues
+- Job automatically goes to Quality Control
+
+### Stage 7: QUALITY CONTROL
+**Who:** QC Inspector
+**Actions:**
+- View completed jobs queue
+- See operator who completed it
+- See actual time vs estimated time
+- View operator notes
+- Inspect part and:
+  - ✅ Approve → Job goes to "Completed"
+  - ❌ Reject → Job goes back to operator with rejection reason
+  - 🔄 Rework needed → Specify what needs fixing
+- Add QC notes and measurements
+- Upload inspection photos
+
+### Stage 8: ORDER COMPLETION
+**Who:** Supervisor
+**Actions:**
+- View order progress (e.g., "5 of 8 parts completed")
+- When all parts approved, mark order as "Ready to Ship"
+- Add packaging notes
+- Mark as "Shipped" with tracking info
+- System sends notification to customer (future)
+
+---
+
+## DATABASE SCHEMA DESIGN:
+
+### 1. Orders Table
+```sql
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  order_number VARCHAR(50) UNIQUE NOT NULL,
+  customer_name VARCHAR(200) NOT NULL,
+  customer_email VARCHAR(200),
+  customer_phone VARCHAR(50),
+  order_date TIMESTAMP DEFAULT NOW(),
+  due_date TIMESTAMP,
+  priority VARCHAR(20) DEFAULT 'normal', -- urgent, normal, low
+  status VARCHAR(50) DEFAULT 'material_planning',
+  -- Status flow: material_planning → cutting → programming → machining → qc → completed → shipped
+  total_parts INTEGER DEFAULT 0,
+  completed_parts INTEGER DEFAULT 0,
+  
+  -- Hold/Pause functionality
+  is_on_hold BOOLEAN DEFAULT false,
+  hold_reason TEXT,
+  hold_started_at TIMESTAMP,
+  hold_started_by INTEGER REFERENCES users(id),
+  
+  -- Shipping
+  shipping_address TEXT,
+  shipping_method VARCHAR(100),
+  
+  notes TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+### 2. Parts Table (Jobs)
+### 2. Parts Table (Jobs)
+```sql
+CREATE TABLE parts (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+  part_number VARCHAR(100),
+  part_name VARCHAR(200) NOT NULL,
+  quantity INTEGER NOT NULL,
+  quantity_completed INTEGER DEFAULT 0,
+  quantity_scrapped INTEGER DEFAULT 0,
+  
+  -- Batch management
+  batch_number VARCHAR(50),
+  quantity_in_batch INTEGER,
+  parent_part_id INTEGER REFERENCES parts(id),
+  is_batch_split BOOLEAN DEFAULT false,
+  
+  -- Material info
+  material_type VARCHAR(100), -- e.g., "Aluminum 6061", "Steel 1045"
+  material_dimensions VARCHAR(100), -- e.g., "100x50x25mm"
+  material_status VARCHAR(50) DEFAULT 'planning',
+  -- Status: planning, in_stock, ordered, arrived, ready_for_cutting
+  material_order_date TIMESTAMP,
+  material_arrival_date TIMESTAMP,
+  
+  -- Drawing revision control (CRITICAL!)
+  drawing_revision VARCHAR(20), -- e.g., "Rev B"
+  drawing_revision_date TIMESTAMP,
+  revision_notes TEXT,
+  
+  -- Workflow stages
+  stage VARCHAR(50) DEFAULT 'material_planning',
+  -- Stages: material_planning → cutting → programming → assigned → in_progress → completed → qc_pending → qc_approved → qc_rejected
+  
+  -- Hold/Pause functionality
+  is_on_hold BOOLEAN DEFAULT false,
+  hold_reason TEXT,
+  hold_started_at TIMESTAMP,
+  hold_started_by INTEGER REFERENCES users(id),
+  
+  -- Cutting stage
+  cutting_assigned_to INTEGER REFERENCES users(id),
+  cutting_started_at TIMESTAMP,
+  cutting_completed_at TIMESTAMP,
+  cutting_notes TEXT,
+  pieces_cut INTEGER,
+  
+  -- Programming stage
+  programmed_by INTEGER REFERENCES users(id),
+  programmed_at TIMESTAMP,
+  programming_notes TEXT,
+  
+  -- Machining stage
+  machine_type VARCHAR(20), -- 'mill' or 'lathe'
+  machine_number INTEGER, -- 1-5 for mills, 1 for lathe
+  assigned_to INTEGER REFERENCES users(id),
+  assigned_by INTEGER REFERENCES users(id),
+  assigned_at TIMESTAMP,
+  
+  -- Time estimation (CRITICAL for scheduling)
+  estimated_setup_time INTEGER, -- minutes
+  estimated_run_time_per_piece INTEGER, -- minutes per piece
+  actual_setup_time INTEGER,
+  actual_run_time INTEGER,
+  estimated_time INTEGER, -- total minutes (setup + run)
+  actual_time INTEGER, -- total minutes
+  
+  setup_instructions TEXT,
+  
+  -- Job execution
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  paused_at TIMESTAMP,
+  pause_reason TEXT,
+  skip_reason TEXT,
+  operator_notes TEXT,
+  
+  -- Quality Control
+  qc_assigned_to INTEGER REFERENCES users(id),
+  qc_started_at TIMESTAMP,
+  qc_completed_at TIMESTAMP,
+  qc_status VARCHAR(20), -- approved, rejected, rework
+  qc_notes TEXT,
+  rejection_reason TEXT,
+  rework_instructions TEXT,
+  
+  -- First Article Inspection
+  requires_first_article BOOLEAN DEFAULT false,
+  first_article_completed BOOLEAN DEFAULT false,
+  first_article_approved_by INTEGER REFERENCES users(id),
+  first_article_approved_at TIMESTAMP,
+  
+  -- Cost tracking
+  estimated_material_cost DECIMAL(10,2),
+  actual_material_cost DECIMAL(10,2),
+  estimated_labor_cost DECIMAL(10,2),
+  actual_labor_cost DECIMAL(10,2),
+  selling_price DECIMAL(10,2),
+  profit_margin DECIMAL(10,2),
+  
+  -- Priority system
+  priority INTEGER DEFAULT 0,
+  priority_score INTEGER, -- Auto-calculated: 0-1000
+  priority_factors JSONB, -- Store calculation breakdown
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+```
+
+### 3. Part Dependencies Table
+```sql
+CREATE TABLE part_dependencies (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  depends_on_part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  dependency_type VARCHAR(50) DEFAULT 'must_complete_first', -- 'must_complete_first', 'parallel_allowed'
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 4. Scrap Records Table
+```sql
+CREATE TABLE scrap_records (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  quantity INTEGER NOT NULL,
+  stage VARCHAR(50), -- where it was scrapped: cutting, machining, qc
+  reason TEXT,
+  operator_id INTEGER REFERENCES users(id),
+  cost_impact DECIMAL(10,2),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 5. Material Stock Table
+### 5. Material Stock Table
+```sql
+CREATE TABLE material_stock (
+  id SERIAL PRIMARY KEY,
+  material_type VARCHAR(100) NOT NULL,
+  dimensions VARCHAR(100),
+  quantity DECIMAL(10,2) DEFAULT 0,
+  unit VARCHAR(20) DEFAULT 'pieces', -- pieces, kg, meters, sheets
+  location VARCHAR(100), -- warehouse location
+  minimum_stock DECIMAL(10,2) DEFAULT 0,
+  reorder_quantity DECIMAL(10,2),
+  cost_per_unit DECIMAL(10,2),
+  supplier VARCHAR(200),
+  last_updated TIMESTAMP DEFAULT NOW(),
+  updated_by INTEGER REFERENCES users(id)
+);
+```
+
+### 6. Material Orders Table
+### 6. Material Orders Table
+```sql
+CREATE TABLE material_orders (
+  id SERIAL PRIMARY KEY,
+  material_type VARCHAR(100) NOT NULL,
+  dimensions VARCHAR(100),
+  quantity DECIMAL(10,2) NOT NULL,
+  supplier VARCHAR(200),
+  order_date TIMESTAMP DEFAULT NOW(),
+  expected_delivery TIMESTAMP,
+  actual_delivery TIMESTAMP,
+  status VARCHAR(50) DEFAULT 'ordered', -- ordered, in_transit, delivered, cancelled
+  cost DECIMAL(10,2),
+  invoice_number VARCHAR(100),
+  notes TEXT,
+  ordered_by INTEGER REFERENCES users(id)
+);
+```
+
+### 7. Machines Table
+```sql
+CREATE TABLE machines (
+  id SERIAL PRIMARY KEY,
+  machine_type VARCHAR(20) NOT NULL, -- 'mill' or 'lathe'
+  machine_number INTEGER NOT NULL,
+  machine_name VARCHAR(100), -- e.g., "Haas VF-2", "DMG Mori NLX 2500"
+  machine_model VARCHAR(100),
+  status VARCHAR(50) DEFAULT 'available', -- available, in_use, maintenance, down
+  is_available BOOLEAN DEFAULT true,
+  
+  -- Current job tracking
+  current_job INTEGER REFERENCES parts(id),
+  current_operator INTEGER REFERENCES users(id),
+  
+  -- Maintenance
+  last_maintenance TIMESTAMP,
+  next_maintenance_due TIMESTAMP,
+  maintenance_scheduled_start TIMESTAMP,
+  maintenance_scheduled_end TIMESTAMP,
+  maintenance_notes TEXT,
+  
+  -- Performance tracking
+  total_runtime_hours DECIMAL(10,2) DEFAULT 0,
+  utilization_percentage DECIMAL(5,2), -- Auto-calculated
+  
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(machine_type, machine_number)
+);
+```
+
+### 8. Operator Skills/Certifications Table
+```sql
+CREATE TABLE operator_skills (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  skill_type VARCHAR(50) NOT NULL, -- 'mill_3axis', 'mill_5axis', 'lathe', 'setup', 'inspection'
+  proficiency_level INTEGER DEFAULT 1, -- 1-5 (1=beginner, 5=expert)
+  certified_by VARCHAR(100),
+  certified_date TIMESTAMP,
+  expires_at TIMESTAMP,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 9. Machine Requirements Table
+```sql
+CREATE TABLE machine_requirements (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  required_skill VARCHAR(50),
+  min_proficiency_level INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 10. Tools Table
+```sql
+CREATE TABLE tools (
+  id SERIAL PRIMARY KEY,
+  tool_number VARCHAR(50) UNIQUE NOT NULL,
+  tool_type VARCHAR(100) NOT NULL, -- 'End Mill', 'Drill', 'Insert', 'Tap'
+  diameter DECIMAL(10,3),
+  length DECIMAL(10,3),
+  material VARCHAR(50), -- 'HSS', 'Carbide', 'Coated'
+  location VARCHAR(100),
+  quantity_available INTEGER DEFAULT 0,
+  minimum_quantity INTEGER DEFAULT 0,
+  cost_per_tool DECIMAL(10,2),
+  supplier VARCHAR(200),
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 11. Part Tool Requirements Table
+```sql
+CREATE TABLE part_tool_requirements (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  tool_id INTEGER REFERENCES tools(id),
+  quantity_needed INTEGER DEFAULT 1,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 12. Shipments Table
+```sql
+CREATE TABLE shipments (
+  id SERIAL PRIMARY KEY,
+  order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+  shipment_number INTEGER NOT NULL, -- 1, 2, 3... for partial shipments
+  ship_date TIMESTAMP,
+  tracking_number VARCHAR(100),
+  carrier VARCHAR(100), -- 'FedEx', 'UPS', 'DHL', 'Pickup'
+  shipping_cost DECIMAL(10,2),
+  status VARCHAR(50) DEFAULT 'pending', -- pending, shipped, delivered
+  notes TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 13. Shipment Items Table
+```sql
+CREATE TABLE shipment_items (
+  id SERIAL PRIMARY KEY,
+  shipment_id INTEGER REFERENCES shipments(id) ON DELETE CASCADE,
+  part_id INTEGER REFERENCES parts(id),
+  quantity_shipped INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 14. Notifications Table
+```sql
+CREATE TABLE notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL, -- 'job_complete', 'material_shortage', 'machine_down', 'due_date_warning', 'qc_required'
+  title VARCHAR(200) NOT NULL,
+  message TEXT,
+  entity_type VARCHAR(50), -- 'order', 'part', 'machine', 'material'
+  entity_id INTEGER,
+  is_read BOOLEAN DEFAULT false,
+  priority VARCHAR(20) DEFAULT 'normal', -- 'low', 'normal', 'high', 'urgent'
+  action_url TEXT, -- Link to relevant page
+  created_at TIMESTAMP DEFAULT NOW(),
+  read_at TIMESTAMP
+);
+```
+
+### 15. Files Table (Enhanced)
+### 15. Files Table (Enhanced)
+```sql
+CREATE TABLE files (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  file_type VARCHAR(50) NOT NULL, -- '3d_model', '2d_drawing', 'cam_file', 'nc_program', 'photo', 'inspection_report', 'setup_sheet'
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size INTEGER,
+  mime_type VARCHAR(100),
+  uploaded_by INTEGER REFERENCES users(id),
+  uploaded_at TIMESTAMP DEFAULT NOW(),
+  stage VARCHAR(50), -- which stage this file belongs to
+  revision VARCHAR(20), -- file revision number
+  description TEXT,
+  is_latest BOOLEAN DEFAULT true
+);
+```
+
+### 16. Time Logs Table (Enhanced)
+CREATE TABLE time_logs (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id),
+  user_id INTEGER REFERENCES users(id),
+  stage VARCHAR(50), -- 'cutting', 'machining', 'qc'
+  started_at TIMESTAMP NOT NULL,
+  ended_at TIMESTAMP,
+  duration INTEGER, -- minutes
+  notes TEXT,
+  machine_number INTEGER
+);
+###7. Machines Table
+CREATE TABLE machines (
+  id SERIAL PRIMARY KEY,
+  machine_type VARCHAR(20), -- 'mill' or 'lathe'
+  machine_number INTEGER,
+  machine_name VARCHAR(100), -- e.g., "Haas VF-2", "DMG Mori NLX 2500"
+  status VARCHAR(50) DEFAULT 'available', -- available, in_use, maintenance, down
+  current_job INTEGER REFERENCES parts(id),
+  current_operator INTEGER REFERENCES users(id),
+  last_maintenance TIMESTAMP,
+  notes TEXT
+);
+###8. Activity Log Table
+CREATE TABLE activity_log (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  action VARCHAR(100), -- 'created_order', 'assigned_job', 'completed_part', etc.
+  entity_type VARCHAR(50), -- 'order', 'part', 'material', etc.
+  entity_id INTEGER,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+###
+
+
+API ENDPOINTS NEEDED:
+Orders:
+POST /api/orders - Create new order
+GET /api/orders - List all orders (with filters)
+GET /api/orders/:id - Get order details with all parts
+PUT /api/orders/:id - Update order
+DELETE /api/orders/:id - Delete order
+GET /api/orders/:id/progress - Get completion percentage
+Parts (Jobs):
+POST /api/orders/:orderId/parts - Add part to order
+GET /api/parts - List parts (filter by stage, assigned_to, order_id)
+GET /api/parts/:id - Get part details
+PUT /api/parts/:id - Update part
+DELETE /api/parts/:id - Delete part
+Material Management:
+GET /api/materials/stock - List material stock
+POST /api/materials/stock - Add material to stock
+PUT /api/materials/stock/:id - Update stock quantity
+POST /api/materials/orders - Create material order
+GET /api/materials/orders - List material orders
+PUT /api/materials/orders/:id/delivered - Mark as delivered
+Workflow Actions:
+POST /api/parts/:id/assign-cutting - Assign to cutting operator
+POST /api/parts/:id/start-cutting - Start cutting
+POST /api/parts/:id/complete-cutting - Complete cutting
+POST /api/parts/:id/upload-program - Upload CAM/NC files
+POST /api/parts/:id/assign-machining - Assign to operator
+POST /api/parts/:id/start-machining - Start machining
+POST /api/parts/:id/pause-machining - Pause job
+POST /api/parts/:id/skip-machining - Skip job (with reason)
+POST /api/parts/:id/complete-machining - Complete machining
+POST /api/parts/:id/qc-approve - QC approve
+POST /api/parts/:id/qc-reject - QC reject (with reason)
+Operator Views:
+GET /api/my-jobs - Get current user's assigned jobs
+GET /api/cutting-queue - Jobs ready for cutting
+GET /api/programming-queue - Jobs ready for programming
+GET /api/machining-queue - Jobs ready for assignment
+GET /api/qc-queue - Jobs ready for QC
+Supervisor Dashboard:
+GET /api/dashboard/overview - Overall statistics
+GET /api/dashboard/operator-workload - Current workload per operator
+GET /api/dashboard/machine-status - Status of all machines
+GET /api/dashboard/bottlenecks - Identify workflow bottlenecks
+Reports:
+GET /api/reports/operator-efficiency
+GET /api/reports/machine-utilization
+GET /api/reports/order-completion-time
+GET /api/reports/material-usage
+FRONTEND VIEWS NEEDED:
+Supervisor Dashboard:
+Orders Overview - List of all orders with progress bars
+Material Planning - Material requirements vs stock
+Job Assignment Board - Drag-and-drop interface to assign jobs
+Operator Workload - Visual representation of each operator's queue
+Machine Status - Real-time status of all 6 machines
+Workflow Monitor - See jobs at each stage
+Cutting Operator Dashboard:
+Cutting Queue - List of parts ready for cutting
+Current Job - Active cutting job with timer
+Material Info - Specifications and quantity needed
+CNC Operator Dashboard:
+My Jobs - Assigned jobs in priority order
+Current Job - Active job with timer and controls
+Job Details - Drawings, programs, instructions
+Next Job Preview - See what's coming next
+QC Inspector Dashboard:
+QC Queue - Completed parts waiting for inspection
+Inspection Form - Approve/Reject with notes
+History - Previous inspections
+Customer Portal (Future):
+My Orders - List of orders
+Order Progress - Visual timeline of each part
+Estimated Completion - Delivery date estimates
+IMPLEMENTATION STEPS:
+Phase 1: Core Workflow
+
+Create database schema (orders, parts, materials)
+Build order creation and part management
+Implement material planning and stock tracking
+Create basic workflow stage transitions
+Phase 2: Operator Interfaces
+5. Build cutting operator interface
+6. Build CNC operator interface with job queue
+7. Implement time tracking per stage
+8. Add file upload/download for each stage
+
+Phase 3: Quality & Supervision
+9. Build QC approval workflow
+10. Create supervisor dashboard with workload view
+11. Implement job assignment interface
+12. Add machine status tracking
+
+Phase 4: Advanced Features
+13. Add drag-and-drop job assignment
+14. Implement automatic job prioritization
+15. Add email notifications
+16. Build reporting and analytics
+
+Phase 5: Customer Portal
+17. Create customer accounts (Level 50)
+18. Build order progress view
+19. Add customer notifications
+20. Implement file sharing with customers

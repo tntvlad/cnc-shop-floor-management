@@ -41,8 +41,12 @@ async function ensureSchema() {
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
         company_name VARCHAR(255) NOT NULL,
+        customer_id VARCHAR(50),
         cif VARCHAR(50),
         reg_com VARCHAR(50),
+        trade_register_number VARCHAR(100),
+        headquarters_address TEXT,
+        delivery_address TEXT,
         address TEXT,
         city VARCHAR(100),
         postal_code VARCHAR(20),
@@ -55,6 +59,7 @@ async function ensureSchema() {
         technical_contact_person VARCHAR(100),
         technical_phone VARCHAR(20),
         technical_email VARCHAR(100),
+        notes TEXT,
         processing_notes TEXT,
         delivery_notes TEXT,
         billing_notes TEXT,
@@ -63,14 +68,79 @@ async function ensureSchema() {
       )
     `);
     
+    // Add new columns if they don't exist (for existing databases)
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_id VARCHAR(50)');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS headquarters_address TEXT');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS trade_register_number VARCHAR(100)');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS delivery_address TEXT');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS notes TEXT');
+    
+    // Customer parameters (Phase 1)
+    await pool.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'");
+    await pool.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(30) DEFAULT 'standard_credit'");
+    await pool.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS payment_history VARCHAR(20) DEFAULT 'new_customer'");
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS discount_percentage DECIMAL(5,2) DEFAULT 0.00');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS custom_terms_notes TEXT');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS approval_threshold DECIMAL(12,2)');
+    await pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS credit_limit DECIMAL(12,2)');
+    
     // Create indexes separately
     await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_company ON customers(company_name)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_customer_id ON customers(customer_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status)');
     
     console.log('✓ Schema check: customers table ready');
   } catch (err) {
     console.error('Customers table creation failed:', err.message || err);
+  }
+
+  // Create contact_persons table
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS contact_persons (
+        id SERIAL PRIMARY KEY,
+        customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        contact_type VARCHAR(20) NOT NULL CHECK (contact_type IN ('invoice', 'order', 'technical')),
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        is_primary BOOLEAN DEFAULT false,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_contact_persons_customer ON contact_persons(customer_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_contact_persons_type ON contact_persons(contact_type)');
+    
+    console.log('✓ Schema check: contact_persons table ready');
+  } catch (err) {
+    console.error('Contact persons table creation failed:', err.message || err);
+  }
+
+  // Add contact person references to orders table
+  try {
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_contact_id INTEGER REFERENCES contact_persons(id) ON DELETE SET NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_contact_id INTEGER REFERENCES contact_persons(id) ON DELETE SET NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS technical_contact_id INTEGER REFERENCES contact_persons(id) ON DELETE SET NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT');
+    
+    // Order approval workflow fields (Phase 2 ready)
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS approval_status VARCHAR(30) DEFAULT 'approved'");
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS approved_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_received_at TIMESTAMP');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_applied DECIMAL(5,2) DEFAULT 0.00');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS requires_approval BOOLEAN DEFAULT false');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS approval_notes TEXT');
+    
+    console.log('✓ Schema check: orders contact fields ready');
+  } catch (err) {
+    console.error('Orders contact fields failed:', err.message || err);
   }
 }
 ensureSchema();
@@ -181,6 +251,12 @@ app.post('/api/customers', authMiddleware, requireSupervisor(), customersControl
 app.put('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.updateCustomer);
 app.delete('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.deleteCustomer);
 app.post('/api/customers/import/csv', authMiddleware, requireSupervisor(), customersController.importCustomers);
+
+// Contact Persons routes
+app.get('/api/customers/:id/contacts', authMiddleware, customersController.getCustomerContacts);
+app.post('/api/customers/:id/contacts', authMiddleware, requireSupervisor(), customersController.createContact);
+app.put('/api/customers/:id/contacts/:contactId', authMiddleware, requireSupervisor(), customersController.updateContact);
+app.delete('/api/customers/:id/contacts/:contactId', authMiddleware, requireSupervisor(), customersController.deleteContact);
 
 // ======================== MACHINES ROUTES ========================
 app.get('/api/machines', authMiddleware, machinesController.getMachines);
