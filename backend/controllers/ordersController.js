@@ -1,5 +1,17 @@
 const pool = require('../config/database');
 
+// Map priority string to integer for parts table
+function mapPriorityToInt(priorityStr) {
+  const map = { 'urgent': 3, 'high': 2, 'normal': 1, 'low': 0 };
+  return map[priorityStr] !== undefined ? map[priorityStr] : 1; // default to normal (1)
+}
+
+// Map integer priority to string for display
+function mapPriorityToStr(priorityInt) {
+  const map = { 3: 'urgent', 2: 'high', 1: 'normal', 0: 'low' };
+  return map[priorityInt] || 'normal';
+}
+
 // Create a new order
 async function createOrder(req, res) {
   try {
@@ -78,13 +90,16 @@ async function createOrder(req, res) {
 
       const orderId = orderResult.rows[0].id;
 
-      // Insert parts for this order
+      // Insert parts for this order (inherit order priority by default)
       if (parts && Array.isArray(parts) && parts.length > 0) {
         for (const part of parts) {
+          // Part can have its own priority, or inherit from order
+          const partPriorityStr = part.priority || priority || 'normal';
+          const partPriorityInt = mapPriorityToInt(partPriorityStr);
           await client.query(
-            `INSERT INTO parts (order_id, part_name, quantity, description, material_id, status)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [orderId, part.part_name, part.quantity || 1, part.description || '', part.material_id || null, 'pending']
+            `INSERT INTO parts (order_id, part_name, quantity, description, material_id, material_type, status, priority)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [orderId, part.part_name, part.quantity || 1, part.description || '', part.material_id || null, part.material_type || null, 'pending', partPriorityInt]
           );
         }
       }
@@ -239,6 +254,8 @@ async function getOrderById(req, res) {
         p.status,
         p.stage,
         p.material_id,
+        p.material_type,
+        p.priority,
         m.material_name,
         p.estimated_setup_time,
         p.estimated_run_time_per_piece,
@@ -252,7 +269,11 @@ async function getOrderById(req, res) {
       [id]
     );
 
-    order.parts = partsResult.rows;
+    // Convert integer priority to string for each part
+    order.parts = partsResult.rows.map(part => ({
+      ...part,
+      priority: mapPriorityToStr(part.priority)
+    }));
 
     res.status(200).json({
       success: true,
@@ -305,19 +326,69 @@ async function updateOrderStatus(req, res) {
 async function updateOrder(req, res) {
   try {
     const { id } = req.params;
-    const { customer_name, customer_email, customer_phone, due_date, notes } = req.body;
+    const { 
+      customer_name, customer_email, customer_phone, 
+      due_date, notes, priority, status, customer_id 
+    } = req.body;
+
+    // Build dynamic update query based on provided fields
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (customer_name !== undefined) {
+      updates.push(`customer_name = $${paramCount++}`);
+      values.push(customer_name);
+    }
+    if (customer_email !== undefined) {
+      updates.push(`customer_email = $${paramCount++}`);
+      values.push(customer_email);
+    }
+    if (customer_phone !== undefined) {
+      updates.push(`customer_phone = $${paramCount++}`);
+      values.push(customer_phone);
+    }
+    if (due_date !== undefined) {
+      updates.push(`due_date = $${paramCount++}`);
+      values.push(due_date || null);
+    }
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramCount++}`);
+      values.push(notes);
+    }
+    if (priority !== undefined) {
+      updates.push(`priority = $${paramCount++}`);
+      values.push(priority);
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramCount++}`);
+      values.push(status);
+    }
+    // If customer_id is provided, fetch customer details to update customer_name
+    if (customer_id !== undefined && customer_id !== null) {
+      const customerResult = await pool.query(
+        'SELECT company_name FROM customers WHERE id = $1',
+        [customer_id]
+      );
+      if (customerResult.rows.length > 0) {
+        updates.push(`customer_name = $${paramCount++}`);
+        values.push(customerResult.rows[0].company_name);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(id);
 
     const result = await pool.query(
       `UPDATE orders 
-       SET customer_name = COALESCE($1, customer_name),
-           customer_email = COALESCE($2, customer_email),
-           customer_phone = COALESCE($3, customer_phone),
-           due_date = COALESCE($4, due_date),
-           notes = COALESCE($5, notes),
-           updated_at = NOW()
-       WHERE id = $6
-       RETURNING id, customer_name, customer_email, customer_phone, due_date, notes, updated_at`,
-      [customer_name, customer_email, customer_phone, due_date, notes, id]
+       SET ${updates.join(', ')}
+       WHERE id = $${paramCount}
+       RETURNING id, customer_name, customer_email, customer_phone, due_date, notes, priority, status, updated_at`,
+      values
     );
 
     if (result.rows.length === 0) {
@@ -418,5 +489,89 @@ module.exports = {
   updateOrderStatus,
   updateOrder,
   deleteOrder,
-  getOrderStats
+  getOrderStats,
+  addPartToOrder,
+  updatePartPriority
 };
+
+// Add a part to an existing order
+async function addPartToOrder(req, res) {
+  try {
+    const { orderId } = req.params;
+    const { part_name, quantity, description, material_type, priority } = req.body;
+
+    if (!part_name) {
+      return res.status(400).json({ success: false, message: 'Part name is required' });
+    }
+
+    // Get order's priority if not provided for the part
+    let partPriorityStr = priority;
+    if (!partPriorityStr) {
+      const orderResult = await pool.query('SELECT priority FROM orders WHERE id = $1', [orderId]);
+      if (orderResult.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+      partPriorityStr = orderResult.rows[0].priority || 'normal';
+    }
+    
+    // Convert to integer for parts table
+    const partPriorityInt = mapPriorityToInt(partPriorityStr);
+
+    const result = await pool.query(
+      `INSERT INTO parts (order_id, part_name, quantity, description, material_type, status, priority)
+       VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+       RETURNING *`,
+      [orderId, part_name, quantity || 1, description || '', material_type || null, partPriorityInt]
+    );
+    
+    // Convert priority back to string for response
+    const part = result.rows[0];
+    part.priority = mapPriorityToStr(part.priority);
+
+    res.status(201).json({
+      success: true,
+      message: 'Part added successfully',
+      part: part
+    });
+  } catch (error) {
+    console.error('Error adding part to order:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Update a part's priority
+async function updatePartPriority(req, res) {
+  try {
+    const { partId } = req.params;
+    const { priority } = req.body;
+
+    if (!priority || !['urgent', 'high', 'normal', 'low'].includes(priority)) {
+      return res.status(400).json({ success: false, message: 'Valid priority is required (urgent, high, normal, low)' });
+    }
+    
+    // Convert to integer for parts table
+    const priorityInt = mapPriorityToInt(priority);
+
+    const result = await pool.query(
+      `UPDATE parts SET priority = $1 WHERE id = $2 RETURNING id, part_name, priority`,
+      [priorityInt, partId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+    
+    // Convert priority back to string for response
+    const part = result.rows[0];
+    part.priority = mapPriorityToStr(part.priority);
+
+    res.status(200).json({
+      success: true,
+      message: 'Part priority updated',
+      part: part
+    });
+  } catch (error) {
+    console.error('Error updating part priority:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}

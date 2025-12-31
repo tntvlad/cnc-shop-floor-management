@@ -39,8 +39,18 @@ exports.getAllParts = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         p.*,
+        p.part_name as name,
+        p.material_type as material,
+        p.priority as order_position,
+        p.estimated_time as target_time,
         m.material_name,
-        u.name as assigned_user_name
+        u.name as assigned_user_name,
+        CASE WHEN p.assigned_to IS NOT NULL THEN
+          json_build_array(json_build_object(
+            'user_id', p.assigned_to,
+            'status', CASE WHEN p.status = 'in_progress' THEN 'in_progress' ELSE 'ready' END
+          ))
+        ELSE '[]'::json END as assignments
       FROM parts p
       LEFT JOIN material_stock m ON p.material_id = m.id
       LEFT JOIN users u ON p.assigned_to = u.id
@@ -62,8 +72,18 @@ exports.getPart = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         p.*,
+        p.part_name as name,
+        p.material_type as material,
+        p.priority as order_position,
+        p.estimated_time as target_time,
         m.material_name,
-        u.name as assigned_user_name
+        u.name as assigned_user_name,
+        CASE WHEN p.assigned_to IS NOT NULL THEN
+          json_build_object(
+            'user_id', p.assigned_to,
+            'status', CASE WHEN p.status = 'in_progress' THEN 'in_progress' ELSE 'ready' END
+          )
+        ELSE NULL END as assignment
       FROM parts p
       LEFT JOIN material_stock m ON p.material_id = m.id
       LEFT JOIN users u ON p.assigned_to = u.id
@@ -94,62 +114,50 @@ exports.assignPart = async (req, res) => {
       return res.status(404).json({ error: 'Part not found' });
     }
 
-    // Normalize to an array of numeric IDs
-    const idsToAssign = [];
-    if (Array.isArray(userIds)) idsToAssign.push(...userIds);
-    if (userIds && !Array.isArray(userIds)) idsToAssign.push(userIds);
-    if (userId !== undefined && userId !== null) idsToAssign.push(userId);
-
-    const normalizedIds = idsToAssign
-      .map((val) => Number(val))
-      .filter((val) => !Number.isNaN(val));
-
-    if (normalizedIds.length === 0) {
-      return res.status(400).json({ error: 'No user IDs provided' });
+    // Normalize to get the first user ID (this schema only supports single assignment)
+    let assignUserId = null;
+    if (Array.isArray(userIds) && userIds.length > 0) {
+      assignUserId = Number(userIds[0]);
+    } else if (userIds) {
+      assignUserId = Number(userIds);
+    } else if (userId !== undefined && userId !== null) {
+      assignUserId = Number(userId);
     }
 
-    // Fetch users with their levels to determine sequence
-    const usersData = [];
-    for (const userId of normalizedIds) {
-      const userRes = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
-      if (userRes.rows.length === 0) {
-        return res.status(404).json({ error: `User ${userId} not found` });
+    if (!assignUserId || Number.isNaN(assignUserId)) {
+      return res.status(400).json({ error: 'No valid user ID provided' });
+    }
+
+    // Verify user exists and has appropriate level
+    const userRes = await pool.query('SELECT id, level, name FROM users WHERE id = $1', [assignUserId]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: `User ${assignUserId} not found` });
+    }
+    const targetLevel = userRes.rows[0].level || 100;
+    if (targetLevel > 300) {
+      return res.status(400).json({ error: `Cannot assign to user with level > 300` });
+    }
+
+    // Update the part's assigned_to column
+    const result = await pool.query(
+      `UPDATE parts 
+       SET assigned_to = $1, 
+           assigned_at = NOW(),
+           status = 'assigned'
+       WHERE id = $2
+       RETURNING *`,
+      [assignUserId, id]
+    );
+
+    res.json({ 
+      message: 'Part assigned successfully', 
+      assignment: {
+        part_id: id,
+        user_id: assignUserId,
+        user_name: userRes.rows[0].name,
+        status: 'ready'
       }
-      const targetLevel = userRes.rows[0].level || 100;
-      if (targetLevel > 300) {
-        return res.status(400).json({ error: `Cannot assign to user with level > 300` });
-      }
-      usersData.push({ id: userId, level: targetLevel });
-    }
-
-    // Establish sequence with desired order: Cutting (200) → CNC (100) → QC (300)
-    const priority = (lvl) => {
-      if (lvl === 200) return 1; // Cutting first
-      if (lvl === 100) return 2; // CNC second
-      if (lvl === 300) return 3; // QC third
-      return 99; // Others last
-    };
-    usersData.sort((a, b) => priority(a.level) - priority(b.level));
-
-    // Assign to all users with sequence and status
-    const results = [];
-    for (let i = 0; i < usersData.length; i++) {
-      const userData = usersData[i];
-      const sequence = i + 1;
-      const status = sequence === 1 ? 'ready' : 'locked';
-      
-      const result = await pool.query(
-        `INSERT INTO job_assignments (part_id, user_id, sequence, status)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (part_id, user_id) DO UPDATE
-         SET sequence = $3, status = $4, assigned_at = CURRENT_TIMESTAMP
-         RETURNING *`,
-        [id, userData.id, sequence, status]
-      );
-      results.push(result.rows[0]);
-    }
-
-    res.json({ message: 'Part assigned successfully', assignments: results });
+    });
   } catch (error) {
     console.error('Assign part error:', error);
     res.status(500).json({ error: 'Failed to assign part' });
@@ -280,96 +288,51 @@ exports.deletePart = async (req, res) => {
 
 // Mark job assignment as complete (operator marks their own assignment as done)
 exports.completePart = async (req, res) => {
-  const client = await pool.connect();
-  
   try {
-    await client.query('BEGIN');
-
     const { id } = req.params;
     const { actualTime } = req.body;
     const userId = req.user.id;
 
-    // Get current part
-    const partResult = await client.query('SELECT * FROM parts WHERE id = $1', [id]);
+    // Get current part and verify assignment
+    const partResult = await pool.query(
+      'SELECT * FROM parts WHERE id = $1',
+      [id]
+    );
+    
     if (partResult.rows.length === 0) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Part not found' });
     }
 
-    // Get job assignment for this user
-    const assignmentResult = await client.query(
-      'SELECT * FROM job_assignments WHERE part_id = $1 AND user_id = $2',
-      [id, userId]
-    );
+    const part = partResult.rows[0];
 
-    if (assignmentResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Job assignment not found for this user' });
+    // Verify user is assigned to this part
+    if (part.assigned_to !== userId) {
+      return res.status(403).json({ error: 'You are not assigned to this part' });
     }
 
-    const assignment = assignmentResult.rows[0];
-
-    // Mark assignment as completed
-    await client.query(
-      'UPDATE job_assignments SET status = $1, completed_at = NOW(), actual_time = $2 WHERE id = $3',
-      ['completed', actualTime, assignment.id]
-    );
-
-    // Update next operator in sequence to 'ready'
-    await client.query(
-      `UPDATE job_assignments 
-       SET status = 'ready'
-       WHERE part_id = $1 AND sequence = $2 AND status IN ('locked', 'pending')`,
-      [id, assignment.sequence + 1]
-    );
-
-    // Record in part_completions for history
-    await client.query(
-      'INSERT INTO part_completions (part_id, user_id, actual_time) VALUES ($1, $2, $3)',
-      [id, userId, actualTime]
+    // Update part status to completed
+    await pool.query(
+      `UPDATE parts 
+       SET status = 'completed', 
+           completed_at = NOW(),
+           actual_time = $1
+       WHERE id = $2`,
+      [actualTime || 0, id]
     );
 
     // End active time log
-    await client.query(
+    await pool.query(
       `UPDATE time_logs 
-       SET end_time = NOW(), 
-           duration = EXTRACT(EPOCH FROM (NOW() - start_time))::INTEGER
-       WHERE part_id = $1 AND user_id = $2 AND end_time IS NULL`,
+       SET ended_at = NOW(), 
+           duration = EXTRACT(EPOCH FROM (NOW() - started_at))::INTEGER
+       WHERE part_id = $1 AND user_id = $2 AND ended_at IS NULL`,
       [id, userId]
     );
 
-    const part = partResult.rows[0];
-
-    // Check if all assignments for this part are completed
-    const pendingAssignments = await client.query(
-      "SELECT COUNT(*) as count FROM job_assignments WHERE part_id = $1 AND status != 'completed'",
-      [id]
-    );
-
-    // If all assignments done, unlock next part
-    if (parseInt(pendingAssignments.rows[0].count, 10) === 0) {
-      const nextPart = await client.query(
-        'SELECT id FROM parts WHERE order_position = $1 AND locked = TRUE',
-        [part.order_position + 1]
-      );
-
-      if (nextPart.rows.length > 0) {
-        await client.query('UPDATE parts SET locked = FALSE WHERE id = $1', [nextPart.rows[0].id]);
-      }
-
-      // Mark part as completed
-      await client.query('UPDATE parts SET completed = TRUE WHERE id = $1', [id]);
-    }
-
-    await client.query('COMMIT');
-
     res.json({ message: 'Job marked as completed successfully' });
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Complete part error:', error);
     res.status(500).json({ error: 'Failed to complete job' });
-  } finally {
-    client.release();
   }
 };
 
@@ -402,7 +365,20 @@ exports.getOperatorJobs = async (req, res) => {
 
     const result = await pool.query(`
           SELECT 
-            p.*, m.material_name,
+            p.*, 
+            p.part_name as name,
+            p.material_type as material,
+            p.priority as order_position,
+            p.estimated_time as target_time,
+            m.material_name,
+            json_build_object(
+              'user_id', p.assigned_to,
+              'status', CASE 
+                WHEN p.status = 'in_progress' THEN 'in_progress'
+                WHEN p.status = 'completed' THEN 'completed'
+                ELSE 'ready'
+              END
+            ) as assignment,
             COALESCE(json_agg(
               DISTINCT jsonb_build_object(
                 'id', f.id,
@@ -414,9 +390,9 @@ exports.getOperatorJobs = async (req, res) => {
           FROM parts p
           LEFT JOIN material_stock m ON p.material_id = m.id
           LEFT JOIN files f ON p.id = f.part_id
-          WHERE p.assigned_to = $1
+          WHERE p.assigned_to = $1 AND p.status != 'completed'
           GROUP BY p.id, m.material_name
-          ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
+          ORDER BY p.priority DESC NULLS LAST, p.created_at DESC
     `, [userId]);
 
     res.json(result.rows);
@@ -428,58 +404,56 @@ exports.getOperatorJobs = async (req, res) => {
 
 // Start job (update job assignment status and unlock next in sequence)
 exports.startJob = async (req, res) => {
-  const client = await pool.connect();
-  
   try {
-    await client.query('BEGIN');
-    
     const { id } = req.params;
     const userId = req.user.id;
 
-    // Get current assignment
-    const assignmentRes = await client.query(
-      'SELECT * FROM job_assignments WHERE part_id = $1 AND user_id = $2',
-      [id, userId]
+    // Get current part and verify assignment
+    const partResult = await pool.query(
+      'SELECT * FROM parts WHERE id = $1',
+      [id]
     );
 
-    if (assignmentRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Job assignment not found' });
+    if (partResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Part not found' });
     }
 
-    const currentAssignment = assignmentRes.rows[0];
+    const part = partResult.rows[0];
+
+    // Verify user is assigned to this part
+    if (part.assigned_to !== userId) {
+      return res.status(403).json({ error: 'You are not assigned to this part' });
+    }
 
     // Check if status allows starting
-    if (currentAssignment.status !== 'ready') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: `Cannot start job with status: ${currentAssignment.status}` });
+    if (part.status === 'in_progress') {
+      return res.status(400).json({ error: 'Job is already in progress' });
     }
 
-    // Update current assignment to in_progress
-    await client.query(
-      `UPDATE job_assignments 
-       SET status = 'in_progress', started_at = NOW()
+    if (part.status === 'completed') {
+      return res.status(400).json({ error: 'Job is already completed' });
+    }
+
+    // Update part status to in_progress
+    await pool.query(
+      `UPDATE parts 
+       SET status = 'in_progress', 
+           started_at = NOW()
        WHERE id = $1`,
-      [currentAssignment.id]
+      [id]
     );
 
-    // Update next operator in sequence to 'pending'
-    await client.query(
-      `UPDATE job_assignments 
-       SET status = 'pending'
-       WHERE part_id = $1 AND sequence = $2 AND status = 'locked'`,
-      [id, currentAssignment.sequence + 1]
-    );
-
-    await client.query('COMMIT');
-
-    res.json({ message: 'Job started', assignment: currentAssignment });
+    res.json({ 
+      message: 'Job started', 
+      assignment: {
+        part_id: id,
+        user_id: userId,
+        status: 'in_progress'
+      }
+    });
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Start job error:', error);
     res.status(500).json({ error: 'Failed to start job' });
-  } finally {
-    client.release();
   }
 };
 

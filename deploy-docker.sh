@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # CNC Shop Floor Management - Docker Deployment Script (V2 Schema)
 # Run this from the project root directory
+# Version: 1.2-beta
 
 set -e  # Exit on any error
 
@@ -13,6 +14,7 @@ NC='\033[0m' # No Color
 
 echo -e "${CYAN}╔═════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║     CNC Shop Floor Management - Docker Deployment (V2)         ║${NC}"
+echo -e "${CYAN}║     Version: 1.2-beta                                           ║${NC}"
 echo -e "${CYAN}╚═════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -21,6 +23,24 @@ echo ""
 # =============================================================================
 BACKUP_DIR="./backups"
 BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+
+# Determine docker compose command (V1 vs V2)
+get_compose_command() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
+}
+
+COMPOSE_CMD=$(get_compose_command)
+if [ -z "$COMPOSE_CMD" ]; then
+    echo -e "${RED}❌ Docker Compose not found! Please install Docker Compose.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Using compose command: $COMPOSE_CMD${NC}"
 
 # =============================================================================
 # STEP 1: PULL LATEST CODE FROM GIT
@@ -61,7 +81,7 @@ echo -e "${GREEN}✅ Docker is running${NC}"
 # Check if containers are running
 if ! docker ps | grep -q -E "db|postgres"; then
     echo -e "${YELLOW}⚠️  Database container not running. Starting containers...${NC}"
-    docker-compose up -d
+    $COMPOSE_CMD up -d
     sleep 5
 else
     echo -e "${GREEN}✅ Database container is running${NC}"
@@ -213,11 +233,11 @@ echo -e "${YELLOW}=== STEP 7: REBUILD AND RESTART CONTAINERS ===${NC}"
 echo "Cleaning up stale containers to avoid recreate issues..."
 
 # Safe cleanup without touching volumes (database preserved)
-docker-compose down --remove-orphans || true
+$COMPOSE_CMD down --remove-orphans || true
 
 echo "Rebuilding and restarting containers with new code..."
 
-if docker-compose up -d --build; then
+if $COMPOSE_CMD up -d --build; then
     echo -e "${GREEN}✅ Containers rebuilt and restarted successfully${NC}"
     sleep 5
 else
@@ -227,7 +247,7 @@ else
     # Prune dangling images (keeps tagged images and all volumes)
     docker image prune -f >/dev/null 2>&1 || true
 
-    if docker-compose up -d --build; then
+    if $COMPOSE_CMD up -d --build; then
         echo -e "${GREEN}✅ Containers rebuilt and restarted after cleanup${NC}"
         sleep 5
     else
@@ -299,7 +319,7 @@ echo ""
 # =============================================================================
 echo -e "${YELLOW}If you need to rollback:${NC}"
 echo -e "${CYAN}  docker exec -i $DB_CONTAINER psql -U postgres -d cnc_shop_floor < $BACKUP_DIR/$BACKUP_FILE${NC}"
-echo -e "${CYAN}  docker-compose restart${NC}"
+echo -e "${CYAN}  $COMPOSE_CMD restart${NC}"
 echo ""
 
 # =============================================================================
@@ -311,7 +331,7 @@ if [ -n "$BACKEND_CONTAINER" ]; then
 fi
 echo -e "${CYAN}  View database logs:   docker logs -f $DB_CONTAINER${NC}"
 echo -e "${CYAN}  Access database:      docker exec -it $DB_CONTAINER psql -U postgres -d cnc_shop_floor${NC}"
-echo -e "${CYAN}  Restart containers:   docker-compose restart${NC}"
+echo -e "${CYAN}  Restart containers:   $COMPOSE_CMD restart${NC}"
 echo ""
 
 exit 0

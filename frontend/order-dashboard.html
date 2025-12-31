@@ -127,23 +127,137 @@
     }
 
     .status-pending {
-      background: #fff3cd;
-      color: #856404;
+      background: #FEF3C7;
+      color: #92400E;
     }
 
     .status-in-progress {
-      background: #cfe2ff;
-      color: #084298;
+      background: #DBEAFE;
+      color: #1E40AF;
     }
 
     .status-completed {
-      background: #d1e7dd;
-      color: #0f5132;
+      background: #D1FAE5;
+      color: #065F46;
     }
 
     .status-paused {
       background: #f8d7da;
       color: #842029;
+    }
+
+    /* Priority Row Styling with Left Borders */
+    .priority-urgent {
+      border-left: 4px solid #DC2626 !important;
+      background: rgba(239, 68, 68, 0.08) !important;
+    }
+
+    .priority-high {
+      border-left: 4px solid #EA580C !important;
+      background: rgba(234, 88, 12, 0.06) !important;
+    }
+
+    .priority-normal {
+      border-left: 4px solid #9CA3AF !important;
+      background: #FFFFFF !important;
+    }
+
+    .priority-low {
+      border-left: 4px solid #3B82F6 !important;
+      background: rgba(59, 130, 246, 0.05) !important;
+    }
+
+    /* Alternating row backgrounds */
+    .orders-table tbody tr:nth-child(odd) {
+      background-color: #F9FAFB;
+    }
+
+    .orders-table tbody tr:nth-child(even) {
+      background-color: #FFFFFF;
+    }
+
+    /* Row hover effect */
+    .orders-table tbody tr:hover {
+      background: rgba(0, 0, 0, 0.04) !important;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+    }
+
+    /* Overdue styling */
+    .order-overdue {
+      background: rgba(254, 226, 226, 0.5) !important;
+    }
+
+    .due-date-overdue {
+      color: #DC2626 !important;
+      font-weight: bold;
+    }
+
+    /* Priority badge styling */
+    .priority-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .priority-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .priority-badge.urgent {
+      font-weight: 700;
+    }
+
+    .priority-badge.urgent::before {
+      background: #DC2626;
+    }
+
+    .priority-badge.high {
+      font-weight: 700;
+    }
+
+    .priority-badge.high::before {
+      background: #EA580C;
+    }
+
+    .priority-badge.normal::before {
+      background: #9CA3AF;
+    }
+
+    .priority-badge.low::before {
+      background: #3B82F6;
+    }
+
+    /* Due date chip */
+    .due-chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .due-chip.late {
+      background: #FEE2E2;
+      color: #DC2626;
+    }
+
+    .due-chip.soon {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .due-chip.ok {
+      background: #D1FAE5;
+      color: #065F46;
     }
 
     .progress-bar {
@@ -183,6 +297,15 @@
       background: #5568d3;
     }
 
+    .btn-edit {
+      background: #F59E0B;
+      color: white;
+    }
+
+    .btn-edit:hover {
+      background: #D97706;
+    }
+
     .btn-delete {
       background: #dc3545;
       color: white;
@@ -190,6 +313,261 @@
 
     .btn-delete:hover {
       background: #c82333;
+    }
+
+    /* Edit Modal Styles */
+    .edit-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .edit-modal.active {
+      display: flex;
+    }
+
+    .edit-modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 700px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .edit-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid #E5E7EB;
+      padding-bottom: 1rem;
+    }
+
+    .edit-modal-header h2 {
+      margin: 0;
+      color: #1F2937;
+    }
+
+    .edit-form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .edit-form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .edit-form-group select,
+    .edit-form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #D1D5DB;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .edit-form-group select:focus,
+    .edit-form-group input:focus {
+      outline: none;
+      border-color: #3B82F6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .edit-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .edit-parts-section {
+      background: #F9FAFB;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .edit-parts-section h4 {
+      margin: 0 0 0.75rem 0;
+      color: #374151;
+    }
+
+    .edit-part-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      border: 1px solid #E5E7EB;
+      gap: 1rem;
+    }
+
+    .edit-part-info {
+      flex: 1;
+    }
+
+    .edit-part-name {
+      font-weight: 600;
+      color: #1F2937;
+    }
+
+    .edit-part-details {
+      font-size: 0.85rem;
+      color: #6B7280;
+    }
+
+    .edit-part-priority {
+      padding: 0.4rem 0.5rem;
+      border: 1px solid #D1D5DB;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .edit-part-priority:focus {
+      outline: none;
+      border-color: #3B82F6;
+    }
+
+    .btn-remove-part {
+      background: #EF4444;
+      color: white;
+      border: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .btn-remove-part:hover {
+      background: #DC2626;
+    }
+
+    .btn-add-part {
+      background: #10B981;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    .btn-add-part:hover {
+      background: #059669;
+    }
+
+    .edit-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #E5E7EB;
+    }
+
+    .btn-cancel {
+      background: #6B7280;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .btn-cancel:hover {
+      background: #4B5563;
+    }
+
+    .btn-save {
+      background: #3B82F6;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .btn-save:hover {
+      background: #2563EB;
+    }
+
+    /* Modern Header Navigation Styles */
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .nav-btn.active {
+      background: #3B82F6;
+      border-color: #3B82F6;
+      color: white;
+    }
+
+    .user-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .logout-btn {
+      background: #6B7280;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: #4B5563;
     }
 
     .empty-state {
@@ -245,15 +623,19 @@
 <body>
   <div class="container">
     <!-- Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 1rem 2rem;">
       <div class="nav-left">
-        <h1>📦 Order Dashboard</h1>
+        <h1 style="color: white; margin: 0;">📦 Order Dashboard</h1>
       </div>
-      <div class="nav-right">
-        <button class="btn-nav" onclick="navigateTo('customers.html')">👥 Customers</button>
-        <button class="btn-nav" onclick="navigateTo('index.html')">← Dashboard</button>
-        <button class="btn-nav" onclick="logout()">Logout</button>
-      </div>
+      <nav class="header-nav">
+        <a href="order-dashboard.html" id="ordersLink" class="nav-btn active">📦 Orders</a>
+        <a href="customers.html" id="customersLink" class="nav-btn">👥 Customers</a>
+        <a href="index.html" class="nav-btn">📊 Dashboard</a>
+        <a href="supervisor.html" id="supervisorLink" class="nav-btn" style="display: none;">🗂️ Supervisor</a>
+        <a href="admin-settings.html" id="adminLink" class="nav-btn" style="display: none;">⚙️ Admin</a>
+        <span class="user-btn">👤 <span id="userName">User</span></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </nav>
     </nav>
 
     <main class="main-content">
@@ -326,6 +708,112 @@
       <div id="order-modal-body">
         <!-- Populated by JS -->
       </div>
+    </div>
+  </div>
+
+  <!-- Edit Order Modal -->
+  <div id="edit-order-modal" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h2>✏️ Edit Order #<span id="edit-order-id"></span></h2>
+        <span class="modal-close" onclick="closeEditOrderModal()">✕</span>
+      </div>
+      
+      <form id="edit-order-form" onsubmit="saveOrderChanges(event)">
+        <div class="edit-form-row">
+          <div class="edit-form-group">
+            <label for="edit-priority">Priority</label>
+            <select id="edit-priority">
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="edit-form-group">
+            <label for="edit-due-date">Due Date</label>
+            <input type="date" id="edit-due-date">
+          </div>
+        </div>
+
+        <div class="edit-form-group">
+          <label for="edit-customer">Customer</label>
+          <select id="edit-customer">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+
+        <div class="edit-form-group">
+          <label for="edit-status">Status</label>
+          <select id="edit-status">
+            <option value="pending">Pending</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="on-hold">On Hold</option>
+          </select>
+        </div>
+
+        <div class="edit-parts-section">
+          <h4>📦 Parts</h4>
+          <div id="edit-parts-list">
+            <!-- Populated by JS -->
+          </div>
+          <button type="button" class="btn-add-part" onclick="openAddPartModal()">+ Add Part</button>
+        </div>
+
+        <div class="edit-modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeEditOrderModal()">Cancel</button>
+          <button type="submit" class="btn-save">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Part Modal -->
+  <div id="add-part-modal" class="edit-modal">
+    <div class="edit-modal-content" style="max-width: 500px;">
+      <div class="edit-modal-header">
+        <h2>➕ Add Part to Order</h2>
+        <span class="modal-close" onclick="closeAddPartModal()">✕</span>
+      </div>
+      
+      <form id="add-part-form" onsubmit="addPartToOrder(event)">
+        <div class="edit-form-group">
+          <label for="new-part-name">Part Name *</label>
+          <input type="text" id="new-part-name" required>
+        </div>
+        <div class="edit-form-row">
+          <div class="edit-form-group">
+            <label for="new-part-material">Material</label>
+            <input type="text" id="new-part-material" placeholder="e.g., Steel, Aluminum">
+          </div>
+          <div class="edit-form-group">
+            <label for="new-part-quantity">Quantity *</label>
+            <input type="number" id="new-part-quantity" min="1" value="1" required>
+          </div>
+        </div>
+        <div class="edit-form-row">
+          <div class="edit-form-group">
+            <label for="new-part-priority">Priority</label>
+            <select id="new-part-priority">
+              <option value="">Inherit from Order</option>
+              <option value="urgent">🔴 Urgent</option>
+              <option value="high">🟠 High</option>
+              <option value="normal">🟢 Normal</option>
+              <option value="low">🔵 Low</option>
+            </select>
+          </div>
+          <div class="edit-form-group">
+            <label for="new-part-description">Description</label>
+            <input type="text" id="new-part-description" placeholder="Optional description">
+          </div>
+        </div>
+
+        <div class="edit-modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeAddPartModal()">Cancel</button>
+          <button type="submit" class="btn-save">Add Part</button>
+        </div>
+      </form>
     </div>
   </div>
 

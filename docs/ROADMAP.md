@@ -21,13 +21,15 @@
 
 ## 📋 WORKFLOW STAGES
 
+Status: ✅ Implemented & Tested | ⌛ In Progress | ⏸️ On Hold | ❌ Abandoned
+
 ### Stage 1: ORDER CREATION
 **Who:** Supervisor  
 **Actions:**
-- Create new order (customer info, due date, priority)
-- Add multiple parts to order
-- Each part: name, quantity, material, dimensions, drawings
-- Set priority (urgent, normal, low)
+- ✅ Create new order (customer info, due date, priority)
+- ✅ Add multiple parts to order
+- ⌛ Each part: name, quantity, material, dimensions, drawings
+- ⌛ Set part priority (urgent, normal, low)
 
 ### Stage 2: MATERIAL PLANNING
 **Who:** Supervisor  

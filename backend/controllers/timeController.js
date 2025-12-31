@@ -5,10 +5,11 @@ exports.startTimer = async (req, res) => {
   try {
     const { partId } = req.params;
     const userId = req.user.id;
+    const stage = req.body.stage || 'machining';
 
     // Check if there's already an active timer
     const activeTimer = await pool.query(
-      'SELECT * FROM time_logs WHERE user_id = $1 AND end_time IS NULL',
+      'SELECT * FROM time_logs WHERE user_id = $1 AND ended_at IS NULL',
       [userId]
     );
 
@@ -18,8 +19,8 @@ exports.startTimer = async (req, res) => {
 
     // Start new timer
     const result = await pool.query(
-      'INSERT INTO time_logs (user_id, part_id, start_time) VALUES ($1, $2, NOW()) RETURNING *',
-      [userId, partId]
+      'INSERT INTO time_logs (user_id, part_id, stage, started_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+      [userId, partId, stage]
     );
 
     res.status(201).json(result.rows[0]);
@@ -37,9 +38,9 @@ exports.stopTimer = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE time_logs 
-       SET end_time = NOW(), 
-           duration = EXTRACT(EPOCH FROM (NOW() - start_time))::INTEGER
-       WHERE user_id = $1 AND part_id = $2 AND end_time IS NULL
+       SET ended_at = NOW(), 
+           duration = EXTRACT(EPOCH FROM (NOW() - started_at))::INTEGER
+       WHERE user_id = $1 AND part_id = $2 AND ended_at IS NULL
        RETURNING *`,
       [userId, partId]
     );
@@ -91,7 +92,7 @@ exports.getPartTimeLogs = async (req, res) => {
        FROM time_logs tl
        JOIN users u ON tl.user_id = u.id
        WHERE tl.part_id = $1
-       ORDER BY tl.start_time DESC`,
+       ORDER BY tl.started_at DESC`,
       [partId]
     );
 

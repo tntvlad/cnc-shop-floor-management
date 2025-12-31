@@ -1,6 +1,7 @@
 #!/bin/bash
 # CNC Shop Floor Management - Installation Script
-# Bash installation script for Linux/macOS
+# Bash installation script for Linux/macOS/Ubuntu Server
+# Version: 1.2-beta
 
 set -e
 
@@ -13,12 +14,24 @@ NC='\033[0m' # No Color
 
 echo -e "${CYAN}========================================"
 echo -e "CNC Shop Floor Management - Installer"
+echo -e "Version: 1.2-beta"
 echo -e "========================================${NC}"
 echo ""
 
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Determine docker compose command (V1 vs V2)
+get_compose_command() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command_exists docker-compose; then
+        echo "docker-compose"
+    else
+        echo ""
+    fi
 }
 
 # Check prerequisites
@@ -31,22 +44,26 @@ if command_exists docker; then
     echo -e "${GREEN}✓ Docker found: $DOCKER_VERSION${NC}"
 else
     echo -e "${RED}✗ Docker not found. Please install Docker.${NC}"
+    echo -e "${YELLOW}  For Ubuntu: sudo apt update && sudo apt install docker.io docker-compose-plugin${NC}"
     echo -e "${YELLOW}  Visit: https://docs.docker.com/get-docker/${NC}"
     exit 1
 fi
 
-# Check Docker Compose
-if command_exists docker-compose; then
-    COMPOSE_VERSION=$(docker-compose --version)
+# Check Docker Compose (V1 or V2)
+COMPOSE_CMD=$(get_compose_command)
+if [ -n "$COMPOSE_CMD" ]; then
+    COMPOSE_VERSION=$($COMPOSE_CMD version 2>/dev/null || $COMPOSE_CMD --version 2>/dev/null)
     echo -e "${GREEN}✓ Docker Compose found: $COMPOSE_VERSION${NC}"
 else
     echo -e "${RED}✗ Docker Compose not found. Please install Docker Compose.${NC}"
+    echo -e "${YELLOW}  For Ubuntu: sudo apt install docker-compose-plugin${NC}"
     exit 1
 fi
 
 # Check if Docker daemon is running
 if ! docker info >/dev/null 2>&1; then
     echo -e "${RED}✗ Docker daemon is not running. Please start Docker.${NC}"
+    echo -e "${YELLOW}  For Ubuntu: sudo systemctl start docker${NC}"
     exit 1
 fi
 echo -e "${GREEN}✓ Docker daemon is running${NC}"
@@ -172,7 +189,7 @@ echo ""
 # Check if containers are already running
 if docker ps --filter "name=cnc-" --format "{{.Names}}" | grep -q cnc; then
     echo -e "${YELLOW}Found running CNC containers. Stopping them...${NC}"
-    docker-compose down
+    $COMPOSE_CMD down
     echo -e "${GREEN}✓ Stopped existing containers${NC}"
     echo ""
 fi
@@ -183,7 +200,7 @@ echo -e "========================================${NC}"
 echo ""
 
 echo -e "${YELLOW}Building Docker images (this may take a few minutes)...${NC}"
-if ! docker-compose build; then
+if ! $COMPOSE_CMD build; then
     echo ""
     echo -e "${RED}✗ Build failed. Please check the error messages above.${NC}"
     exit 1
@@ -198,7 +215,7 @@ echo -e "========================================${NC}"
 echo ""
 
 echo -e "${YELLOW}Starting containers...${NC}"
-if ! docker-compose up -d; then
+if ! $COMPOSE_CMD up -d; then
     echo ""
     echo -e "${RED}✗ Failed to start services. Please check the error messages above.${NC}"
     exit 1
@@ -233,7 +250,7 @@ fi
 
 echo ""
 echo -e "${YELLOW}Checking service status...${NC}"
-docker-compose ps
+$COMPOSE_CMD ps
 
 echo ""
 echo -e "${CYAN}========================================"
@@ -255,11 +272,11 @@ echo -e "${YELLOW}⚠️  IMPORTANT: Change the default password after first log
 echo ""
 
 echo -e "${NC}Useful Commands:"
-echo -e "  ${CYAN}View logs:        docker-compose logs -f${NC}"
-echo -e "  ${CYAN}Stop services:    docker-compose down${NC}"
-echo -e "  ${CYAN}Start services:   docker-compose up -d${NC}"
-echo -e "  ${CYAN}Restart services: docker-compose restart${NC}"
-echo -e "  ${CYAN}Check status:     docker-compose ps${NC}"
+echo -e "  ${CYAN}View logs:        $COMPOSE_CMD logs -f${NC}"
+echo -e "  ${CYAN}Stop services:    $COMPOSE_CMD down${NC}"
+echo -e "  ${CYAN}Start services:   $COMPOSE_CMD up -d${NC}"
+echo -e "  ${CYAN}Restart services: $COMPOSE_CMD restart${NC}"
+echo -e "  ${CYAN}Check status:     $COMPOSE_CMD ps${NC}"
 echo ""
 
 echo -e "${NC}For more information, see README.md"

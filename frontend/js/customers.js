@@ -5,9 +5,45 @@ let currentContacts = [];
 
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
+  checkPageAccess();
+  loadCurrentUser();
   loadCustomers();
   setupSearch();
 });
+
+// Check if user has access to this page (Supervisor+ level 400+)
+function checkPageAccess() {
+  const user = Auth.getUser();
+  const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+    || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  
+  if (!isSupervisorPlus) {
+    // Redirect operators to dashboard
+    window.location.href = 'index.html';
+    return;
+  }
+}
+
+function loadCurrentUser() {
+  const user = Auth.getUser();
+  if (user && user.name) {
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl) {
+      userNameEl.textContent = user.name;
+    }
+  }
+  
+  // Show navigation links for supervisors+
+  const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+    || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  
+  if (isSupervisorPlus) {
+    const supervisorLink = document.getElementById('supervisorLink');
+    const adminLink = document.getElementById('adminLink');
+    if (supervisorLink) supervisorLink.style.display = 'inline-flex';
+    if (adminLink) adminLink.style.display = 'inline-flex';
+  }
+}
 
 function setupSearch() {
   const searchInput = document.getElementById('search-input');

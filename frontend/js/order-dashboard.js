@@ -1,4 +1,5 @@
 let currentFilter = 'all';
+let currentUser = null;
 const PRIORITY_WEIGHT = {
   urgent: 3,
   high: 3,
@@ -9,6 +10,8 @@ const PRIORITY_WEIGHT = {
 
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
+  checkPageAccess();
+  loadCurrentUser();
   loadOrders();
   loadStats();
   setupEventListeners();
@@ -19,6 +22,45 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStats();
   }, 30000);
 });
+
+// Check if user has access to this page (Supervisor+ level 400+)
+function checkPageAccess() {
+  const user = Auth.getUser();
+  const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+    || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  
+  if (!isSupervisorPlus) {
+    // Redirect operators to dashboard
+    window.location.href = 'index.html';
+    return;
+  }
+}
+
+function loadCurrentUser() {
+  currentUser = Auth.getUser();
+  if (currentUser && currentUser.name) {
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl) {
+      userNameEl.textContent = currentUser.name;
+    }
+  }
+  
+  // Show navigation links for supervisors+
+  const isSupervisorPlus = (typeof currentUser.level === 'number' && currentUser.level >= 400)
+    || (currentUser.role && (currentUser.role === 'admin' || currentUser.role === 'supervisor'));
+  
+  if (isSupervisorPlus) {
+    const supervisorLink = document.getElementById('supervisorLink');
+    const adminLink = document.getElementById('adminLink');
+    if (supervisorLink) supervisorLink.style.display = 'inline-flex';
+    if (adminLink) adminLink.style.display = 'inline-flex';
+  }
+}
+
+function canEditOrders() {
+  // Supervisor (level 400) and Admin (level 500) can edit orders
+  return currentUser && currentUser.level >= 400;
+}
 
 function setupEventListeners() {
   // Search
@@ -95,44 +137,48 @@ function renderOrders(orders) {
   emptyState.style.display = 'none';
   tbody.innerHTML = sorted.map(order => {
     const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '—';
-    const dueLabel = formatDueLabel(order.due_date);
+    const dueInfo = getDueInfo(order.due_date);
     const progress = order.part_count > 0 ? Math.round((order.completed_parts / order.part_count) * 100) : 0;
     const priority = getPriorityMeta(order);
+    const isOverdue = dueInfo.isOverdue;
+    const overdueClass = isOverdue ? 'order-overdue' : '';
+    const dueDateClass = isOverdue ? 'due-date-overdue' : '';
+    const showEditBtn = canEditOrders();
 
     return `
-      <tr class="priority-row ${priority.rowClass}" onclick="openOrderDetails(${order.id})">
+      <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
         <td><strong>#${order.id}</strong></td>
         <td>
-          <span class="priority-badge ${priority.badgeClass}">${priority.label}</span>
-          ${priority.weight ? `<div class="priority-score">Score ${priority.weight}</div>` : ''}
+          <span class="priority-badge ${priority.badgeClass}">${escapeHtml(priority.label)}</span>
         </td>
         <td>
-          <div style="font-weight: 600;">${order.customer_name}</div>
-          <div style="font-size: 0.85rem; color: #999;">${order.customer_email}</div>
+          <div style="font-weight: 600; color: #374151;">${escapeHtml(order.customer_name || 'Unknown')}</div>
+          <div style="font-size: 0.85rem; color: #6B7280;">${escapeHtml(order.customer_email || '')}</div>
         </td>
-        <td>
-          <strong>${order.part_count}</strong> parts
+        <td style="color: #374151;">
+          <strong>${order.part_count || 0}</strong> parts
           <br>
-          <span style="color: #666;">${order.completed_parts} completed</span>
+          <span style="color: #6B7280;">${order.completed_parts || 0} completed</span>
         </td>
         <td>
           <div class="progress-bar">
             <div class="progress-fill" style="width: ${progress}%;"></div>
           </div>
-          <div style="font-size: 0.85rem; text-align: center; margin-top: 0.5rem;">${progress}%</div>
+          <div style="font-size: 0.85rem; text-align: center; margin-top: 0.5rem; color: #374151;">${progress}%</div>
         </td>
         <td>
-          <div>${dueDate}</div>
-          <div class="due-chip">${dueLabel}</div>
+          <div class="${dueDateClass}">${isOverdue ? '⚠️ ' : ''}${dueDate}</div>
+          <span class="due-chip ${dueInfo.chipClass}">${escapeHtml(dueInfo.label)}</span>
         </td>
         <td>
-          <span class="status-badge status-${order.status}">
-            ${order.status.toUpperCase()}
+          <span class="status-badge status-${order.status || 'pending'}">
+            ${(order.status || 'pending').toUpperCase().replace('-', ' ')}
           </span>
         </td>
         <td>
           <div class="action-buttons">
             <button class="btn-view" onclick="openOrderDetails(${order.id}); event.stopPropagation();">View</button>
+            ${showEditBtn ? `<button class="btn-edit" onclick="openEditOrderModal(${order.id}); event.stopPropagation();">Edit</button>` : ''}
             <button class="btn-delete" onclick="deleteOrder(${order.id}); event.stopPropagation();">Delete</button>
           </div>
         </td>
@@ -223,8 +269,8 @@ function getPriorityMeta(item) {
   const weight = typeof item.priority_score === 'number'
     ? item.priority_score
     : (PRIORITY_WEIGHT[key] || 0);
-  const badgeClass = priorityClass(key);
-  const rowClass = priorityClass(key);
+  const badgeClass = priorityBadgeClass(key);
+  const rowClass = priorityRowClass(key);
   return {
     label: label.toUpperCase(),
     weight,
@@ -233,11 +279,49 @@ function getPriorityMeta(item) {
   };
 }
 
-function priorityClass(key) {
-  if (key === 'urgent' || key === 'high') return 'priority-urgent';
+function priorityBadgeClass(key) {
+  if (key === 'urgent') return 'urgent';
+  if (key === 'high') return 'high';
+  if (key === 'normal' || key === 'medium') return 'normal';
+  if (key === 'low') return 'low';
+  return 'normal';
+}
+
+function priorityRowClass(key) {
+  if (key === 'urgent') return 'priority-urgent';
+  if (key === 'high') return 'priority-high';
   if (key === 'normal' || key === 'medium') return 'priority-normal';
   if (key === 'low') return 'priority-low';
   return 'priority-normal';
+}
+
+function getDueInfo(dueDate) {
+  if (!dueDate) return { label: 'No due date', chipClass: '', isOverdue: false };
+  const now = new Date();
+  const target = new Date(dueDate);
+  const diffMs = target.getTime() - now.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return { label: `Late ${Math.abs(diffDays)}d`, chipClass: 'late', isOverdue: true };
+  }
+  if (diffDays === 0) {
+    return { label: 'Due today', chipClass: 'soon', isOverdue: false };
+  }
+  if (diffDays === 1) {
+    return { label: 'Due in 1 day', chipClass: 'soon', isOverdue: false };
+  }
+  if (diffDays <= 3) {
+    return { label: `Due in ${diffDays} days`, chipClass: 'soon', isOverdue: false };
+  }
+  return { label: `${diffDays} days left`, chipClass: 'ok', isOverdue: false };
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function formatDueLabel(dueDate) {
@@ -251,4 +335,249 @@ function formatDueLabel(dueDate) {
   if (diffDays === 1) return 'Due in 1 day';
   if (diffDays <= 3) return `Due in ${diffDays} days`;
   return target.toLocaleDateString();
+}
+
+// ========== Edit Order Functions ==========
+let editingOrderId = null;
+let editingOrderParts = [];
+let allCustomers = [];
+
+async function openEditOrderModal(orderId) {
+  editingOrderId = orderId;
+  
+  try {
+    // Load order details
+    const orderRes = await fetch(`${API_URL}/orders/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const orderData = await orderRes.json();
+    
+    if (!orderRes.ok) {
+      showError('Failed to load order details');
+      return;
+    }
+    
+    const order = orderData.order || orderData;
+    
+    // Load customers for dropdown
+    await loadCustomersForEdit();
+    
+    // Populate form
+    document.getElementById('edit-order-id').textContent = orderId;
+    document.getElementById('edit-priority').value = (order.priority || 'normal').toLowerCase();
+    document.getElementById('edit-status').value = order.status || 'pending';
+    document.getElementById('edit-customer').value = order.customer_id || '';
+    
+    // Format date for input
+    if (order.due_date) {
+      const date = new Date(order.due_date);
+      document.getElementById('edit-due-date').value = date.toISOString().split('T')[0];
+    } else {
+      document.getElementById('edit-due-date').value = '';
+    }
+    
+    // Load parts
+    editingOrderParts = order.parts || [];
+    renderEditParts();
+    
+    // Show modal
+    document.getElementById('edit-order-modal').classList.add('active');
+  } catch (error) {
+    console.error('Error opening edit modal:', error);
+    showError('Error loading order for editing');
+  }
+}
+
+async function loadCustomersForEdit() {
+  try {
+    const res = await fetch(`${API_URL}/customers`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const data = await res.json();
+    allCustomers = data.customers || data || [];
+    
+    const select = document.getElementById('edit-customer');
+    select.innerHTML = '<option value="">Select Customer</option>' +
+      allCustomers.map(c => `<option value="${c.id}">${escapeHtml(c.company_name || c.name)}</option>`).join('');
+  } catch (error) {
+    console.error('Error loading customers:', error);
+  }
+}
+
+function renderEditParts() {
+  const container = document.getElementById('edit-parts-list');
+  
+  if (!editingOrderParts || editingOrderParts.length === 0) {
+    container.innerHTML = '<p style="color: #6B7280; font-style: italic;">No parts in this order</p>';
+    return;
+  }
+  
+  container.innerHTML = editingOrderParts.map((part, index) => `
+    <div class="edit-part-item" data-part-id="${part.id}">
+      <div class="edit-part-info">
+        <div class="edit-part-name">${escapeHtml(part.part_name || part.name || 'Unnamed Part')}</div>
+        <div class="edit-part-details">
+          Material: ${escapeHtml(part.material_type || part.material || 'N/A')} | 
+          Qty: ${part.quantity || 1} |
+          Status: ${part.status || 'pending'}
+        </div>
+      </div>
+      <select class="edit-part-priority" data-part-id="${part.id}" onchange="updatePartPriority(${part.id}, this.value)">
+        <option value="urgent" ${part.priority === 'urgent' ? 'selected' : ''}>🔴 Urgent</option>
+        <option value="high" ${part.priority === 'high' ? 'selected' : ''}>🟠 High</option>
+        <option value="normal" ${(part.priority === 'normal' || !part.priority) ? 'selected' : ''}>🟢 Normal</option>
+        <option value="low" ${part.priority === 'low' ? 'selected' : ''}>🔵 Low</option>
+      </select>
+      <button type="button" class="btn-remove-part" onclick="removePartFromOrder(${part.id}, ${index})">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function updatePartPriority(partId, priority) {
+  try {
+    const res = await fetch(`${API_URL}/parts/${partId}/priority`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ priority })
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      showError(data.message || 'Failed to update part priority');
+      return;
+    }
+    
+    // Update local data
+    const partIndex = editingOrderParts.findIndex(p => p.id === partId);
+    if (partIndex >= 0) {
+      editingOrderParts[partIndex].priority = priority;
+    }
+    
+    showSuccess('Part priority updated');
+  } catch (error) {
+    console.error('Error updating part priority:', error);
+    showError('Error updating part priority');
+  }
+}
+
+async function removePartFromOrder(partId, index) {
+  if (!confirm('Are you sure you want to remove this part from the order?')) {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_URL}/parts/${partId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    
+    if (!res.ok) {
+      showError('Failed to remove part');
+      return;
+    }
+    
+    editingOrderParts.splice(index, 1);
+    renderEditParts();
+    showSuccess('Part removed');
+  } catch (error) {
+    console.error('Error removing part:', error);
+    showError('Error removing part');
+  }
+}
+
+function closeEditOrderModal() {
+  document.getElementById('edit-order-modal').classList.remove('active');
+  editingOrderId = null;
+  editingOrderParts = [];
+}
+
+async function saveOrderChanges(event) {
+  event.preventDefault();
+  
+  if (!editingOrderId) return;
+  
+  const updates = {
+    priority: document.getElementById('edit-priority').value,
+    status: document.getElementById('edit-status').value,
+    customer_id: document.getElementById('edit-customer').value || null,
+    due_date: document.getElementById('edit-due-date').value || null
+  };
+  
+  try {
+    const res = await fetch(`${API_URL}/orders/${editingOrderId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      showError(data.message || 'Failed to update order');
+      return;
+    }
+    
+    showSuccess('Order updated successfully');
+    closeEditOrderModal();
+    loadOrders(currentFilter);
+  } catch (error) {
+    console.error('Error saving order:', error);
+    showError('Error saving order changes');
+  }
+}
+
+// Add Part Modal Functions
+function openAddPartModal() {
+  document.getElementById('add-part-form').reset();
+  document.getElementById('add-part-modal').classList.add('active');
+}
+
+function closeAddPartModal() {
+  document.getElementById('add-part-modal').classList.remove('active');
+}
+
+async function addPartToOrder(event) {
+  event.preventDefault();
+  
+  if (!editingOrderId) return;
+  
+  const partData = {
+    part_name: document.getElementById('new-part-name').value,
+    material_type: document.getElementById('new-part-material').value || null,
+    quantity: parseInt(document.getElementById('new-part-quantity').value) || 1,
+    description: document.getElementById('new-part-description').value || null,
+    priority: document.getElementById('new-part-priority').value || null
+  };
+  
+  try {
+    // Use new endpoint that adds part to specific order
+    const res = await fetch(`${API_URL}/orders/${editingOrderId}/parts`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(partData)
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      showError(data.message || 'Failed to add part');
+      return;
+    }
+    
+    const response = await res.json();
+    editingOrderParts.push(response.part);
+    renderEditParts();
+    closeAddPartModal();
+    showSuccess('Part added successfully');
+  } catch (error) {
+    console.error('Error adding part:', error);
+    showError('Error adding part');
+  }
 }

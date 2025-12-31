@@ -440,20 +440,88 @@
       background: #f8d7da;
       color: #842029;
     }
+
+    /* Modern Header Navigation Styles */
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .nav-btn.active {
+      background: #3B82F6;
+      border-color: #3B82F6;
+      color: white;
+    }
+
+    .user-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .logout-btn {
+      background: #6B7280;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: #4B5563;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <!-- Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 1rem 2rem;">
       <div class="nav-left">
-        <h1>👥 Customer Management</h1>
+        <h1 style="color: white; margin: 0;">👥 Customer Management</h1>
       </div>
-      <div class="nav-right">
-        <button class="btn-nav" onclick="navigateTo('order-dashboard.html')">← Orders</button>
-        <button class="btn-nav" onclick="navigateTo('index.html')">Dashboard</button>
-        <button class="btn-nav" onclick="logout()">Logout</button>
-      </div>
+      <nav class="header-nav">
+        <a href="order-dashboard.html" id="ordersLink" class="nav-btn">📦 Orders</a>
+        <a href="customers.html" id="customersLink" class="nav-btn active">👥 Customers</a>
+        <a href="index.html" class="nav-btn">📊 Dashboard</a>
+        <a href="supervisor.html" id="supervisorLink" class="nav-btn" style="display: none;">🗂️ Supervisor</a>
+        <a href="admin-settings.html" id="adminLink" class="nav-btn" style="display: none;">⚙️ Admin</a>
+        <span class="user-btn">👤 <span id="userName">User</span></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </nav>
     </nav>
 
     <main class="main-content">

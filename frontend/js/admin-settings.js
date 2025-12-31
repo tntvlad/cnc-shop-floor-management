@@ -24,9 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = 'login.html';
   });
 
-  // Git settings button
+  // Git settings button (may not exist on all pages)
   const gitBtn = document.getElementById('gitSettingsBtn');
-  gitBtn.addEventListener('click', openGitSettings);
+  if (gitBtn) {
+    gitBtn.addEventListener('click', openGitSettings);
+  }
 
   // Update level hints when selecting a level
   const levelSelect = document.getElementById('newLevel');

@@ -227,12 +227,14 @@ app.get('/api/parts/:partId/timelogs', authMiddleware, timeController.getPartTim
 // ======================== ORDERS ROUTES ========================
 // Note: requireSupervisor must be INVOKED to return the middleware instance.
 app.post('/api/orders', authMiddleware, requireSupervisor(), ordersController.createOrder);
-app.get('/api/orders', authMiddleware, ordersController.getOrders);
-app.get('/api/orders/:id', authMiddleware, ordersController.getOrderById);
+app.get('/api/orders', authMiddleware, requireSupervisor(), ordersController.getOrders);
+app.get('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.getOrderById);
 app.put('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.updateOrder);
 app.put('/api/orders/:id/status', authMiddleware, requireSupervisor(), ordersController.updateOrderStatus);
 app.delete('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.deleteOrder);
-app.get('/api/orders/stats/summary', authMiddleware, ordersController.getOrderStats);
+app.get('/api/orders/stats/summary', authMiddleware, requireSupervisor(), ordersController.getOrderStats);
+app.post('/api/orders/:orderId/parts', authMiddleware, requireSupervisor(), ordersController.addPartToOrder);
+app.put('/api/parts/:partId/priority', authMiddleware, requireSupervisor(), ordersController.updatePartPriority);
 
 // ======================== MATERIALS ROUTES ========================
 app.get('/api/materials', authMiddleware, materialsController.getMaterials);
@@ -245,15 +247,15 @@ app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsC
 app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
 
 // ======================== CUSTOMERS ROUTES ========================
-app.get('/api/customers', authMiddleware, customersController.getCustomers);
-app.get('/api/customers/:id', authMiddleware, customersController.getCustomer);
+app.get('/api/customers', authMiddleware, requireSupervisor(), customersController.getCustomers);
+app.get('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.getCustomer);
 app.post('/api/customers', authMiddleware, requireSupervisor(), customersController.createCustomer);
 app.put('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.updateCustomer);
 app.delete('/api/customers/:id', authMiddleware, requireSupervisor(), customersController.deleteCustomer);
 app.post('/api/customers/import/csv', authMiddleware, requireSupervisor(), customersController.importCustomers);
 
 // Contact Persons routes
-app.get('/api/customers/:id/contacts', authMiddleware, customersController.getCustomerContacts);
+app.get('/api/customers/:id/contacts', authMiddleware, requireSupervisor(), customersController.getCustomerContacts);
 app.post('/api/customers/:id/contacts', authMiddleware, requireSupervisor(), customersController.createContact);
 app.put('/api/customers/:id/contacts/:contactId', authMiddleware, requireSupervisor(), customersController.updateContact);
 app.delete('/api/customers/:id/contacts/:contactId', authMiddleware, requireSupervisor(), customersController.deleteContact);
