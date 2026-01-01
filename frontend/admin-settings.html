@@ -138,6 +138,21 @@
         .logout-btn:hover {
             background: #4B5563;
         }
+
+        .git-settings-btn {
+            background: #3B82F6;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .git-settings-btn:hover {
+            background: #2563EB;
+        }
     </style>
 </head>
 <body>
@@ -153,6 +168,7 @@
                 <a href="supervisor.html" id="supervisorLink" class="nav-btn">🗂️ Supervisor</a>
                 <a href="admin-settings.html" id="adminLink" class="nav-btn active">⚙️ Admin</a>
                 <span class="user-btn">👤 <span id="userName">Loading...</span></span>
+                <button class="git-settings-btn" id="gitSettingsBtn" title="Version Control">⚙️</button>
                 <button class="logout-btn" id="logoutBtn">Logout</button>
             </nav>
         </div>
