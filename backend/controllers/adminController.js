@@ -243,7 +243,7 @@ exports.switchBranch = async (req, res) => {
   }
 };
 
-// Restart services (admin only)
+// Restart services (admin only) - now rebuilds containers
 exports.restartServices = async (req, res) => {
   try {
     // Check if requester is admin
@@ -254,15 +254,23 @@ exports.restartServices = async (req, res) => {
     }
 
     try {
-      // This will restart the Docker containers
-      const output = execSync('docker-compose restart 2>&1', {
+      // Detect Docker Compose command (V1 vs V2)
+      let composeCmd = 'docker compose';
+      try {
+        execSync('docker compose version', { encoding: 'utf-8' });
+      } catch {
+        composeCmd = 'docker-compose';
+      }
+
+      // Rebuild and restart containers to pick up any code changes
+      const output = execSync(`${composeCmd} up -d --build 2>&1`, {
         encoding: 'utf-8',
-        timeout: 60000,
+        timeout: 120000,
         cwd: '/app/project'
       });
 
       res.json({
-        message: 'Services restarting. Please wait for them to come back online.',
+        message: 'Services rebuilding and restarting. Please wait for them to come back online.',
         output
       });
     } catch (error) {
