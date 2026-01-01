@@ -355,19 +355,22 @@ exports.databaseRestore = async (req, res) => {
 
       // Drop all tables first to allow clean restore
       console.log('Dropping existing tables for clean restore...');
+      const dropFile = path.join('/tmp', `drop_${Date.now()}.sql`);
       const dropTablesSQL = `
-        DO $$ DECLARE
-          r RECORD;
-        BEGIN
-          FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-          END LOOP;
-        END $$;
-      `;
+DO $$ DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+  END LOOP;
+END $$;
+`;
+      fs.writeFileSync(dropFile, dropTablesSQL, 'utf-8');
       execSync(
-        `PGPASSWORD="${process.env.DB_PASSWORD}" psql -h ${dbHost} -U ${dbUser} -d ${dbName} -c "${dropTablesSQL}"`,
+        `PGPASSWORD="${process.env.DB_PASSWORD}" psql -h ${dbHost} -U ${dbUser} -d ${dbName} -f ${dropFile}`,
         { encoding: 'utf-8', timeout: 30000 }
       );
+      fs.unlinkSync(dropFile);
       console.log('Tables dropped, restoring from backup...');
 
       // Execute SQL file
