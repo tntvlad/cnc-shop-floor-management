@@ -67,13 +67,13 @@ async function loadJobs() {
     tbody.innerHTML = '';
     parts.forEach(part => {
       const tr = document.createElement('tr');
-      const assignedUsers = (part.assignments || []).map(a => `${a.employeeId} (${a.status})`).join(', ') || 'Unassigned';
+      const assignedUsers = (part.assignments || []).filter(a => a.employeeId).map(a => `${a.employeeId} (${a.status})`).join(', ') || 'Unassigned';
       tr.innerHTML = `
-        <td>${part.order_position}</td>
-        <td>${part.name}</td>
-        <td>${part.material}</td>
-        <td>${part.quantity}</td>
-        <td>${part.target_time}</td>
+        <td>${part.order_position || part.order_id || '-'}</td>
+        <td>${part.name || part.part_name || '-'}</td>
+        <td>${part.material || part.material_type || 'N/A'}</td>
+        <td>${part.quantity || 1}</td>
+        <td>${part.target_time || part.estimated_time || '-'}</td>
         <td style="font-size: 0.9em; color: #666;">${assignedUsers}</td>
         <td>
           <button class="btn btn-primary" data-action="assign" data-id="${part.id}">Assign to Users</button>

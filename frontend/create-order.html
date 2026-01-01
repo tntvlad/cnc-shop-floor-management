@@ -91,10 +91,113 @@
       padding: 1rem;
       border-radius: 4px;
       border-left: 4px solid #667eea;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .part-row {
       display: grid;
-      grid-template-columns: 1fr 1fr 100px 100px auto;
-      gap: 1rem;
+      grid-template-columns: 2fr 1fr 80px auto;
+      gap: 0.75rem;
       align-items: center;
+    }
+
+    .part-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 100px;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .part-row-3 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .dimension-group {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+
+    .dimension-group input {
+      width: 60px;
+      text-align: center;
+    }
+
+    .dimension-group span {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .material-search-wrapper {
+      position: relative;
+    }
+
+    .material-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .material-dropdown.active {
+      display: block;
+    }
+
+    .material-option {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+
+    .material-option:hover {
+      background: #f0f0f0;
+    }
+
+    .material-option:last-child {
+      border-bottom: none;
+    }
+
+    .folder-select-btn {
+      padding: 0.5rem 0.75rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .folder-select-btn:hover {
+      background: #5a6268;
+    }
+
+    .folder-display {
+      font-size: 0.85rem;
+      color: #666;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .part-item input,
+    .part-item select {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
     }
 
     .part-item input {

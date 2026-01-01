@@ -4,13 +4,32 @@ let selectedCustomer = null;
 let csvData = [];
 let csvSelectedRows = [];
 
+let allMaterials = [];
+
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   setTodayDate();
+  loadMaterials();
   addPartField();
   loadCustomers();
   setupCustomerSearch();
 });
+
+async function loadMaterials() {
+  try {
+    const response = await fetch(`${API_URL}/materials`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const data = await response.json();
+    if (data.success && data.materials) {
+      allMaterials = data.materials;
+    } else if (data.materials) {
+      allMaterials = data.materials;
+    }
+  } catch (error) {
+    console.error('Error loading materials:', error);
+  }
+}
 
 function setTodayDate() {
   const today = new Date().toISOString().split('T')[0];
@@ -744,17 +763,117 @@ function addPartField() {
   const partItem = document.createElement('div');
   partItem.className = 'part-item';
   partItem.innerHTML = `
-    <input type="text" placeholder="Part name" name="parts[${partIndex}][part_name]">
-    <textarea placeholder="Description" name="parts[${partIndex}][description]" style="resize: none; min-height: auto;"></textarea>
-    <input type="number" placeholder="Qty" name="parts[${partIndex}][quantity]" min="1" value="1">
-    <select name="parts[${partIndex}][material_id]">
-      <option value="">Select Material</option>
-    </select>
-    <button type="button" class="btn-remove-part" onclick="this.parentElement.remove()">Remove</button>
+    <div class="part-row">
+      <input type="text" placeholder="Part name *" name="parts[${partIndex}][part_name]" required>
+      <input type="number" placeholder="Qty" name="parts[${partIndex}][quantity]" min="1" value="1" style="width: 80px;">
+      <input type="number" placeholder="Time (min)" name="parts[${partIndex}][estimated_time]" min="0" title="Estimated time in minutes">
+      <button type="button" class="btn-remove-part" onclick="this.closest('.part-item').remove()">✕</button>
+    </div>
+    <div class="part-row-2">
+      <div class="material-search-wrapper">
+        <input type="text" placeholder="Search material..." class="material-search" data-index="${partIndex}" autocomplete="off">
+        <input type="hidden" name="parts[${partIndex}][material_id]">
+        <div class="material-dropdown"></div>
+      </div>
+      <div class="dimension-group" title="Rectangular: Height x Width x Length">
+        <input type="number" placeholder="H" name="parts[${partIndex}][dim_h]" min="0" step="0.1">
+        <span>×</span>
+        <input type="number" placeholder="W" name="parts[${partIndex}][dim_w]" min="0" step="0.1">
+        <span>×</span>
+        <input type="number" placeholder="L" name="parts[${partIndex}][dim_l]" min="0" step="0.1">
+      </div>
+      <div class="dimension-group" title="Round: Diameter x Length">
+        <span>⌀</span>
+        <input type="number" placeholder="D" name="parts[${partIndex}][dim_d]" min="0" step="0.1">
+        <span>×</span>
+        <input type="number" placeholder="L" name="parts[${partIndex}][dim_dl]" min="0" step="0.1">
+      </div>
+      <select name="parts[${partIndex}][priority]" title="Part priority">
+        <option value="">Priority</option>
+        <option value="urgent">🔴 Urgent</option>
+        <option value="high">🟠 High</option>
+        <option value="normal" selected>🟢 Normal</option>
+        <option value="low">🔵 Low</option>
+      </select>
+    </div>
+    <div class="part-row-3">
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button type="button" class="folder-select-btn" onclick="selectFolder(${partIndex})">📁 Select Folder</button>
+        <span class="folder-display" id="folder-display-${partIndex}">No folder selected</span>
+        <input type="hidden" name="parts[${partIndex}][file_folder]">
+      </div>
+      <textarea placeholder="Description / Notes" name="parts[${partIndex}][description]" style="resize: none; min-height: 40px;"></textarea>
+    </div>
   `;
 
   partsList.appendChild(partItem);
-  loadMaterialsForSelect(partItem.querySelector('select'));
+  setupMaterialSearch(partItem, partIndex);
+}
+
+function setupMaterialSearch(partItem, index) {
+  const searchInput = partItem.querySelector('.material-search');
+  const dropdown = partItem.querySelector('.material-dropdown');
+  const hiddenInput = partItem.querySelector(`input[name="parts[${index}][material_id]"]`);
+
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    if (!query) {
+      dropdown.classList.remove('active');
+      return;
+    }
+
+    const filtered = allMaterials.filter(m =>
+      (m.material_name && m.material_name.toLowerCase().includes(query)) ||
+      (m.material_type && m.material_type.toLowerCase().includes(query))
+    );
+
+    renderMaterialDropdown(dropdown, filtered, searchInput, hiddenInput);
+    dropdown.classList.add('active');
+  });
+
+  searchInput.addEventListener('focus', () => {
+    if (allMaterials.length > 0 && !searchInput.value) {
+      renderMaterialDropdown(dropdown, allMaterials.slice(0, 10), searchInput, hiddenInput);
+      dropdown.classList.add('active');
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.material-search-wrapper')) {
+      dropdown.classList.remove('active');
+    }
+  });
+}
+
+function renderMaterialDropdown(dropdown, materials, searchInput, hiddenInput) {
+  if (materials.length === 0) {
+    dropdown.innerHTML = '<div class="material-option" style="color: #999;">No materials found</div>';
+    return;
+  }
+
+  dropdown.innerHTML = materials.map(m => `
+    <div class="material-option" data-id="${m.id}" data-name="${escapeHtml(m.material_name)}">
+      <strong>${escapeHtml(m.material_name)}</strong>
+      <div style="font-size: 0.85rem; color: #666;">${m.material_type || ''} • Stock: ${m.current_stock} ${m.unit || ''}</div>
+    </div>
+  `).join('');
+
+  dropdown.querySelectorAll('.material-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      searchInput.value = opt.dataset.name;
+      hiddenInput.value = opt.dataset.id;
+      dropdown.classList.remove('active');
+    });
+  });
+}
+
+function selectFolder(partIndex) {
+  // For now, prompt for folder path - in production this could be a file browser
+  const folder = prompt('Enter folder path for drawings/files:', '');
+  if (folder !== null) {
+    document.querySelector(`input[name="parts[${partIndex}][file_folder]"]`).value = folder;
+    document.getElementById(`folder-display-${partIndex}`).textContent = folder || 'No folder selected';
+  }
 }
 
 async function loadMaterialsForSelect(selectElement) {
@@ -860,11 +979,29 @@ async function handleCreateOrder(event) {
   partsList.querySelectorAll('.part-item').forEach((item) => {
     const partName = item.querySelector('input[name*="part_name"]').value.trim();
     if (partName) {
+      // Build dimensions string from inputs
+      const dimH = item.querySelector('input[name*="dim_h"]')?.value;
+      const dimW = item.querySelector('input[name*="dim_w"]')?.value;
+      const dimL = item.querySelector('input[name*="dim_l"]')?.value;
+      const dimD = item.querySelector('input[name*="dim_d"]')?.value;
+      const dimDL = item.querySelector('input[name*="dim_dl"]')?.value;
+
+      let dimensions = '';
+      if (dimH && dimW && dimL) {
+        dimensions = `${dimH}×${dimW}×${dimL}`;
+      } else if (dimD && dimDL) {
+        dimensions = `⌀${dimD}×${dimDL}`;
+      }
+
       order.parts.push({
         part_name: partName,
-        description: item.querySelector('textarea[name*="description"]').value.trim() || '',
-        quantity: parseInt(item.querySelector('input[name*="quantity"]').value) || 1,
-        material_id: item.querySelector('select[name*="material_id"]').value || null
+        description: item.querySelector('textarea[name*="description"]')?.value.trim() || '',
+        quantity: parseInt(item.querySelector('input[name*="quantity"]')?.value) || 1,
+        material_id: item.querySelector('input[name*="material_id"][type="hidden"]')?.value || null,
+        material_dimensions: dimensions || null,
+        estimated_time: parseInt(item.querySelector('input[name*="estimated_time"]')?.value) || null,
+        file_folder: item.querySelector('input[name*="file_folder"]')?.value || null,
+        priority: item.querySelector('select[name*="priority"]')?.value || 'normal'
       });
     }
   });

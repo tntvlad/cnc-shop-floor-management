@@ -97,9 +97,21 @@ async function createOrder(req, res) {
           const partPriorityStr = part.priority || priority || 'normal';
           const partPriorityInt = mapPriorityToInt(partPriorityStr);
           await client.query(
-            `INSERT INTO parts (order_id, part_name, quantity, description, material_id, material_type, status, priority)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [orderId, part.part_name, part.quantity || 1, part.description || '', part.material_id || null, part.material_type || null, 'pending', partPriorityInt]
+            `INSERT INTO parts (order_id, part_name, quantity, description, material_id, material_type, material_dimensions, estimated_time, file_folder, status, priority)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+              orderId,
+              part.part_name,
+              part.quantity || 1,
+              part.description || '',
+              part.material_id || null,
+              part.material_type || null,
+              part.material_dimensions || null,
+              part.estimated_time || null,
+              part.file_folder || null,
+              'pending',
+              partPriorityInt
+            ]
           );
         }
       }

@@ -40,14 +40,17 @@ exports.getAllParts = async (req, res) => {
       SELECT 
         p.*,
         p.part_name as name,
-        p.material_type as material,
-        p.priority as order_position,
-        p.estimated_time as target_time,
+        COALESCE(p.material_type, 'N/A') as material,
+        p.order_id as order_position,
+        COALESCE(p.estimated_time, 0) as target_time,
         m.material_name,
         u.name as assigned_user_name,
+        u.employee_id as assigned_employee_id,
         CASE WHEN p.assigned_to IS NOT NULL THEN
           json_build_array(json_build_object(
             'user_id', p.assigned_to,
+            'employeeId', u.employee_id,
+            'name', u.name,
             'status', CASE WHEN p.status = 'in_progress' THEN 'in_progress' ELSE 'ready' END
           ))
         ELSE '[]'::json END as assignments
