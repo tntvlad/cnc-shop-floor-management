@@ -353,9 +353,26 @@ exports.databaseRestore = async (req, res) => {
       const tempFile = path.join('/tmp', `restore_${Date.now()}.sql`);
       fs.writeFileSync(tempFile, req.body.sqlContent, 'utf-8');
 
+      // Drop all tables first to allow clean restore
+      console.log('Dropping existing tables for clean restore...');
+      const dropTablesSQL = `
+        DO $$ DECLARE
+          r RECORD;
+        BEGIN
+          FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+            EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+          END LOOP;
+        END $$;
+      `;
+      execSync(
+        `PGPASSWORD="${process.env.DB_PASSWORD}" psql -h ${dbHost} -U ${dbUser} -d ${dbName} -c "${dropTablesSQL}"`,
+        { encoding: 'utf-8', timeout: 30000 }
+      );
+      console.log('Tables dropped, restoring from backup...');
+
       // Execute SQL file
       const output = execSync(
-        `PGPASSWORD="${process.env.DB_PASSWORD}" psql -h ${dbHost} -U ${dbUser} -d ${dbName} -f ${tempFile}`,
+        `PGPASSWORD="${process.env.DB_PASSWORD}" psql -h ${dbHost} -U ${dbUser} -d ${dbName} -f ${tempFile} 2>&1`,
         {
           encoding: 'utf-8',
           timeout: 120000
@@ -365,11 +382,13 @@ exports.databaseRestore = async (req, res) => {
       // Clean up temp file
       fs.unlinkSync(tempFile);
 
+      console.log('Database restore completed');
       res.json({
         message: 'Database restored successfully',
         output
       });
     } catch (error) {
+      console.error('Restore error:', error.message);
       res.status(500).json({
         error: 'Restore failed',
         details: error.message
