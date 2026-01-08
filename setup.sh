@@ -202,6 +202,8 @@ do_install() {
     if [ -f ".env" ]; then
         sed -i.bak "s/DB_PASSWORD=.*/DB_PASSWORD=$DB_PASSWORD/" .env 2>/dev/null || true
         sed -i.bak "s/JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" .env 2>/dev/null || true
+        # Set FRONTEND_URL to * to allow access from any IP (CORS)
+        sed -i.bak "s|FRONTEND_URL=.*|FRONTEND_URL=*|" .env 2>/dev/null || true
         rm -f .env.bak 2>/dev/null || true
     fi
     
