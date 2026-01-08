@@ -221,6 +221,9 @@ do_install() {
     echo ""
     echo -e "${CYAN}=== Starting Services ===${NC}"
     
+    # Remove old network if it exists with wrong labels
+    docker network rm cnc-network 2>/dev/null || true
+    
     if ! $COMPOSE_CMD up -d; then
         echo -e "${RED}✗ Failed to start services!${NC}"
         exit 1
