@@ -167,7 +167,7 @@ exports.updateCustomer = async (req, res) => {
     const result = await db.query(
       `UPDATE customers SET
         company_name = COALESCE($1, company_name),
-        customer_id = COALESCE($2, customer_id),
+        customer_id = $2,
         cif = COALESCE($3, cif),
         reg_com = COALESCE($4, reg_com),
         trade_register_number = COALESCE($5, trade_register_number),
