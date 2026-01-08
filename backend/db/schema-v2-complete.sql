@@ -1,6 +1,6 @@
--- CNC Shop Floor Management System - Complete Database Schema v2.0
--- Enhanced with: Orders, Material Management, QC, Machines, Tools, Notifications
--- Date: 2025-12-26
+-- CNC Shop Floor Management System - Complete Database Schema v2.1
+-- Enhanced with: Orders, Material Management, QC, Machines, Tools, Notifications, Customers
+-- Date: 2025-01-13
 
 -- ============================================================================
 -- DROP EXISTING TABLES (Fresh Start)
@@ -31,6 +31,8 @@ DROP TABLE IF EXISTS machines CASCADE;
 DROP TABLE IF EXISTS job_assignments CASCADE;
 DROP TABLE IF EXISTS part_completions CASCADE;
 DROP TABLE IF EXISTS feedback CASCADE;
+DROP TABLE IF EXISTS contact_persons CASCADE;
+DROP TABLE IF EXISTS customers CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
 -- ============================================================================
@@ -49,6 +51,63 @@ CREATE TABLE users (
     is_active BOOLEAN DEFAULT true,
     last_login TIMESTAMP,
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- CUSTOMERS TABLE (Customer Management)
+-- ============================================================================
+
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(255) NOT NULL,
+    customer_id VARCHAR(50),
+    cif VARCHAR(50),
+    reg_com VARCHAR(50),
+    trade_register_number VARCHAR(50),
+    address TEXT,
+    headquarters_address TEXT,
+    delivery_address TEXT,
+    city VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100) DEFAULT 'Romania',
+    contact_person VARCHAR(255),
+    contact_phone VARCHAR(20),
+    contact_email VARCHAR(255),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    phone VARCHAR(20),
+    technical_contact_person VARCHAR(255),
+    technical_phone VARCHAR(20),
+    technical_email VARCHAR(255),
+    processing_notes TEXT,
+    delivery_notes TEXT,
+    billing_notes TEXT,
+    notes TEXT,
+    status VARCHAR(20) DEFAULT 'active',
+    payment_terms VARCHAR(50) DEFAULT 'standard_credit',
+    payment_history VARCHAR(50) DEFAULT 'new_customer',
+    discount_percentage DECIMAL(5,2) DEFAULT 0,
+    credit_limit DECIMAL(12,2),
+    approval_threshold DECIMAL(12,2),
+    custom_terms_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- CONTACT PERSONS TABLE (Multiple contacts per customer)
+-- ============================================================================
+
+CREATE TABLE contact_persons (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    is_primary BOOLEAN DEFAULT false,
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -602,6 +661,16 @@ CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX idx_material_stock_type ON material_stock(material_type);
 CREATE INDEX idx_material_orders_status ON material_orders(status);
 
+-- Customers indexes
+CREATE INDEX idx_customers_company_name ON customers(company_name);
+CREATE INDEX idx_customers_email ON customers(email);
+CREATE INDEX idx_customers_phone ON customers(phone);
+CREATE INDEX idx_customers_customer_id ON customers(customer_id);
+CREATE INDEX idx_customers_status ON customers(status);
+
+-- Contact persons indexes
+CREATE INDEX idx_contact_persons_customer_id ON contact_persons(customer_id);
+
 -- ============================================================================
 -- INSERT DEFAULT ADMIN USER
 -- ============================================================================
@@ -635,6 +704,8 @@ COMMENT ON TABLE qc_inspections IS 'Quality control inspection records';
 COMMENT ON TABLE notifications IS 'Real-time user notifications';
 COMMENT ON TABLE operator_skills IS 'Track operator skills and certifications';
 COMMENT ON TABLE tools IS 'Cutting tools inventory';
+COMMENT ON TABLE customers IS 'Customer companies with billing and contact information';
+COMMENT ON TABLE contact_persons IS 'Multiple contact persons per customer';
 
 -- ============================================================================
 -- END OF SCHEMA
