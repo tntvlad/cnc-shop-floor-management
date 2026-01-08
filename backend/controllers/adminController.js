@@ -262,17 +262,21 @@ exports.restartServices = async (req, res) => {
         composeCmd = 'docker-compose';
       }
 
-      // Rebuild and restart containers to pick up any code changes
-      const output = execSync(`${composeCmd} up -d --build 2>&1`, {
-        encoding: 'utf-8',
-        timeout: 120000,
-        cwd: '/app/project'
+      // Send response first, then rebuild in background
+      // This prevents timeout issues since rebuild takes time
+      res.json({
+        message: 'Services are rebuilding and restarting. Please wait 30-60 seconds for them to come back online.',
+        status: 'started'
       });
 
-      res.json({
-        message: 'Services rebuilding and restarting. Please wait for them to come back online.',
-        output
+      // Run rebuild in background (don't wait for completion)
+      const { spawn } = require('child_process');
+      const rebuild = spawn('sh', ['-c', `cd /app/project && ${composeCmd} up -d --build 2>&1`], {
+        detached: true,
+        stdio: 'ignore'
       });
+      rebuild.unref();
+
     } catch (error) {
       res.status(500).json({
         error: 'Restart failed',
