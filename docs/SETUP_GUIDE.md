@@ -1,219 +1,148 @@
-# Multi-Assignment Job System - Setup & Deployment Guide
+# CNC Shop Floor Management - Setup Guide
 
-## Quick Summary of Changes
+## Quick Start
 
-Your CNC Shop Floor Management system now supports:
-✅ Assigning the same job to multiple operators (CNC and Cutting)
-✅ Operators see only their own assigned jobs
-✅ Jobs stay pending until cutting operator marks completion
-✅ Proper status tracking: pending → in_progress → completed
+### Prerequisites
+- Docker and Docker Compose installed
+- Git installed
+- Linux/macOS/WSL environment
 
-## Files Modified
-
-### Backend
-1. **backend/db/schema.sql** - New `job_assignments` table, updated indexes
-2. **backend/controllers/partsController.js** - Updated for multi-assignment logic
-3. **backend/server.js** - Added new API endpoints
-
-### Frontend
-1. **frontend/js/api.js** - New API methods for assignments
-2. **frontend/js/dashboard.js** - Show only operator's jobs
-3. **frontend/js/supervisor.js** - Multi-select assignment UI
-4. **frontend/supervisor.html** - Updated table headers
-
-## Deployment Steps
-
-### 1. Database Migration
-```bash
-# Connect to your PostgreSQL database and run:
-psql -U your_user -d your_database -f backend/db/schema.sql
-```
-
-**What this does:**
-- Creates the new `job_assignments` table
-- Drops old `assigned_to` and `assigned_at` columns from `parts` table
-- Creates proper indexes for performance
-- Keeps existing user and part data intact
-
-### 2. Backend Deployment
-```bash
-# Stop current backend
-npm stop  # or your deployment method
-
-# Install/update dependencies (if needed)
-npm install
-
-# Restart backend
-npm start
-```
-
-**No additional configuration needed** - API routes are automatically registered
-
-### 3. Frontend Deployment
-Simply redeploy the updated frontend files. The JavaScript files already contain:
-- Cache busting query parameters (v=20251225)
-- Updated API calls
-- New UI components
-
-### 4. Clear Browser Cache (Important!)
-Users should clear their browser cache or do a hard refresh:
-- **Windows/Linux**: Ctrl + Shift + Del, then clear cache
-- **Mac**: Cmd + Shift + Del, then clear cache
-- Or: Ctrl/Cmd + Shift + R to hard refresh
-
-## Testing the Implementation
-
-### Test 1: Supervisor Assignment
-1. Login as Supervisor (level 400+)
-2. Go to Supervisor Dashboard
-3. Click "Assign to Users" on any job
-4. Select multiple operators (e.g., CNC Operator + Cutting Operator)
-5. Click "Assign Selected"
-✅ Should see all selected operators in the "Assignments" column
-
-### Test 2: Operator View
-1. Login as CNC Operator (level 100)
-2. Go to Dashboard
-3. Should see ONLY jobs assigned to them
-4. Job status should show as "Pending"
-5. Click job to open it
-✅ Should be able to start and complete the job
-
-### Test 3: Cutting Operator View
-1. Login as Cutting Operator (level 200)
-2. Go to Dashboard
-3. Should see ONLY jobs assigned to them (different from CNC operator)
-4. Once CNC operator completes, cutting operator marks theirs as done
-✅ Once both complete, job should be marked as "Completed"
-
-### Test 4: Job Progression
-1. Assign job to both CNC Operator and Cutting Operator
-2. Have CNC Operator complete it (status → completed)
-3. Supervisor should see CNC operator with "completed" status
-4. Have Cutting Operator complete it
-5. Both should show "completed", main job should unlock next
-✅ Next job in order should become available
-
-## Troubleshooting
-
-### Issue: "My Jobs" returns empty even though assigned
-**Solution:** 
-- Clear browser cache
-- Check database: `SELECT * FROM job_assignments WHERE user_id = X;`
-- Verify assignments were created: `SELECT * FROM job_assignments;`
-
-### Issue: Jobs still show "Locked" instead of "Pending"
-**Solution:**
-- Old data might not have assignments
-- Manually create job_assignments records or reassign jobs
-- Verify schema migration ran successfully
-
-### Issue: Supervisor can't assign to multiple users
-**Solution:**
-- Ensure modal appears with checkboxes
-- Check browser console for errors (F12)
-- Verify API endpoint is accessible: `POST /api/parts/:id/assign`
-
-### Issue: Operator can still see other operators' jobs
-**Solution:**
-- Hard refresh (Ctrl+Shift+R)
-- Check that `getOperatorJobs()` endpoint is working
-- Verify user's level is correct in database
-
-## API Reference
-
-### Get Operator's Jobs
-```
-GET /api/parts/my-jobs
-Headers: Authorization: Bearer <token>
-Response: Array of parts assigned to current user with assignment status
-```
-
-### Assign Job to Multiple Users
-```
-POST /api/parts/:id/assign
-Headers: Authorization: Bearer <token>
-Body: { "userIds": [1, 2, 3] }
-Response: { message: "Part assigned successfully", assignments: [...] }
-```
-
-### Start Job
-```
-POST /api/parts/:id/start
-Headers: Authorization: Bearer <token>
-Response: { message: "Job started", assignment: {...} }
-```
-
-### Complete Job
-```
-POST /api/parts/:id/complete
-Headers: Authorization: Bearer <token>
-Body: { "actualTime": 45 }
-Response: { message: "Job marked as completed successfully" }
-```
-
-## Database Queries for Monitoring
-
-### View all assignments for a job
-```sql
-SELECT ja.*, u.name, u.employee_id 
-FROM job_assignments ja
-JOIN users u ON ja.user_id = u.id
-WHERE ja.part_id = 1
-ORDER BY ja.assigned_at;
-```
-
-### View all pending assignments
-```sql
-SELECT ja.*, p.name, u.name as operator_name
-FROM job_assignments ja
-JOIN parts p ON ja.part_id = p.id
-JOIN users u ON ja.user_id = u.id
-WHERE ja.status = 'pending'
-ORDER BY ja.assigned_at;
-```
-
-### View jobs waiting for completion
-```sql
-SELECT p.*, 
-  (SELECT count(*) FROM job_assignments ja WHERE ja.part_id = p.id AND ja.status != 'completed') as pending_count
-FROM parts p
-WHERE p.completed = FALSE
-ORDER BY p.order_position;
-```
-
-## Performance Considerations
-
-- Created indexes on: part_id, user_id, status in job_assignments
-- `getAllParts()` aggregates assignments per part efficiently
-- `getOperatorJobs()` filters by user_id with indexed query
-- Consider adding database connection pooling if many concurrent users
-
-## Rollback Instructions (if needed)
-
-If you need to rollback to single-assignment:
+### Installation
 
 ```bash
-# 1. Restore database from backup
-psql -U your_user -d your_database < backup.sql
+# Clone the repository
+git clone https://github.com/tntvlad/cnc-shop-floor-management.git
+cd cnc-shop-floor-management
 
-# 2. Restore original source files
-git checkout backend/db/schema.sql backend/controllers/partsController.js backend/server.js
-
-# 3. Restart backend
-npm restart
+# Run the setup script
+bash setup.sh
 ```
 
-## Support & Questions
+The setup script will:
+1. Check for Docker and Docker Compose
+2. Let you choose between `main` (stable) and `beta` (development) branches
+3. Configure your installation (ports, passwords)
+4. Build and start the Docker containers
 
-For issues or questions about the implementation:
-1. Check the troubleshooting section above
-2. Review IMPLEMENTATION_SUMMARY.md for detailed technical info
-3. Check API logs for error messages
-4. Verify database migrations completed successfully
+### Default Access
+
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:5000
+
+**Default Login:**
+- Employee ID: `ADMIN001`
+- Password: `admin123`
+
+⚠️ **Change the default password after first login!**
 
 ---
 
-**Implementation Date:** December 26, 2025
-**System:** CNC Shop Floor Management
-**Feature:** Multi-Operator Job Assignment
+## Managing Your Installation
+
+Run `bash setup.sh` again to access the management menu:
+
+1. **Reinstall** - Stop, rebuild, and start containers
+2. **Uninstall** - Remove containers (optionally delete data)
+3. **Load test data** - Add sample materials and orders
+4. **View status** - Check container health
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Configuration is stored in `.env` file:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_PASSWORD` | changeme | PostgreSQL password |
+| `JWT_SECRET` | (generated) | JWT signing secret |
+| `FRONTEND_PORT` | 3000 | Frontend web port |
+| `BACKEND_PORT` | 5000 | API port |
+| `DB_PORT` | 5432 | Database port |
+
+### Docker Compose Commands
+
+```bash
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+
+# Start services
+docker compose up -d
+
+# Rebuild after code changes
+docker compose up --build -d
+
+# View container status
+docker compose ps
+```
+
+---
+
+## User Roles & Permissions
+
+| Level | Role | Permissions |
+|-------|------|-------------|
+| 500 | Admin | Full system access, git operations, user management |
+| 400 | Supervisor | Create orders, assign jobs, create users (up to 400) |
+| 300 | QC Inspector | Approve/reject completed jobs |
+| 200 | Cutting Operator | Material cutting operations |
+| 100 | CNC Operator | Machine operation, job completion |
+| 50 | Customer | View own orders (future feature) |
+
+---
+
+## Troubleshooting
+
+### Backend/Database shows "Error" in Admin Settings
+1. Check if containers are running: `docker compose ps`
+2. View backend logs: `docker compose logs backend`
+3. Rebuild containers: `docker compose up --build -d`
+
+### Can't connect to the application
+1. Verify ports are not in use: `netstat -tuln | grep -E '3000|5000'`
+2. Check Docker is running: `docker info`
+3. Restart containers: `docker compose restart`
+
+### Database reset (fresh start)
+```bash
+docker compose down -v  # Removes volumes (all data)
+docker compose up -d    # Starts fresh
+```
+
+---
+
+## Updating
+
+### Via Web UI (Admin Panel)
+1. Go to Admin Settings
+2. Click "Pull from Git"
+3. Click "Rebuild & Restart"
+
+### Via Command Line
+```bash
+git pull origin beta    # or main
+docker compose up --build -d
+```
+
+---
+
+## Backup & Restore
+
+### Backup Database
+```bash
+# From Admin Settings page, click "Download Backup"
+# Or manually:
+docker exec cnc-postgres pg_dump -U postgres cnc_shop_floor > backup.sql
+```
+
+### Restore Database
+```bash
+# From Admin Settings page, upload backup file
+# Or manually:
+docker exec -i cnc-postgres psql -U postgres cnc_shop_floor < backup.sql
+```
