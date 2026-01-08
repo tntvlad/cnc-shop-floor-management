@@ -323,6 +323,17 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✓ CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
 
+  // Configure git safe.directory for Docker environment
+  try {
+    const { execSync } = require('child_process');
+    execSync('git config --global --add safe.directory /app/project 2>/dev/null || true', { encoding: 'utf-8' });
+    execSync('git config --global user.email "admin@cnc-shop.local" 2>/dev/null || true', { encoding: 'utf-8' });
+    execSync('git config --global user.name "CNC Admin" 2>/dev/null || true', { encoding: 'utf-8' });
+    console.log('✓ Git configuration ready');
+  } catch (err) {
+    // Ignore git config errors on non-Docker environments
+  }
+
   // Auto sync scheduler
   const autoEnabled = (process.env.AUTO_SYNC_ENABLED ?? 'true') !== 'false';
   const intervalMs = parseInt(process.env.AUTO_SYNC_INTERVAL_MS || '60000');
