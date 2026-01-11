@@ -101,10 +101,10 @@ CREATE TABLE customers (
 
 CREATE TABLE contact_persons (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+    customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    contact_type VARCHAR(20) NOT NULL CHECK (contact_type IN ('invoice', 'order', 'technical')),
     name VARCHAR(255) NOT NULL,
-    role VARCHAR(100),
-    phone VARCHAR(20),
+    phone VARCHAR(50),
     email VARCHAR(255),
     is_primary BOOLEAN DEFAULT false,
     notes TEXT,
@@ -670,6 +670,8 @@ CREATE INDEX idx_customers_status ON customers(status);
 
 -- Contact persons indexes
 CREATE INDEX idx_contact_persons_customer_id ON contact_persons(customer_id);
+CREATE INDEX idx_contact_persons_type ON contact_persons(contact_type);
+CREATE INDEX idx_contact_persons_customer_type ON contact_persons(customer_id, contact_type);
 
 -- ============================================================================
 -- INSERT DEFAULT ADMIN USER
