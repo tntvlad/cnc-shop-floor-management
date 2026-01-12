@@ -153,6 +153,110 @@
         .git-settings-btn:hover {
             background: #2563EB;
         }
+
+        /* Admin Tabs Styling */
+        .admin-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
+        }
+        .admin-tab {
+            background: #f1f5f9;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: #64748b;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .admin-tab:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .admin-tab.active {
+            background: #3B82F6;
+            color: white;
+        }
+        .admin-tab-content {
+            display: none;
+        }
+        .admin-tab-content.active {
+            display: block;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .data-table thead {
+            background: #f8fafc;
+        }
+        .data-table th, .data-table td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .data-table th {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .data-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        .table-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+        }
+        .btn-edit {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-delete {
+            background: #EF4444;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .placeholder-content {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+        .placeholder-content .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -175,76 +279,193 @@
     </header>
 
     <main class="main-content">
-        <div class="admin-container">
+        <div class="admin-container" style="max-width: 1200px;">
             <h2>Admin Settings</h2>
 
-            <!-- Create User Form -->
-            <div class="user-form">
-                <h3>Create New User</h3>
-                <form id="createUserForm">
-                    <div class="form-group">
-                        <label for="newEmployeeId">Employee ID</label>
-                        <input type="text" id="newEmployeeId" name="employeeId" required placeholder="e.g., OP001">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="newFullName">Full Name</label>
-                        <input type="text" id="newFullName" name="fullName" required placeholder="e.g., John Doe">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="newPassword">Password</label>
-                        <input type="password" id="newPassword" name="password" required placeholder="Min 8 characters">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="newLevel">Permission Level</label>
-                        <select id="newLevel" name="level" required>
-                            <option value="">-- Select Level --</option>
-                            <option value="100">100 - CNC Operator (Can view assigned jobs, track time)</option>
-                            <option value="200">200 - Cutting Operator (Can view all jobs, cutting operations)</option>
-                            <option value="300">300 - Quality Control (Can review and approve jobs)</option>
-                            <option value="400">400 - Supervisor (Can create jobs, assign work, manage users)</option>
-                            <option value="500">500 - Admin (Full system access)</option>
-                        </select>
-                        <small id="levelHint" style="color: #64748b; margin-top: 5px; display: block;"></small>
-                    </div>
-
-                    <div id="createUserError" class="error-message" style="display: none;"></div>
-                    <div id="createUserSuccess" class="success-message" style="display: none;"></div>
-
-                    <button type="submit" class="btn btn-primary btn-block">
-                        Create User
-                    </button>
-                </form>
+            <!-- Admin Tabs Navigation -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="switchAdminTab('users')">👤 Users</button>
+                <button class="admin-tab" onclick="switchAdminTab('customers')">🏢 Customers</button>
+                <button class="admin-tab" onclick="switchAdminTab('materials')">📦 Materials</button>
+                <button class="admin-tab" onclick="switchAdminTab('machines')">🔧 Machines</button>
+                <button class="admin-tab" onclick="switchAdminTab('tools')">🛠️ Tools</button>
             </div>
 
-            <!-- Users Management -->
-            <div class="settings-card" style="margin-top: 20px;">
-                <h3>Users Management</h3>
-                <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
-                    View all users up to your level and delete accounts (cannot delete your own).
-                </p>
-                <button class="btn btn-secondary btn-block" id="refreshUsersBtn">Refresh Users</button>
-                <div style="overflow-x:auto; margin-top: 10px;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f8fafc;">
-                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Employee ID</th>
-                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Name</th>
-                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Level</th>
-                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Created</th>
-                                <th style="text-align:left; padding: 8px; border-bottom: 1px solid #e2e8f0;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr>
-                                <td colspan="5" style="padding: 10px; color: #64748b;">Loading users...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- USERS TAB -->
+            <div id="admin-tab-users" class="admin-tab-content active">
+                <!-- Create User Form -->
+                <div class="user-form">
+                    <h3>Create New User</h3>
+                    <form id="createUserForm">
+                        <div class="form-group">
+                            <label for="newEmployeeId">Employee ID</label>
+                            <input type="text" id="newEmployeeId" name="employeeId" required placeholder="e.g., OP001">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newFullName">Full Name</label>
+                            <input type="text" id="newFullName" name="fullName" required placeholder="e.g., John Doe">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newPassword">Password</label>
+                            <input type="password" id="newPassword" name="password" required placeholder="Min 8 characters">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newLevel">Permission Level</label>
+                            <select id="newLevel" name="level" required>
+                                <option value="">-- Select Level --</option>
+                                <option value="100">100 - CNC Operator (Can view assigned jobs, track time)</option>
+                                <option value="200">200 - Cutting Operator (Can view all jobs, cutting operations)</option>
+                                <option value="300">300 - Quality Control (Can review and approve jobs)</option>
+                                <option value="400">400 - Supervisor (Can create jobs, assign work, manage users)</option>
+                                <option value="500">500 - Admin (Full system access)</option>
+                            </select>
+                            <small id="levelHint" style="color: #64748b; margin-top: 5px; display: block;"></small>
+                        </div>
+
+                        <div id="createUserError" class="error-message" style="display: none;"></div>
+                        <div id="createUserSuccess" class="success-message" style="display: none;"></div>
+
+                        <button type="submit" class="btn btn-primary btn-block">
+                            Create User
+                        </button>
+                    </form>
                 </div>
-                <div class="log-output" id="usersLog" style="display: none; margin-top: 10px;"></div>
+
+                <!-- Users Management -->
+                <div class="settings-card" style="margin-top: 20px;">
+                    <h3>Users Management</h3>
+                    <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
+                        View all users up to your level and delete accounts (cannot delete your own).
+                    </p>
+                    <button class="btn btn-secondary btn-block" id="refreshUsersBtn">Refresh Users</button>
+                    <div style="overflow-x:auto; margin-top: 10px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee ID</th>
+                                    <th>Name</th>
+                                    <th>Level</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="5" style="padding: 10px; color: #64748b;">Loading users...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="log-output" id="usersLog" style="display: none; margin-top: 10px;"></div>
+                </div>
+            </div>
+
+            <!-- CUSTOMERS TAB -->
+            <div id="admin-tab-customers" class="admin-tab-content">
+                <div class="settings-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; border: none; padding: 0;">Customers Management</h3>
+                        <button class="btn btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="customer-search" placeholder="Search customers..." onkeyup="searchCustomers(this.value)">
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Company Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>CIF</th>
+                                    <th>Folder</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTableBody">
+                                <tr>
+                                    <td colspan="6" style="padding: 10px; color: #64748b;">Loading customers...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MATERIALS TAB -->
+            <div id="admin-tab-materials" class="admin-tab-content">
+                <div class="settings-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; border: none; padding: 0;">Materials Management</h3>
+                        <button class="btn btn-primary" onclick="openAddMaterialModal()">+ Add Material</button>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="material-search" placeholder="Search materials..." onkeyup="searchMaterials(this.value)">
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Material Name</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Stock Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materialsTableBody">
+                                <tr>
+                                    <td colspan="5" style="padding: 10px; color: #64748b;">Loading materials...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MACHINES TAB -->
+            <div id="admin-tab-machines" class="admin-tab-content">
+                <div class="settings-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; border: none; padding: 0;">Machines Management</h3>
+                        <button class="btn btn-primary" onclick="openAddMachineModal()">+ Add Machine</button>
+                    </div>
+                    <div class="search-bar">
+                        <input type="text" id="machine-search" placeholder="Search machines..." onkeyup="searchMachines(this.value)">
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Machine Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="machinesTableBody">
+                                <tr>
+                                    <td colspan="5" style="padding: 10px; color: #64748b;">Loading machines...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOOLS TAB (Placeholder) -->
+            <div id="admin-tab-tools" class="admin-tab-content">
+                <div class="settings-card">
+                    <div class="placeholder-content">
+                        <div class="icon">🛠️</div>
+                        <h3>Tools Management</h3>
+                        <p>Coming soon! This section will allow you to manage CNC tools, drill bits, cutters, and other tooling inventory.</p>
+                    </div>
+                </div>
             </div>
 
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: white; border-radius: 8px;">
@@ -254,6 +475,122 @@
             </div>
         </div>
     </main>
+
+    <!-- Add Customer Modal -->
+    <div class="modal" id="add-customer-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Add Customer</h3>
+                <button class="modal-close" onclick="closeAddCustomerModal()">✕</button>
+            </div>
+            <form id="addCustomerForm" onsubmit="saveNewCustomer(event)">
+                <div class="form-group">
+                    <label for="new-customer-name">Company Name *</label>
+                    <input type="text" id="new-customer-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-customer-email">Email</label>
+                    <input type="email" id="new-customer-email">
+                </div>
+                <div class="form-group">
+                    <label for="new-customer-phone">Phone</label>
+                    <input type="text" id="new-customer-phone">
+                </div>
+                <div class="form-group">
+                    <label for="new-customer-cif">CIF</label>
+                    <input type="text" id="new-customer-cif">
+                </div>
+                <div class="form-group">
+                    <label for="new-customer-address">Address</label>
+                    <textarea id="new-customer-address" rows="2"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddCustomerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Material Modal -->
+    <div class="modal" id="add-material-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Add Material</h3>
+                <button class="modal-close" onclick="closeAddMaterialModal()">✕</button>
+            </div>
+            <form id="addMaterialForm" onsubmit="saveNewMaterial(event)">
+                <div class="form-group">
+                    <label for="new-material-name">Material Name *</label>
+                    <input type="text" id="new-material-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-material-type">Type</label>
+                    <select id="new-material-type">
+                        <option value="">-- Select Type --</option>
+                        <option value="metal">Metal</option>
+                        <option value="plastic">Plastic</option>
+                        <option value="wood">Wood</option>
+                        <option value="composite">Composite</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="new-material-description">Description</label>
+                    <textarea id="new-material-description" rows="2"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddMaterialModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Machine Modal -->
+    <div class="modal" id="add-machine-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Add Machine</h3>
+                <button class="modal-close" onclick="closeAddMachineModal()">✕</button>
+            </div>
+            <form id="addMachineForm" onsubmit="saveNewMachine(event)">
+                <div class="form-group">
+                    <label for="new-machine-name">Machine Name *</label>
+                    <input type="text" id="new-machine-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-machine-type">Type</label>
+                    <select id="new-machine-type">
+                        <option value="">-- Select Type --</option>
+                        <option value="cnc_mill">CNC Mill</option>
+                        <option value="cnc_lathe">CNC Lathe</option>
+                        <option value="laser_cutter">Laser Cutter</option>
+                        <option value="plasma_cutter">Plasma Cutter</option>
+                        <option value="3d_printer">3D Printer</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="new-machine-status">Status</label>
+                    <select id="new-machine-status">
+                        <option value="available">Available</option>
+                        <option value="in_use">In Use</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="offline">Offline</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="new-machine-location">Location</label>
+                    <input type="text" id="new-machine-location">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddMachineModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Machine</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="js/config.js?v=20251226"></script>
     <script src="js/auth.js?v=20251226"></script>

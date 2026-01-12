@@ -745,3 +745,441 @@ async function checkModalStatus() {
     }
   }
 }
+
+// =============================================
+// ADMIN TABS FUNCTIONALITY
+// =============================================
+
+let customersData = [];
+let materialsData = [];
+let machinesData = [];
+
+// Tab switching for Admin Settings
+function switchAdminTab(tabName) {
+  // Remove active from all tabs
+  document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.admin-tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  // Add active to selected tab
+  const tabBtn = document.querySelector(`.admin-tab[onclick="switchAdminTab('${tabName}')"]`);
+  if (tabBtn) tabBtn.classList.add('active');
+  
+  const tabContent = document.getElementById(`admin-tab-${tabName}`);
+  if (tabContent) {
+    tabContent.classList.add('active');
+  }
+  
+  // Load data for the tab
+  if (tabName === 'customers') {
+    loadAdminCustomers();
+  } else if (tabName === 'materials') {
+    loadAdminMaterials();
+  } else if (tabName === 'machines') {
+    loadAdminMachines();
+  }
+}
+
+// =============================================
+// CUSTOMERS MANAGEMENT
+// =============================================
+
+async function loadAdminCustomers() {
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/customers`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      customersData = data.customers || [];
+      renderAdminCustomers();
+    }
+  } catch (error) {
+    console.error('Error loading customers:', error);
+  }
+}
+
+function renderAdminCustomers(filter = '') {
+  const tbody = document.getElementById('customersTableBody');
+  if (!tbody) return;
+  
+  let filtered = customersData;
+  if (filter) {
+    const lowerFilter = filter.toLowerCase();
+    filtered = customersData.filter(c => 
+      (c.company_name || '').toLowerCase().includes(lowerFilter) ||
+      (c.email || '').toLowerCase().includes(lowerFilter) ||
+      (c.cif || '').toLowerCase().includes(lowerFilter)
+    );
+  }
+  
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748b;">No customers found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = filtered.map(c => `
+    <tr>
+      <td><strong>${escapeHtml(c.company_name || '')}</strong></td>
+      <td>${escapeHtml(c.email || '-')}</td>
+      <td>${escapeHtml(c.phone || '-')}</td>
+      <td>${escapeHtml(c.cif || '-')}</td>
+      <td>${escapeHtml(c.folder_path || '-')}</td>
+      <td class="table-actions">
+        <button class="btn btn-sm btn-edit" onclick="editCustomer(${c.id})">Edit</button>
+        <button class="btn btn-sm btn-delete" onclick="deleteCustomer(${c.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function searchCustomers(value) {
+  renderAdminCustomers(value);
+}
+
+function openAddCustomerModal() {
+  document.getElementById('addCustomerForm').reset();
+  document.getElementById('add-customer-modal').classList.add('active');
+}
+
+function closeAddCustomerModal() {
+  document.getElementById('add-customer-modal').classList.remove('active');
+}
+
+async function saveNewCustomer(event) {
+  event.preventDefault();
+  
+  const customerData = {
+    company_name: document.getElementById('new-customer-name').value,
+    email: document.getElementById('new-customer-email').value || null,
+    phone: document.getElementById('new-customer-phone').value || null,
+    cif: document.getElementById('new-customer-cif').value || null,
+    headquarters_address: document.getElementById('new-customer-address').value || null
+  };
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/customers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify(customerData)
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to create customer');
+    }
+    
+    closeAddCustomerModal();
+    loadAdminCustomers();
+    showToast('Customer created successfully', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteCustomer(id) {
+  if (!confirm('Are you sure you want to delete this customer?')) return;
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/customers/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to delete customer');
+    
+    loadAdminCustomers();
+    showToast('Customer deleted', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function editCustomer(id) {
+  // For now, redirect to customers page for editing
+  window.location.href = `customers.html?edit=${id}`;
+}
+
+// =============================================
+// MATERIALS MANAGEMENT
+// =============================================
+
+async function loadAdminMaterials() {
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/materials`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      materialsData = data.materials || [];
+      renderAdminMaterials();
+    }
+  } catch (error) {
+    console.error('Error loading materials:', error);
+  }
+}
+
+function renderAdminMaterials(filter = '') {
+  const tbody = document.getElementById('materialsTableBody');
+  if (!tbody) return;
+  
+  let filtered = materialsData;
+  if (filter) {
+    const lowerFilter = filter.toLowerCase();
+    filtered = materialsData.filter(m => 
+      (m.name || '').toLowerCase().includes(lowerFilter) ||
+      (m.type || '').toLowerCase().includes(lowerFilter)
+    );
+  }
+  
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748b;">No materials found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = filtered.map(m => `
+    <tr>
+      <td><strong>${escapeHtml(m.name || '')}</strong></td>
+      <td>${escapeHtml(m.type || '-')}</td>
+      <td>${escapeHtml(m.description || '-')}</td>
+      <td><span class="status-badge ${m.in_stock ? 'status-active' : 'status-inactive'}">${m.in_stock ? 'In Stock' : 'Out of Stock'}</span></td>
+      <td class="table-actions">
+        <button class="btn btn-sm btn-edit" onclick="editMaterial(${m.id})">Edit</button>
+        <button class="btn btn-sm btn-delete" onclick="deleteMaterial(${m.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function searchMaterials(value) {
+  renderAdminMaterials(value);
+}
+
+function openAddMaterialModal() {
+  document.getElementById('addMaterialForm').reset();
+  document.getElementById('add-material-modal').classList.add('active');
+}
+
+function closeAddMaterialModal() {
+  document.getElementById('add-material-modal').classList.remove('active');
+}
+
+async function saveNewMaterial(event) {
+  event.preventDefault();
+  
+  const materialData = {
+    name: document.getElementById('new-material-name').value,
+    type: document.getElementById('new-material-type').value || null,
+    description: document.getElementById('new-material-description').value || null
+  };
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/materials`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify(materialData)
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to create material');
+    }
+    
+    closeAddMaterialModal();
+    loadAdminMaterials();
+    showToast('Material created successfully', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteMaterial(id) {
+  if (!confirm('Are you sure you want to delete this material?')) return;
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/materials/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to delete material');
+    
+    loadAdminMaterials();
+    showToast('Material deleted', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function editMaterial(id) {
+  window.location.href = `materials.html?edit=${id}`;
+}
+
+// =============================================
+// MACHINES MANAGEMENT
+// =============================================
+
+async function loadAdminMachines() {
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      machinesData = data.machines || [];
+      renderAdminMachines();
+    }
+  } catch (error) {
+    console.error('Error loading machines:', error);
+  }
+}
+
+function renderAdminMachines(filter = '') {
+  const tbody = document.getElementById('machinesTableBody');
+  if (!tbody) return;
+  
+  let filtered = machinesData;
+  if (filter) {
+    const lowerFilter = filter.toLowerCase();
+    filtered = machinesData.filter(m => 
+      (m.name || '').toLowerCase().includes(lowerFilter) ||
+      (m.type || '').toLowerCase().includes(lowerFilter)
+    );
+  }
+  
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748b;">No machines found</td></tr>';
+    return;
+  }
+  
+  const statusColors = {
+    available: 'status-active',
+    in_use: 'status-pending',
+    maintenance: 'status-paused',
+    offline: 'status-inactive'
+  };
+  
+  tbody.innerHTML = filtered.map(m => `
+    <tr>
+      <td><strong>${escapeHtml(m.name || '')}</strong></td>
+      <td>${escapeHtml((m.type || '-').replace(/_/g, ' '))}</td>
+      <td><span class="status-badge ${statusColors[m.status] || ''}">${(m.status || 'unknown').replace(/_/g, ' ').toUpperCase()}</span></td>
+      <td>${escapeHtml(m.location || '-')}</td>
+      <td class="table-actions">
+        <button class="btn btn-sm btn-edit" onclick="editMachine(${m.id})">Edit</button>
+        <button class="btn btn-sm btn-delete" onclick="deleteMachine(${m.id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function searchMachines(value) {
+  renderAdminMachines(value);
+}
+
+function openAddMachineModal() {
+  document.getElementById('addMachineForm').reset();
+  document.getElementById('add-machine-modal').classList.add('active');
+}
+
+function closeAddMachineModal() {
+  document.getElementById('add-machine-modal').classList.remove('active');
+}
+
+async function saveNewMachine(event) {
+  event.preventDefault();
+  
+  const machineData = {
+    name: document.getElementById('new-machine-name').value,
+    type: document.getElementById('new-machine-type').value || null,
+    status: document.getElementById('new-machine-status').value || 'available',
+    location: document.getElementById('new-machine-location').value || null
+  };
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify(machineData)
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to create machine');
+    }
+    
+    closeAddMachineModal();
+    loadAdminMachines();
+    showToast('Machine created successfully', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteMachine(id) {
+  if (!confirm('Are you sure you want to delete this machine?')) return;
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to delete machine');
+    
+    loadAdminMachines();
+    showToast('Machine deleted', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function editMachine(id) {
+  window.location.href = `machines.html?edit=${id}`;
+}
+
+// =============================================
+// HELPER FUNCTIONS
+// =============================================
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 6px;
+    color: white;
+    font-weight: 500;
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+    ${type === 'success' ? 'background: #22c55e;' : ''}
+    ${type === 'error' ? 'background: #ef4444;' : ''}
+    ${type === 'info' ? 'background: #3b82f6;' : ''}
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
