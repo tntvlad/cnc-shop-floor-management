@@ -750,7 +750,6 @@ async function checkModalStatus() {
 // ADMIN TABS FUNCTIONALITY
 // =============================================
 
-let customersData = [];
 let materialsData = [];
 let machinesData = [];
 
@@ -773,7 +772,11 @@ function switchAdminTab(tabName) {
   
   // Load data for the tab
   if (tabName === 'customers') {
-    loadAdminCustomers();
+    // Use customers.js functions (already loaded)
+    if (typeof loadCustomers === 'function') {
+      loadCustomers();
+      setupSearch();
+    }
   } else if (tabName === 'materials') {
     loadAdminMaterials();
   } else if (tabName === 'machines') {
@@ -782,131 +785,7 @@ function switchAdminTab(tabName) {
 }
 
 // =============================================
-// CUSTOMERS MANAGEMENT
-// =============================================
-
-async function loadAdminCustomers() {
-  try {
-    const response = await fetch(`${config.API_BASE_URL}/customers`, {
-      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
-    });
-    const data = await response.json();
-    
-    if (data.success) {
-      customersData = data.customers || [];
-      renderAdminCustomers();
-    }
-  } catch (error) {
-    console.error('Error loading customers:', error);
-  }
-}
-
-function renderAdminCustomers(filter = '') {
-  const tbody = document.getElementById('customersTableBody');
-  if (!tbody) return;
-  
-  let filtered = customersData;
-  if (filter) {
-    const lowerFilter = filter.toLowerCase();
-    filtered = customersData.filter(c => 
-      (c.company_name || '').toLowerCase().includes(lowerFilter) ||
-      (c.email || '').toLowerCase().includes(lowerFilter) ||
-      (c.cif || '').toLowerCase().includes(lowerFilter)
-    );
-  }
-  
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748b;">No customers found</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = filtered.map(c => `
-    <tr>
-      <td><strong>${escapeHtml(c.company_name || '')}</strong></td>
-      <td>${escapeHtml(c.email || '-')}</td>
-      <td>${escapeHtml(c.phone || '-')}</td>
-      <td>${escapeHtml(c.cif || '-')}</td>
-      <td>${escapeHtml(c.folder_path || '-')}</td>
-      <td class="table-actions">
-        <button class="btn btn-sm btn-edit" onclick="editCustomer(${c.id})">Edit</button>
-        <button class="btn btn-sm btn-delete" onclick="deleteCustomer(${c.id})">Delete</button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-function searchCustomers(value) {
-  renderAdminCustomers(value);
-}
-
-function openAddCustomerModal() {
-  document.getElementById('addCustomerForm').reset();
-  document.getElementById('add-customer-modal').classList.add('active');
-}
-
-function closeAddCustomerModal() {
-  document.getElementById('add-customer-modal').classList.remove('active');
-}
-
-async function saveNewCustomer(event) {
-  event.preventDefault();
-  
-  const customerData = {
-    company_name: document.getElementById('new-customer-name').value,
-    email: document.getElementById('new-customer-email').value || null,
-    phone: document.getElementById('new-customer-phone').value || null,
-    cif: document.getElementById('new-customer-cif').value || null,
-    headquarters_address: document.getElementById('new-customer-address').value || null
-  };
-  
-  try {
-    const response = await fetch(`${config.API_BASE_URL}/customers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Auth.getToken()}`
-      },
-      body: JSON.stringify(customerData)
-    });
-    
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || 'Failed to create customer');
-    }
-    
-    closeAddCustomerModal();
-    loadAdminCustomers();
-    showToast('Customer created successfully', 'success');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
-}
-
-async function deleteCustomer(id) {
-  if (!confirm('Are you sure you want to delete this customer?')) return;
-  
-  try {
-    const response = await fetch(`${config.API_BASE_URL}/customers/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
-    });
-    
-    if (!response.ok) throw new Error('Failed to delete customer');
-    
-    loadAdminCustomers();
-    showToast('Customer deleted', 'success');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
-}
-
-function editCustomer(id) {
-  // For now, redirect to customers page for editing
-  window.location.href = `customers.html?edit=${id}`;
-}
-
-// =============================================
-// MATERIALS MANAGEMENT
+// MATERIALS MANAGEMENT (Customers handled by customers.js)
 // =============================================
 
 async function loadAdminMaterials() {

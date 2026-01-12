@@ -257,6 +257,117 @@
             font-size: 48px;
             margin-bottom: 15px;
         }
+
+        /* Customers Card Styles */
+        .customers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .customer-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .customer-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .customer-card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+        }
+        .customer-card-header h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.2rem;
+        }
+        .customer-id-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        .customer-badges {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        .status-active { background: #d1e7dd; color: #0f5132; }
+        .status-inactive { background: #fff3cd; color: #664d03; }
+        .status-bankrupt { background: #f8d7da; color: #842029; }
+        .status-closed { background: #e2e3e5; color: #41464b; }
+        .payment-good { background: #d1e7dd; color: #0f5132; }
+        .payment-new_customer { background: #cff4fc; color: #055160; }
+        .payment-delayed { background: #fff3cd; color: #664d03; }
+        .payment-bad { background: #f8d7da; color: #842029; }
+        .discount-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .discount-positive { background: #d1e7dd; color: #0f5132; }
+        .discount-negative { background: #f8d7da; color: #842029; }
+        .warning-banner {
+            background: #fff3cd;
+            border: 1px solid #ffecb5;
+            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+            color: #664d03;
+        }
+        .warning-banner.danger {
+            background: #f8d7da;
+            border-color: #f5c2c7;
+            color: #842029;
+        }
+        .customer-card-body {
+            padding: 1.5rem;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #666; font-weight: 600; font-size: 0.85rem; }
+        .info-value { color: #333; text-align: right; max-width: 60%; word-break: break-word; }
+        .customer-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+        .customer-card-actions button {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        .btn-contacts { background: #28a745; color: white; }
+        .btn-contacts:hover { background: #218838; }
+        .contact-type-section { margin-bottom: 1rem; }
+        .contact-type-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .contact-type-header h4 { margin: 0; color: #667eea; }
+        .btn-add-contact { padding: 0.25rem 0.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .contact-item { background: #f8f9fa; padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 0.25rem; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; }
+        .contact-item .contact-info { flex: 1; }
+        .contact-item .contact-name { font-weight: 600; color: #333; }
+        .contact-item .contact-details { color: #666; font-size: 0.85rem; }
+        .contact-item .contact-actions { display: flex; gap: 0.25rem; }
+        .contact-item .btn-icon { background: none; border: none; cursor: pointer; padding: 0.25rem; font-size: 1rem; opacity: 0.6; transition: opacity 0.2s; }
+        .contact-item .btn-icon:hover { opacity: 1; }
+        .empty-contacts { color: #999; font-style: italic; padding: 0.5rem 0; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-grid .full-width { grid-column: 1 / -1; }
+        label.required::after { content: ' *'; color: #dc3545; }
+        .contacts-list { padding: 1rem; }
     </style>
 </head>
 <body>
@@ -365,32 +476,15 @@
 
             <!-- CUSTOMERS TAB -->
             <div id="admin-tab-customers" class="admin-tab-content">
-                <div class="settings-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0; border: none; padding: 0;">Customers Management</h3>
-                        <button class="btn btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
+                <div class="customers-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div class="search-bar" style="flex: 1; min-width: 300px; max-width: 500px;">
+                        <input type="text" id="search-input" placeholder="Search customers by name, email, CIF, or ID..." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
                     </div>
-                    <div class="search-bar">
-                        <input type="text" id="customer-search" placeholder="Search customers..." onkeyup="searchCustomers(this.value)">
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Company Name</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>CIF</th>
-                                    <th>Folder</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="customersTableBody">
-                                <tr>
-                                    <td colspan="6" style="padding: 10px; color: #64748b;">Loading customers...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <button class="btn btn-primary" onclick="openAddCustomerModal()">+ Add Customer</button>
+                </div>
+                <div id="customers-grid" class="customers-grid">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #666;">
+                        Loading customers...
                     </div>
                 </div>
             </div>
@@ -476,37 +570,229 @@
         </div>
     </main>
 
-    <!-- Add Customer Modal -->
-    <div class="modal" id="add-customer-modal">
+    <!-- Customer Modal (Add/Edit) -->
+    <div id="customer-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="customer-modal-title">Add Customer</h2>
+                <button class="modal-close" onclick="closeCustomerModal()">✕</button>
+            </div>
+            <form id="customer-form" onsubmit="handleSaveCustomer(event)">
+                <input type="hidden" id="customer-id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="company-name" class="required">Company Name</label>
+                        <input type="text" id="company-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-code">Customer ID</label>
+                        <input type="text" id="customer-code" placeholder="e.g., CUST-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="email" class="required">Email</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone</label>
+                        <input type="tel" id="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="cif">CIF (Tax ID)</label>
+                        <input type="text" id="cif" placeholder="e.g., RO1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label for="trade-register">Trade Register Number</label>
+                        <input type="text" id="trade-register" placeholder="e.g., J01/1234/2023">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="headquarters">Headquarters Address</label>
+                        <textarea id="headquarters" placeholder="Main office address"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="delivery-address">Delivery Address</label>
+                        <textarea id="delivery-address" placeholder="Leave empty to use headquarters address"></textarea>
+                    </div>
+                    
+                    <!-- Customer Parameters Section -->
+                    <div class="form-group full-width" style="border-top: 2px solid #eee; padding-top: 1rem; margin-top: 0.5rem;">
+                        <h4 style="margin: 0 0 1rem 0; color: #667eea;">📊 Customer Parameters</h4>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status">
+                            <option value="active">✅ Active</option>
+                            <option value="inactive">⏸️ Inactive</option>
+                            <option value="bankrupt">⚠️ Bankrupt</option>
+                            <option value="closed">❌ Closed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-terms">Payment Terms</label>
+                        <select id="payment-terms">
+                            <option value="standard_credit">💳 Standard Credit</option>
+                            <option value="prepayment_required">💰 Prepayment Required</option>
+                            <option value="cod">📦 Cash on Delivery</option>
+                            <option value="custom">📝 Custom Terms</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-history">Payment History</label>
+                        <select id="payment-history">
+                            <option value="new_customer">🆕 New Customer</option>
+                            <option value="good">✅ Good</option>
+                            <option value="delayed">⚠️ Delayed Payments</option>
+                            <option value="bad">❌ Bad Payment History</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="discount-percentage">Discount/Fee %</label>
+                        <input type="number" id="discount-percentage" step="0.01" min="-100" max="100" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="credit-limit">Credit Limit (€)</label>
+                        <input type="number" id="credit-limit" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="approval-threshold">Approval Threshold (€)</label>
+                        <input type="number" id="approval-threshold" step="0.01" min="0">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="custom-terms-notes">Custom Payment Terms Notes</label>
+                        <textarea id="custom-terms-notes" placeholder="Special payment arrangements"></textarea>
+                    </div>
+                    
+                    <!-- Client Folder Section -->
+                    <div class="form-group full-width" style="border-top: 2px solid #eee; padding-top: 1rem; margin-top: 0.5rem;">
+                        <h4 style="margin: 0 0 1rem 0; color: #667eea;">📁 Client Folder</h4>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="folder-path">Client Folder</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                            <select id="folder-path" style="flex: 1;">
+                                <option value="">-- Select existing folder or create new --</option>
+                            </select>
+                            <button type="button" class="btn btn-primary" onclick="openCreateFolderModal()" style="white-space: nowrap;">📁 New</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="notes">General Notes</label>
+                        <textarea id="notes" placeholder="Additional information"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                    <button type="button" class="btn btn-secondary" onclick="closeCustomerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage Contacts Modal -->
+    <div id="contacts-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>Manage Contacts - <span id="contacts-customer-name"></span></h2>
+                <button class="modal-close" onclick="closeContactsModal()">✕</button>
+            </div>
+            <div class="contacts-list">
+                <div class="contact-type-section">
+                    <div class="contact-type-header">
+                        <h4>📧 Invoice Contacts</h4>
+                        <button class="btn-add-contact" onclick="openAddContactModal('invoice')">+ Add</button>
+                    </div>
+                    <div id="invoice-contacts-list"></div>
+                </div>
+                <div class="contact-type-section">
+                    <div class="contact-type-header">
+                        <h4>📦 Order Contacts</h4>
+                        <button class="btn-add-contact" onclick="openAddContactModal('order')">+ Add</button>
+                    </div>
+                    <div id="order-contacts-list"></div>
+                </div>
+                <div class="contact-type-section">
+                    <div class="contact-type-header">
+                        <h4>🔧 Technical Contacts</h4>
+                        <button class="btn-add-contact" onclick="openAddContactModal('technical')">+ Add</button>
+                    </div>
+                    <div id="technical-contacts-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding: 15px; border-top: 1px solid #eee;">
+                <button type="button" class="btn btn-secondary" onclick="closeContactsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Contact Modal -->
+    <div id="contact-modal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h3>Add Customer</h3>
-                <button class="modal-close" onclick="closeAddCustomerModal()">✕</button>
+                <h2 id="contact-modal-title">Add Contact</h2>
+                <button class="modal-close" onclick="closeContactModal()">✕</button>
             </div>
-            <form id="addCustomerForm" onsubmit="saveNewCustomer(event)">
-                <div class="form-group">
-                    <label for="new-customer-name">Company Name *</label>
-                    <input type="text" id="new-customer-name" required>
+            <form id="contact-form" onsubmit="handleSaveContact(event)">
+                <input type="hidden" id="contact-id">
+                <input type="hidden" id="contact-customer-id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="contact-type" class="required">Contact Type</label>
+                        <select id="contact-type" required>
+                            <option value="invoice">Invoice Contact</option>
+                            <option value="order">Order Contact</option>
+                            <option value="technical">Technical Contact</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="contact-name" class="required">Name</label>
+                        <input type="text" id="contact-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contact-phone">Phone</label>
+                        <input type="tel" id="contact-phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="contact-email">Email</label>
+                        <input type="email" id="contact-email">
+                    </div>
+                    <div class="form-group full-width">
+                        <label><input type="checkbox" id="contact-primary"> Set as primary contact</label>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="contact-notes">Notes</label>
+                        <textarea id="contact-notes"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="new-customer-email">Email</label>
-                    <input type="email" id="new-customer-email">
+                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeContactModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Contact</button>
                 </div>
-                <div class="form-group">
-                    <label for="new-customer-phone">Phone</label>
-                    <input type="text" id="new-customer-phone">
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div id="folder-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>📁 Create Client Folder</h2>
+                <button class="modal-close" onclick="closeFolderModal()">✕</button>
+            </div>
+            <form id="folder-form" onsubmit="handleCreateFolder(event)">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="new-folder-name" class="required">Folder Name</label>
+                        <input type="text" id="new-folder-name" required placeholder="e.g., CUST001_CompanyName">
+                    </div>
+                    <div class="form-group full-width">
+                        <button type="button" class="btn btn-secondary" onclick="generateSuggestedFolderName()" style="width: 100%;">
+                            ✨ Generate Suggested Name
+                        </button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="new-customer-cif">CIF</label>
-                    <input type="text" id="new-customer-cif">
-                </div>
-                <div class="form-group">
-                    <label for="new-customer-address">Address</label>
-                    <textarea id="new-customer-address" rows="2"></textarea>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeAddCustomerModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeFolderModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Folder</button>
                 </div>
             </form>
         </div>
@@ -595,7 +881,8 @@
     <script src="js/config.js?v=20251226"></script>
     <script src="js/auth.js?v=20251226"></script>
     <script src="js/api.js?v=20251226"></script>
-    <script src="js/admin-settings.js?v=20251229"></script>
+    <script src="js/customers.js?v=20251212"></script>
+    <script src="js/admin-settings.js?v=20251212"></script>
 
         <!-- Version Control Modal -->
         <link rel="stylesheet" href="css/login.css">
