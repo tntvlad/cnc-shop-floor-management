@@ -140,6 +140,10 @@ function renderCustomers() {
           <span class="info-label">Contacts</span>
           <span class="info-value">${customer.contact_count || 0} contact(s)</span>
         </div>
+        <div class="info-row">
+          <span class="info-label">📁 Folder</span>
+          <span class="info-value">${customer.folder_path ? escapeHtml(customer.folder_path) : '<em style="color: #999;">Not assigned</em>'}</span>
+        </div>
       </div>
       <div class="customer-card-actions">
         <button class="btn-edit" onclick="openEditCustomerModal(${customer.id})">✏️ Edit</button>
@@ -151,14 +155,15 @@ function renderCustomers() {
 }
 
 // Customer Modal Functions
-function openAddCustomerModal() {
+async function openAddCustomerModal() {
   document.getElementById('customer-modal-title').textContent = 'Add Customer';
   document.getElementById('customer-form').reset();
   document.getElementById('customer-id').value = '';
+  await loadClientFolders();
   document.getElementById('customer-modal').classList.add('active');
 }
 
-function openEditCustomerModal(customerId) {
+async function openEditCustomerModal(customerId) {
   const customer = allCustomers.find(c => c.id === customerId);
   if (!customer) return;
 
@@ -182,6 +187,9 @@ function openEditCustomerModal(customerId) {
   document.getElementById('credit-limit').value = customer.credit_limit || '';
   document.getElementById('approval-threshold').value = customer.approval_threshold || '';
   document.getElementById('custom-terms-notes').value = customer.custom_terms_notes || '';
+
+  // Load folders and set current value
+  await loadClientFolders(customer.folder_path);
 
   document.getElementById('customer-modal').classList.add('active');
 }
@@ -213,7 +221,9 @@ async function handleSaveCustomer(event) {
     discount_percentage: parseFloat(document.getElementById('discount-percentage').value) || 0,
     credit_limit: parseFloat(document.getElementById('credit-limit').value) || null,
     approval_threshold: parseFloat(document.getElementById('approval-threshold').value) || null,
-    custom_terms_notes: document.getElementById('custom-terms-notes').value.trim() || null
+    custom_terms_notes: document.getElementById('custom-terms-notes').value.trim() || null,
+    // Client folder
+    folder_path: document.getElementById('folder-path').value || null
   };
 
   try {
@@ -552,4 +562,131 @@ function customerRequiresApproval(customer) {
   }
   
   return false;
+}
+
+// ============================================================================
+// CLIENT FOLDER MANAGEMENT
+// ============================================================================
+
+// Load available client folders into the dropdown
+async function loadClientFolders(selectedFolder = null) {
+  const select = document.getElementById('folder-path');
+  if (!select) return;
+
+  try {
+    const response = await fetch(`${API_URL}/client-folders`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Failed to load folders:', data.message);
+      return;
+    }
+
+    // Clear and rebuild options
+    select.innerHTML = '<option value="">-- Select existing folder or create new --</option>';
+    
+    const folders = data.folders || [];
+    folders.forEach(folder => {
+      const option = document.createElement('option');
+      option.value = folder;
+      option.textContent = `📁 ${folder}`;
+      select.appendChild(option);
+    });
+
+    // Set selected value if provided
+    if (selectedFolder) {
+      select.value = selectedFolder;
+    }
+  } catch (error) {
+    console.error('Error loading client folders:', error);
+  }
+}
+
+// Open the create folder modal
+function openCreateFolderModal() {
+  document.getElementById('new-folder-name').value = '';
+  document.getElementById('folder-modal').classList.add('active');
+  
+  // Auto-generate suggestion if company name is filled
+  generateSuggestedFolderName();
+}
+
+// Close the create folder modal
+function closeFolderModal() {
+  document.getElementById('folder-modal').classList.remove('active');
+}
+
+// Generate a suggested folder name based on customer data
+async function generateSuggestedFolderName() {
+  const companyName = document.getElementById('company-name').value.trim();
+  const customerId = document.getElementById('customer-code').value.trim();
+
+  if (!companyName) {
+    showAlert('Please enter a company name first', 'warning');
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({ companyName });
+    if (customerId) {
+      params.append('customerId', customerId);
+    }
+
+    const response = await fetch(`${API_URL}/client-folders/suggest?${params}`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.suggestion) {
+      document.getElementById('new-folder-name').value = data.suggestion;
+      
+      if (data.exists) {
+        showAlert('Note: A folder with this name already exists', 'warning');
+      }
+    }
+  } catch (error) {
+    console.error('Error generating folder suggestion:', error);
+  }
+}
+
+// Handle create folder form submission
+async function handleCreateFolder(event) {
+  event.preventDefault();
+
+  const folderName = document.getElementById('new-folder-name').value.trim();
+  
+  if (!folderName) {
+    showAlert('Please enter a folder name', 'danger');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/client-folders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({ folderName })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showAlert(data.message || 'Failed to create folder', 'danger');
+      return;
+    }
+
+    showAlert('Folder created successfully', 'success');
+    closeFolderModal();
+
+    // Refresh folder list and select the new folder
+    await loadClientFolders(data.folderName);
+  } catch (error) {
+    showAlert('Error: ' + error.message, 'danger');
+  }
 }

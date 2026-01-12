@@ -1,4 +1,9 @@
 const db = require('../config/database');
+const fs = require('fs');
+const path = require('path');
+
+// Get clients root folder from environment
+const CLIENTS_ROOT_PATH = process.env.CLIENTS_ROOT_PATH || '/data/clients';
 
 // Get all customers (with search filter)
 exports.getCustomers = async (req, res) => {
@@ -97,7 +102,8 @@ exports.createCustomer = async (req, res) => {
       discount_percentage,
       custom_terms_notes,
       approval_threshold,
-      credit_limit
+      credit_limit,
+      folder_path
     } = req.body;
 
     if (!company_name || !email) {
@@ -113,15 +119,15 @@ exports.createCustomer = async (req, res) => {
         headquarters_address, delivery_address, address, city, postal_code, country,
         email, phone, notes, processing_notes, delivery_notes, billing_notes,
         status, payment_terms, payment_history, discount_percentage,
-        custom_terms_notes, approval_threshold, credit_limit
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+        custom_terms_notes, approval_threshold, credit_limit, folder_path
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING *`,
       [
         company_name, customer_id, cif, reg_com || trade_register_number, trade_register_number,
         headquarters_address, delivery_address, address, city, postal_code, country || 'Romania',
         email, phone, notes, processing_notes, delivery_notes, billing_notes,
         status || 'active', payment_terms || 'standard_credit', payment_history || 'new_customer',
-        discount_percentage || 0, custom_terms_notes, approval_threshold, credit_limit
+        discount_percentage || 0, custom_terms_notes, approval_threshold, credit_limit, folder_path
       ]
     );
 
@@ -161,7 +167,8 @@ exports.updateCustomer = async (req, res) => {
       discount_percentage,
       custom_terms_notes,
       approval_threshold,
-      credit_limit
+      credit_limit,
+      folder_path
     } = req.body;
 
     const result = await db.query(
@@ -190,15 +197,16 @@ exports.updateCustomer = async (req, res) => {
         custom_terms_notes = $22,
         approval_threshold = $23,
         credit_limit = $24,
+        folder_path = $25,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $25
+      WHERE id = $26
       RETURNING *`,
       [
         company_name, customer_id, cif, reg_com, trade_register_number,
         headquarters_address, delivery_address, address, city, postal_code, country,
         email, phone, notes, processing_notes, delivery_notes, billing_notes,
         status, payment_terms, payment_history, discount_percentage,
-        custom_terms_notes, approval_threshold, credit_limit,
+        custom_terms_notes, approval_threshold, credit_limit, folder_path,
         id
       ]
     );
@@ -449,6 +457,95 @@ exports.deleteContact = async (req, res) => {
     res.json({ success: true, message: 'Contact deleted' });
   } catch (error) {
     console.error('Error deleting contact:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================================================
+// CLIENT FOLDER MANAGEMENT
+// ============================================================================
+
+// List existing folders in the clients root directory
+exports.listClientFolders = async (req, res) => {
+  try {
+    if (!fs.existsSync(CLIENTS_ROOT_PATH)) {
+      return res.json({ success: true, folders: [], message: 'Clients root folder not found' });
+    }
+
+    const items = fs.readdirSync(CLIENTS_ROOT_PATH, { withFileTypes: true });
+    const folders = items
+      .filter(item => item.isDirectory())
+      .map(item => item.name)
+      .sort((a, b) => a.localeCompare(b, 'ro', { sensitivity: 'base' }));
+
+    res.json({ success: true, folders });
+  } catch (error) {
+    console.error('Error listing client folders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Create a new client folder
+exports.createClientFolder = async (req, res) => {
+  try {
+    const { folderName } = req.body;
+
+    if (!folderName) {
+      return res.status(400).json({ success: false, message: 'Folder name is required' });
+    }
+
+    // Sanitize folder name (remove special characters that might cause issues)
+    const sanitizedName = folderName
+      .replace(/[<>:"/\\|?*]/g, '_')  // Replace invalid chars
+      .replace(/\s+/g, ' ')           // Normalize spaces
+      .trim();
+
+    if (!sanitizedName) {
+      return res.status(400).json({ success: false, message: 'Invalid folder name' });
+    }
+
+    const folderPath = path.join(CLIENTS_ROOT_PATH, sanitizedName);
+
+    // Check if folder already exists
+    if (fs.existsSync(folderPath)) {
+      return res.status(400).json({ success: false, message: 'Folder already exists' });
+    }
+
+    // Create the folder
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    res.json({ success: true, folderName: sanitizedName, message: 'Folder created successfully' });
+  } catch (error) {
+    console.error('Error creating client folder:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Generate suggested folder name based on company name and ID
+exports.suggestFolderName = async (req, res) => {
+  try {
+    const { companyName, customerId } = req.query;
+
+    if (!companyName) {
+      return res.status(400).json({ success: false, message: 'Company name is required' });
+    }
+
+    // Create suggested folder name
+    let suggestion = companyName
+      .replace(/[<>:"/\\|?*]/g, '_')
+      .replace(/\s+/g, '_')
+      .trim();
+
+    if (customerId) {
+      suggestion = `${customerId}_${suggestion}`;
+    }
+
+    // Check if folder already exists
+    const exists = fs.existsSync(path.join(CLIENTS_ROOT_PATH, suggestion));
+
+    res.json({ success: true, suggestion, exists });
+  } catch (error) {
+    console.error('Error generating folder suggestion:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

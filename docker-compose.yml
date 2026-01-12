@@ -40,9 +40,11 @@ services:
       AUTO_SYNC_INTERVAL_MS: ${AUTO_SYNC_INTERVAL_MS:-60000}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
       FRONTEND_URL: ${FRONTEND_URL:-*}
+      CLIENTS_ROOT_PATH: ${CLIENTS_ROOT_PATH:-/data/clients}
     volumes:
       - uploads_data:/app/uploads
       - /home/vlad/hdd/Tools:/data/jobfiles
+      - ${CLIENTS_HOST_PATH:-/mnt/nas_NAS_Storage_LOGICAL/shares/Prelucrare/1-Clienti}:/data/clients
       - .:/app/project  # Mount project for git operations (writable for branch switch)
       - /var/run/docker.sock:/var/run/docker.sock  # For docker-compose restart
     ports:

@@ -91,6 +91,7 @@ CREATE TABLE customers (
     credit_limit DECIMAL(12,2),
     approval_threshold DECIMAL(12,2),
     custom_terms_notes TEXT,
+    folder_path VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -260,6 +260,11 @@ app.post('/api/customers/:id/contacts', authMiddleware, requireSupervisor(), cus
 app.put('/api/customers/:id/contacts/:contactId', authMiddleware, requireSupervisor(), customersController.updateContact);
 app.delete('/api/customers/:id/contacts/:contactId', authMiddleware, requireSupervisor(), customersController.deleteContact);
 
+// Client Folder Management routes
+app.get('/api/client-folders', authMiddleware, requireSupervisor(), customersController.listClientFolders);
+app.post('/api/client-folders', authMiddleware, requireSupervisor(), customersController.createClientFolder);
+app.get('/api/client-folders/suggest', authMiddleware, requireSupervisor(), customersController.suggestFolderName);
+
 // ======================== MACHINES ROUTES ========================
 app.get('/api/machines', authMiddleware, machinesController.getMachines);
 app.get('/api/machines/:id', authMiddleware, machinesController.getMachine);

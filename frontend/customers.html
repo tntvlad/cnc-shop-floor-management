@@ -636,6 +636,21 @@
             <textarea id="custom-terms-notes" placeholder="Special payment arrangements or notes"></textarea>
           </div>
           
+          <!-- Client Folder Section -->
+          <div class="form-group full-width" style="border-top: 2px solid #eee; padding-top: 1rem; margin-top: 0.5rem;">
+            <h4 style="margin: 0 0 1rem 0; color: #667eea;">📁 Client Folder</h4>
+          </div>
+          <div class="form-group full-width">
+            <label for="folder-path">Client Folder</label>
+            <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+              <select id="folder-path" style="flex: 1;">
+                <option value="">-- Select existing folder or create new --</option>
+              </select>
+              <button type="button" class="btn-primary" onclick="openCreateFolderModal()" style="white-space: nowrap;">📁 New Folder</button>
+            </div>
+            <small style="color: #666; margin-top: 0.25rem; display: block;">Select an existing folder or create a new one for this client</small>
+          </div>
+          
           <div class="form-group full-width">
             <label for="notes">General Notes</label>
             <textarea id="notes" placeholder="Additional information"></textarea>
@@ -734,6 +749,36 @@
         <div class="modal-footer">
           <button type="button" class="btn-cancel" onclick="closeContactModal()">Cancel</button>
           <button type="submit" class="btn-submit">Save Contact</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Folder Modal -->
+  <div id="folder-modal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2>📁 Create Client Folder</h2>
+        <button class="modal-close" onclick="closeFolderModal()">✕</button>
+      </div>
+      <form id="folder-form" onsubmit="handleCreateFolder(event)">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label for="new-folder-name" class="required">Folder Name</label>
+            <input type="text" id="new-folder-name" required placeholder="e.g., CUST001_CompanyName">
+            <small style="color: #666; margin-top: 0.25rem; display: block;">
+              Tip: Use format like "ID_CompanyName" for easy sorting
+            </small>
+          </div>
+          <div class="form-group full-width">
+            <button type="button" class="btn-secondary" onclick="generateSuggestedFolderName()" style="width: 100%;">
+              ✨ Generate Suggested Name
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeFolderModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Create Folder</button>
         </div>
       </form>
     </div>
