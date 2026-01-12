@@ -78,13 +78,19 @@ function stopJobTimer() {
 
 function getPriorityMeta(item) {
   // Handle both integer and string priority values
+  // Use part priority if available, otherwise fall back to order priority
+  let priorityValue = item.priority;
+  if (priorityValue === null || priorityValue === undefined) {
+    priorityValue = item.order_priority;
+  }
+  
   let key = '';
-  if (typeof item.priority === 'number') {
+  if (typeof priorityValue === 'number') {
     // Map integer to string: 3=urgent, 2=high, 1=normal, 0=low
     const intMap = { 3: 'urgent', 2: 'high', 1: 'normal', 0: 'low' };
-    key = intMap[item.priority] || 'normal';
+    key = intMap[priorityValue] || 'normal';
   } else {
-    key = (item.priority || 'normal').toLowerCase();
+    key = (priorityValue || 'normal').toLowerCase();
   }
   const label = key.replace(/_/g, ' ');
   const weight = typeof item.priority_score === 'number'

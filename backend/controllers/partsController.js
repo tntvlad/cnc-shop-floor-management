@@ -46,6 +46,9 @@ exports.getAllParts = async (req, res) => {
         m.material_name,
         u.name as assigned_user_name,
         u.employee_id as assigned_employee_id,
+        o.due_date,
+        o.priority as order_priority,
+        o.status as order_status,
         CASE WHEN p.assigned_to IS NOT NULL THEN
           json_build_array(json_build_object(
             'user_id', p.assigned_to,
@@ -57,6 +60,7 @@ exports.getAllParts = async (req, res) => {
       FROM parts p
       LEFT JOIN material_stock m ON p.material_id = m.id
       LEFT JOIN users u ON p.assigned_to = u.id
+      LEFT JOIN orders o ON p.order_id = o.id
       ORDER BY p.created_at DESC
     `);
 
