@@ -187,6 +187,10 @@ async function loadParts() {
 
 // Create part card
 function createPartCard(part, isOperator = false) {
+  const user = Auth.getUser();
+  const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+    || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  
   const card = document.createElement('div');
   card.className = 'part-card';
   const priority = getPriorityMeta(part);
@@ -247,10 +251,12 @@ function createPartCard(part, isOperator = false) {
         <span class="info-label">Treatment:</span>
         <span class="info-value">${escapeHtml(part.treatment || 'None')}</span>
       </div>
+      ${isSupervisorPlus ? `
       <div class="info-row">
         <span class="info-label">Target Time:</span>
         <span class="info-value">${part.target_time} min</span>
       </div>
+      ` : ''}
     </div>
   `;
 
@@ -272,12 +278,23 @@ async function openPartModal(partId) {
     const part = await API.parts.getOne(partId);
     currentPart = part;
 
+    // Check user level for hiding target time
+    const user = Auth.getUser();
+    const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+      || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+
     // Update modal content
     document.getElementById('modalPartName').textContent = part.name;
     document.getElementById('modalMaterial').textContent = part.material;
     document.getElementById('modalQuantity').textContent = part.quantity;
     document.getElementById('modalTreatment').textContent = part.treatment || 'None';
     document.getElementById('modalTargetTime').textContent = `${part.target_time} minutes`;
+    
+    // Hide target time for operators (level < 400)
+    const targetTimeRow = document.getElementById('targetTimeRow');
+    if (targetTimeRow) {
+      targetTimeRow.style.display = isSupervisorPlus ? '' : 'none';
+    }
 
     renderFileFolder(part);
 
@@ -289,8 +306,7 @@ async function openPartModal(partId) {
     loadPartFeedback(part);
 
     // Show/hide file upload for supervisors/admins
-    const user = Auth.getUser();
-    const canUpload = (typeof user.level === 'number' && user.level >= 400);
+    const canUpload = isSupervisorPlus;
     const uploadSection = document.getElementById('fileUploadSection');
     if (uploadSection) {
       uploadSection.style.display = canUpload ? 'block' : 'none';
@@ -972,8 +988,20 @@ function setupEventListeners() {
 function openCompleteModal() {
   if (!currentPart) return;
   
+  // Check user level for hiding target time
+  const user = Auth.getUser();
+  const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
+    || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
+  
   document.getElementById('completeTargetTime').textContent = currentPart.target_time;
   document.getElementById('actualTime').value = currentPart.target_time;
+  
+  // Hide target time for operators (level < 400)
+  const completeTargetTimeRow = document.getElementById('completeTargetTimeRow');
+  if (completeTargetTimeRow) {
+    completeTargetTimeRow.style.display = isSupervisorPlus ? '' : 'none';
+  }
+  
   document.getElementById('completeModal').style.display = 'flex';
 }
 
