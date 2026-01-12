@@ -307,6 +307,14 @@ body {
     color: #fff;
 }
 
+/* Ensure table rows with priority classes don't inherit badge text color */
+tr.priority-urgent,
+tr.priority-high,
+tr.priority-normal,
+tr.priority-low {
+    color: inherit;
+}
+
 .priority-normal {
     background: #e2e8f0;
     color: #0f172a;
