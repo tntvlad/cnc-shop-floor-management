@@ -368,6 +368,112 @@
         .form-grid .full-width { grid-column: 1 / -1; }
         label.required::after { content: ' *'; color: #dc3545; }
         .contacts-list { padding: 1rem; }
+
+        /* Modal Styles (matching customers.html) */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0.5rem;
+        }
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        .btn-cancel {
+            padding: 0.75rem 1.5rem;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        .btn-submit {
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-submit:hover {
+            background: #5568d3;
+        }
     </style>
 </head>
 <body>
@@ -671,7 +777,7 @@
                             <select id="folder-path" style="flex: 1;">
                                 <option value="">-- Select existing folder or create new --</option>
                             </select>
-                            <button type="button" class="btn btn-primary" onclick="openCreateFolderModal()" style="white-space: nowrap;">📁 New</button>
+                            <button type="button" class="btn-submit" onclick="openCreateFolderModal()" style="white-space: nowrap;">📁 New</button>
                         </div>
                     </div>
                     
@@ -680,9 +786,9 @@
                         <textarea id="notes" placeholder="Additional information"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
-                    <button type="button" class="btn btn-secondary" onclick="closeCustomerModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeCustomerModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Customer</button>
                 </div>
             </form>
         </div>
@@ -718,8 +824,8 @@
                     <div id="technical-contacts-list"></div>
                 </div>
             </div>
-            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding: 15px; border-top: 1px solid #eee;">
-                <button type="button" class="btn btn-secondary" onclick="closeContactsModal()">Close</button>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeContactsModal()">Close</button>
             </div>
         </div>
     </div>
@@ -763,9 +869,9 @@
                         <textarea id="contact-notes"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeContactModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Contact</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeContactModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Contact</button>
                 </div>
             </form>
         </div>
@@ -785,14 +891,14 @@
                         <input type="text" id="new-folder-name" required placeholder="e.g., CUST001_CompanyName">
                     </div>
                     <div class="form-group full-width">
-                        <button type="button" class="btn btn-secondary" onclick="generateSuggestedFolderName()" style="width: 100%;">
+                        <button type="button" class="btn-submit" onclick="generateSuggestedFolderName()" style="width: 100%; background: #5a67d8;">
                             ✨ Generate Suggested Name
                         </button>
                     </div>
                 </div>
-                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeFolderModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Folder</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeFolderModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Create Folder</button>
                 </div>
             </form>
         </div>
@@ -825,9 +931,9 @@
                     <label for="new-material-description">Description</label>
                     <textarea id="new-material-description" rows="2"></textarea>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeAddMaterialModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Material</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddMaterialModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Material</button>
                 </div>
             </form>
         </div>
@@ -870,9 +976,9 @@
                     <label for="new-machine-location">Location</label>
                     <input type="text" id="new-machine-location">
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeAddMachineModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Machine</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddMachineModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Machine</button>
                 </div>
             </form>
         </div>
