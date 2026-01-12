@@ -142,6 +142,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function openGitSettings() {
   document.getElementById('git-settings-modal').classList.add('active');
   
+  // Show status tab by default and load status
+  switchVCTab('status');
+  
   // Reset UI
   document.getElementById('local-version').textContent = 'Loading...';
   document.getElementById('remote-version').textContent = 'Loading...';
@@ -672,5 +675,73 @@ async function restoreDatabase(event) {
   } catch (error) {
     logEl.textContent += `✗ Error: ${error.message}\n`;
     fileInput.value = '';
+  }
+}
+
+// Tab switching for Version Control modal
+function switchVCTab(tabName) {
+  // Remove active from all tabs
+  document.querySelectorAll('.vc-tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.vc-tab-content').forEach(content => {
+    content.classList.remove('active');
+    content.style.display = 'none';
+  });
+  
+  // Add active to selected tab
+  document.querySelector(`.vc-tab[onclick="switchVCTab('${tabName}')"]`).classList.add('active');
+  const tabContent = document.getElementById(`vc-tab-${tabName}`);
+  if (tabContent) {
+    tabContent.classList.add('active');
+    tabContent.style.display = 'block';
+  }
+  
+  // Load data for the tab if needed
+  if (tabName === 'status') {
+    checkModalStatus();
+  }
+}
+
+// Check status for the modal
+async function checkModalStatus() {
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${Auth.getToken()}`
+      }
+    });
+
+    const modalApiStatus = document.getElementById('modalApiStatus');
+    const modalDbStatus = document.getElementById('modalDbStatus');
+    const modalCurrentUser = document.getElementById('modalCurrentUser');
+
+    if (response.ok) {
+      if (modalApiStatus) {
+        modalApiStatus.textContent = 'Healthy';
+        modalApiStatus.className = 'status-value healthy';
+      }
+      if (modalDbStatus) {
+        modalDbStatus.textContent = 'Connected';
+        modalDbStatus.className = 'status-value healthy';
+      }
+
+      const user = await response.json();
+      if (modalCurrentUser) {
+        modalCurrentUser.textContent = user.name || user.employee_id;
+      }
+    } else {
+      throw new Error('API not responding');
+    }
+  } catch (error) {
+    const modalApiStatus = document.getElementById('modalApiStatus');
+    const modalDbStatus = document.getElementById('modalDbStatus');
+    
+    if (modalApiStatus) {
+      modalApiStatus.textContent = 'Error';
+      modalApiStatus.className = 'status-value error';
+    }
+    if (modalDbStatus) {
+      modalDbStatus.textContent = 'Error';
+      modalDbStatus.className = 'status-value error';
+    }
   }
 }

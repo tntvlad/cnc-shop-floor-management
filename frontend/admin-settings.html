@@ -178,74 +178,6 @@
         <div class="admin-container">
             <h2>Admin Settings</h2>
 
-            <!-- System Status -->
-            <div class="settings-card">
-                <h3>System Status</h3>
-                <div class="status-item">
-                    <span class="status-label">Backend API:</span>
-                    <span class="status-value" id="apiStatus">Checking...</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Database:</span>
-                    <span class="status-value" id="dbStatus">Checking...</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Current User:</span>
-                    <span class="status-value" id="currentUser">-</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Version:</span>
-                    <span class="status-value" id="appVersion">1.2-beta</span>
-                </div>
-                <button class="btn btn-primary btn-block" onclick="checkStatus()">
-                    Refresh Status
-                </button>
-            </div>
-
-            <div class="settings-grid">
-                <!-- Git Management -->
-                <div class="settings-card">
-                    <h3>Git Management</h3>
-                    <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
-                        Pull latest changes from GitHub and restart services.
-                    </p>
-                    <button class="btn btn-primary btn-block" onclick="gitPull(event)">
-                        Pull from Git
-                    </button>
-                    <div class="log-output" id="gitLog" style="display: none;"></div>
-                </div>
-
-                <!-- Service Management -->
-                <div class="settings-card">
-                    <h3>Service Management</h3>
-                    <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
-                        Rebuild and restart Docker containers (picks up code changes).
-                    </p>
-                    <button class="btn btn-warning btn-block" onclick="restartServices(event)">
-                        🔄 Rebuild & Restart
-                    </button>
-                    <div class="log-output" id="restartLog" style="display: none;"></div>
-                </div>
-
-                <!-- Database Management -->
-                <div class="settings-card">
-                    <h3>Database Management</h3>
-                    <p style="color: #64748b; margin: 0 0 15px 0; font-size: 14px;">
-                        Backup and restore database (Admin 500 only).
-                    </p>
-                    <button class="btn btn-primary btn-block" onclick="backupDatabase(event)" style="margin-bottom: 10px;">
-                        Download Backup
-                    </button>
-                    <div style="margin-top: 10px;">
-                        <label for="restoreFileInput" class="btn btn-warning btn-block" style="margin: 0; cursor: pointer;">
-                            Upload & Restore Backup
-                        </label>
-                        <input type="file" id="restoreFileInput" accept=".sql" style="display: none;" onchange="restoreDatabase(event)">
-                    </div>
-                    <div class="log-output" id="dbLog" style="display: none;"></div>
-                </div>
-            </div>
-
             <!-- Create User Form -->
             <div class="user-form">
                 <h3>Create New User</h3>
@@ -328,73 +260,186 @@
     <script src="js/api.js?v=20251226"></script>
     <script src="js/admin-settings.js?v=20251229"></script>
 
-        <!-- Git Settings Modal -->
+        <!-- Version Control Modal -->
         <link rel="stylesheet" href="css/login.css">
         <div class="modal" id="git-settings-modal">
-            <div class="modal-content modal-fero">
+            <div class="modal-content modal-fero" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header-fero">
-                    <span class="modal-brand">Source Control</span>
+                    <span class="modal-brand">⚙️ Version Control</span>
                     <button class="modal-close-fero" onclick="closeGitSettings()">✕</button>
                 </div>
-                <div class="modal-body-fero">
-                    <!-- Version Info -->
-                    <div class="version-info-box">
-                        <div class="version-row">
-                            <div>
-                                <strong>Current Version</strong>
-                                <div id="local-version" class="version-text">Loading...</div>
-                            </div>
-                            <div class="version-right">
-                                <strong>Latest</strong>
-                                <div id="remote-version" class="version-text">Loading...</div>
-                            </div>
+                <div class="modal-body-fero" style="padding: 20px;">
+                    
+                    <!-- Tab Navigation -->
+                    <div class="vc-tabs">
+                        <button class="vc-tab active" onclick="switchVCTab('status')">Status</button>
+                        <button class="vc-tab" onclick="switchVCTab('source')">Source Control</button>
+                        <button class="vc-tab" onclick="switchVCTab('services')">Services</button>
+                        <button class="vc-tab" onclick="switchVCTab('database')">Database</button>
+                    </div>
+                    
+                    <!-- Status Tab -->
+                    <div id="vc-tab-status" class="vc-tab-content active">
+                        <h4 style="margin: 0 0 15px 0; color: #0f172a;">System Status</h4>
+                        <div class="status-item">
+                            <span class="status-label">Backend API:</span>
+                            <span class="status-value" id="modalApiStatus">Checking...</span>
                         </div>
-                        <div id="update-status" class="update-status"></div>
+                        <div class="status-item">
+                            <span class="status-label">Database:</span>
+                            <span class="status-value" id="modalDbStatus">Checking...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Current User:</span>
+                            <span class="status-value" id="modalCurrentUser">-</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Version:</span>
+                            <span class="status-value" id="modalAppVersion">1.2-beta</span>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="checkModalStatus()" style="margin-top: 15px;">
+                            Refresh Status
+                        </button>
                     </div>
                     
-                    <!-- Branch Selection -->
-                    <div class="section-title">Branch: <strong id="currentBranch">...</strong></div>
-                    
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="branch" value="main">
-                            <span class="radio-custom"></span>
-                            main (stable)
-                        </label>
-                    </div>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="branch" value="beta">
-                            <span class="radio-custom"></span>
-                            beta (latest features)
-                        </label>
-                    </div>
-                    
-                    <!-- Releases Section -->
-                    <div class="releases-section">
-                        <div class="checkbox-group-fero">
-                            <label class="checkbox-label-fero">
-                                <input type="checkbox" id="useReleaseCheckbox">
-                                <span class="checkbox-custom"></span>
-                                Use specific release version
+                    <!-- Source Control Tab -->
+                    <div id="vc-tab-source" class="vc-tab-content" style="display: none;">
+                        <!-- Version Info -->
+                        <div class="version-info-box">
+                            <div class="version-row">
+                                <div>
+                                    <strong>Current Version</strong>
+                                    <div id="local-version" class="version-text">Loading...</div>
+                                </div>
+                                <div class="version-right">
+                                    <strong>Latest</strong>
+                                    <div id="remote-version" class="version-text">Loading...</div>
+                                </div>
+                            </div>
+                            <div id="update-status" class="update-status"></div>
+                        </div>
+                        
+                        <!-- Branch Selection -->
+                        <div class="section-title">Branch: <strong id="currentBranch">...</strong></div>
+                        
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="branch" value="main">
+                                <span class="radio-custom"></span>
+                                main (stable)
                             </label>
                         </div>
-                        <div id="releasesDropdownContainer" class="releases-dropdown-container" style="display: none;">
-                            <label for="releaseSelect">Select Release:</label>
-                            <select id="releaseSelect" class="release-select">
-                                <option value="">Loading releases...</option>
-                            </select>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="branch" value="beta">
+                                <span class="radio-custom"></span>
+                                beta (latest features)
+                            </label>
+                        </div>
+                        
+                        <!-- Releases Section -->
+                        <div class="releases-section">
+                            <div class="checkbox-group-fero">
+                                <label class="checkbox-label-fero">
+                                    <input type="checkbox" id="useReleaseCheckbox">
+                                    <span class="checkbox-custom"></span>
+                                    Use specific release version
+                                </label>
+                            </div>
+                            <div id="releasesDropdownContainer" class="releases-dropdown-container" style="display: none;">
+                                <label for="releaseSelect">Select Release:</label>
+                                <select id="releaseSelect" class="release-select">
+                                    <option value="">Loading releases...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Git Pull -->
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                            <h4 style="margin: 0 0 10px 0; color: #0f172a;">Git Management</h4>
+                            <p style="color: #64748b; margin: 0 0 10px 0; font-size: 13px;">
+                                Pull latest changes from GitHub and restart services.
+                            </p>
+                            <button class="btn btn-primary btn-block" onclick="gitPull(event)">
+                                Pull from Git
+                            </button>
+                            <div class="log-output" id="gitLog" style="display: none;"></div>
                         </div>
                     </div>
+                    
+                    <!-- Services Tab -->
+                    <div id="vc-tab-services" class="vc-tab-content" style="display: none;">
+                        <h4 style="margin: 0 0 15px 0; color: #0f172a;">Service Management</h4>
+                        <p style="color: #64748b; margin: 0 0 15px 0; font-size: 13px;">
+                            Rebuild and restart Docker containers (picks up code changes).
+                        </p>
+                        <button class="btn btn-warning btn-block" onclick="restartServices(event)">
+                            🔄 Rebuild & Restart
+                        </button>
+                        <div class="log-output" id="restartLog" style="display: none;"></div>
+                    </div>
+                    
+                    <!-- Database Tab -->
+                    <div id="vc-tab-database" class="vc-tab-content" style="display: none;">
+                        <h4 style="margin: 0 0 15px 0; color: #0f172a;">Database Management</h4>
+                        <p style="color: #64748b; margin: 0 0 15px 0; font-size: 13px;">
+                            Backup and restore database (Admin 500 only).
+                        </p>
+                        <button class="btn btn-primary btn-block" onclick="backupDatabase(event)" style="margin-bottom: 10px;">
+                            📥 Download Backup
+                        </button>
+                        <div style="margin-top: 10px;">
+                            <label for="modalRestoreFileInput" class="btn btn-warning btn-block" style="margin: 0; cursor: pointer; display: block; text-align: center;">
+                                📤 Upload & Restore Backup
+                            </label>
+                            <input type="file" id="modalRestoreFileInput" accept=".sql" style="display: none;" onchange="restoreDatabase(event)">
+                        </div>
+                        <div class="log-output" id="dbLog" style="display: none;"></div>
+                    </div>
+                    
                 </div>
                 <div class="modal-footer-fero">
                     <button class="btn-fero btn-update" id="installUpdateBtn" onclick="installUpdate()" style="display: none;">Install Update</button>
                     <div class="footer-actions">
-                        <button class="btn-fero btn-cancel" onclick="closeGitSettings()">Cancel</button>
-                        <button class="btn-fero btn-apply" onclick="applySourceControl()">Apply</button>
+                        <button class="btn-fero btn-cancel" onclick="closeGitSettings()">Close</button>
+                        <button class="btn-fero btn-apply" onclick="applySourceControl()">Apply Changes</button>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <style>
+            .vc-tabs {
+                display: flex;
+                gap: 5px;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 10px;
+            }
+            .vc-tab {
+                background: #f1f5f9;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px 6px 0 0;
+                cursor: pointer;
+                font-weight: 500;
+                color: #64748b;
+                transition: all 0.2s;
+            }
+            .vc-tab:hover {
+                background: #e2e8f0;
+                color: #0f172a;
+            }
+            .vc-tab.active {
+                background: #3B82F6;
+                color: white;
+            }
+            .vc-tab-content {
+                display: none;
+            }
+            .vc-tab-content.active {
+                display: block;
+            }
+        </style>
 </body>
 </html>
