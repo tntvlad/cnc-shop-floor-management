@@ -264,8 +264,16 @@ function showSuccess(message) {
 }
 
 function getPriorityMeta(item) {
-  const key = (item.priority || '').toLowerCase();
-  const label = key ? key.replace(/_/g, ' ') : 'normal';
+  // Handle both integer and string priority values
+  let key = '';
+  if (typeof item.priority === 'number') {
+    // Map integer to string: 3=urgent, 2=high, 1=normal, 0=low
+    const intMap = { 3: 'urgent', 2: 'high', 1: 'normal', 0: 'low' };
+    key = intMap[item.priority] || 'normal';
+  } else {
+    key = (item.priority || 'normal').toLowerCase();
+  }
+  const label = key.replace(/_/g, ' ');
   const weight = typeof item.priority_score === 'number'
     ? item.priority_score
     : (PRIORITY_WEIGHT[key] || 0);
