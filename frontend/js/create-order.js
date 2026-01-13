@@ -770,30 +770,48 @@ function addPartField() {
       <button type="button" class="btn-remove-part" onclick="this.closest('.part-item').remove()">✕</button>
     </div>
     <div class="part-row-2">
+      <!-- Step 1: Material Type Search -->
       <div class="material-search-wrapper">
-        <input type="text" placeholder="Search material..." class="material-search" data-index="${partIndex}" autocomplete="off">
+        <input type="text" placeholder="1. Search material type..." class="material-search" data-index="${partIndex}" autocomplete="off">
         <input type="hidden" name="parts[${partIndex}][material_id]">
+        <input type="hidden" name="parts[${partIndex}][material_type_name]">
         <div class="material-dropdown"></div>
-        <button type="button" class="btn-smart-suggest" onclick="openSmartSuggestions(${partIndex})" title="Smart Material Suggestions">🔍 Smart</button>
       </div>
-      <div class="dimension-group" title="Rectangular: Height x Width x Length">
-        <input type="number" placeholder="H" name="parts[${partIndex}][dim_h]" min="0" step="0.1">
+      <!-- Step 2: Shape Selection -->
+      <select name="parts[${partIndex}][shape_type]" class="shape-select" data-index="${partIndex}" title="2. Select shape" disabled>
+        <option value="">2. Shape...</option>
+        <option value="plate">Plate/Sheet</option>
+        <option value="bar_round">Round Bar</option>
+        <option value="bar_square">Square Bar</option>
+        <option value="bar_hex">Hex Bar</option>
+        <option value="tube">Tube</option>
+      </select>
+      <!-- Step 3: Dimensions (show based on shape) -->
+      <div class="dimension-group rect-dims" title="Width x Height x Length" style="display: none;">
+        <input type="number" placeholder="W" name="parts[${partIndex}][dim_w]" min="0" step="0.1" style="width: 60px;">
         <span>×</span>
-        <input type="number" placeholder="W" name="parts[${partIndex}][dim_w]" min="0" step="0.1">
+        <input type="number" placeholder="H" name="parts[${partIndex}][dim_h]" min="0" step="0.1" style="width: 60px;">
         <span>×</span>
-        <input type="number" placeholder="L" name="parts[${partIndex}][dim_l]" min="0" step="0.1">
+        <input type="number" placeholder="L" name="parts[${partIndex}][dim_l]" min="0" step="0.1" style="width: 70px;">
       </div>
-      <div class="dimension-group" title="Round: Diameter x Length">
+      <div class="dimension-group round-dims" title="Diameter x Length" style="display: none;">
         <span>⌀</span>
-        <input type="number" placeholder="D" name="parts[${partIndex}][dim_d]" min="0" step="0.1">
+        <input type="number" placeholder="D" name="parts[${partIndex}][dim_d]" min="0" step="0.1" style="width: 60px;">
         <span>×</span>
-        <input type="number" placeholder="L" name="parts[${partIndex}][dim_dl]" min="0" step="0.1">
+        <input type="number" placeholder="L" name="parts[${partIndex}][dim_dl]" min="0" step="0.1" style="width: 70px;">
       </div>
-      <select name="parts[${partIndex}][priority]" title="Part priority">
-        <option value="">Priority</option>
+      <div class="dimension-group tube-dims" title="Outer ⌀ x Wall x Length" style="display: none;">
+        <span>⌀</span>
+        <input type="number" placeholder="OD" name="parts[${partIndex}][dim_od]" min="0" step="0.1" style="width: 55px;" title="Outer Diameter">
+        <span>t</span>
+        <input type="number" placeholder="Wall" name="parts[${partIndex}][dim_wall]" min="0" step="0.1" style="width: 50px;" title="Wall thickness">
+        <span>×</span>
+        <input type="number" placeholder="L" name="parts[${partIndex}][dim_tl]" min="0" step="0.1" style="width: 60px;">
+      </div>
+      <select name="parts[${partIndex}][priority]" title="Priority">
+        <option value="normal" selected>🟢 Normal</option>
         <option value="urgent">🔴 Urgent</option>
         <option value="high">🟠 High</option>
-        <option value="normal" selected>🟢 Normal</option>
         <option value="low">🔵 Low</option>
       </select>
     </div>
@@ -809,33 +827,31 @@ function addPartField() {
 
   partsList.appendChild(partItem);
   setupMaterialSearch(partItem, partIndex);
+  setupShapeSelect(partItem, partIndex);
 }
 
 function setupMaterialSearch(partItem, index) {
   const searchInput = partItem.querySelector('.material-search');
   const dropdown = partItem.querySelector('.material-dropdown');
   const hiddenInput = partItem.querySelector(`input[name="parts[${index}][material_id]"]`);
+  const hiddenTypeName = partItem.querySelector(`input[name="parts[${index}][material_type_name]"]`);
+  const shapeSelect = partItem.querySelector('.shape-select');
 
   searchInput.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase();
-    if (!query) {
+    if (!query || query.length < 2) {
       dropdown.classList.remove('active');
       return;
     }
 
-    const filtered = allMaterials.filter(m =>
-      (m.material_name && m.material_name.toLowerCase().includes(query)) ||
-      (m.material_type && m.material_type.toLowerCase().includes(query))
-    );
-
-    renderMaterialDropdown(dropdown, filtered, searchInput, hiddenInput);
-    dropdown.classList.add('active');
+    // Search material types (not stock)
+    searchMaterialTypesForPart(query, dropdown, searchInput, hiddenInput, hiddenTypeName, shapeSelect);
   });
 
   searchInput.addEventListener('focus', () => {
-    if (allMaterials.length > 0 && !searchInput.value) {
-      renderMaterialDropdown(dropdown, allMaterials.slice(0, 10), searchInput, hiddenInput);
-      dropdown.classList.add('active');
+    if (searchInput.value.length >= 2) {
+      const query = searchInput.value.toLowerCase();
+      searchMaterialTypesForPart(query, dropdown, searchInput, hiddenInput, hiddenTypeName, shapeSelect);
     }
   });
 
@@ -846,7 +862,56 @@ function setupMaterialSearch(partItem, index) {
   });
 }
 
-function renderMaterialDropdown(dropdown, materials, searchInput, hiddenInput) {
+async function searchMaterialTypesForPart(query, dropdown, searchInput, hiddenInput, hiddenTypeName, shapeSelect) {
+  try {
+    const response = await api.request(`/materials/types/search/${encodeURIComponent(query)}`);
+    if (response.success && response.materialTypes) {
+      renderMaterialTypeDropdown(dropdown, response.materialTypes, searchInput, hiddenInput, hiddenTypeName, shapeSelect);
+      dropdown.classList.add('active');
+    }
+  } catch (error) {
+    console.error('Error searching material types:', error);
+    // Fallback to local materials search
+    const filtered = allMaterials.filter(m =>
+      (m.material_name && m.material_name.toLowerCase().includes(query)) ||
+      (m.material_type && m.material_type.toLowerCase().includes(query))
+    );
+    renderMaterialDropdownFallback(dropdown, filtered, searchInput, hiddenInput, shapeSelect);
+    dropdown.classList.add('active');
+  }
+}
+
+function renderMaterialTypeDropdown(dropdown, types, searchInput, hiddenInput, hiddenTypeName, shapeSelect) {
+  if (types.length === 0) {
+    dropdown.innerHTML = '<div class="material-option" style="color: #999;">No material types found</div>';
+    return;
+  }
+
+  dropdown.innerHTML = types.map(t => `
+    <div class="material-option" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-spec="${t.specification_code || ''}">
+      <strong>${escapeHtml(t.name)}</strong>
+      ${t.specification_code ? `<span style="color: #666; margin-left: 8px;">(${t.specification_code})</span>` : ''}
+      <div style="font-size: 0.85rem; color: #666;">${t.category || ''}</div>
+    </div>
+  `).join('');
+
+  dropdown.querySelectorAll('.material-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const name = opt.dataset.name;
+      const spec = opt.dataset.spec;
+      searchInput.value = spec ? `${name} (${spec})` : name;
+      hiddenInput.value = opt.dataset.id;
+      if (hiddenTypeName) hiddenTypeName.value = name;
+      dropdown.classList.remove('active');
+      
+      // Enable shape select after material type is chosen
+      shapeSelect.disabled = false;
+      shapeSelect.focus();
+    });
+  });
+}
+
+function renderMaterialDropdownFallback(dropdown, materials, searchInput, hiddenInput, shapeSelect) {
   if (materials.length === 0) {
     dropdown.innerHTML = '<div class="material-option" style="color: #999;">No materials found</div>';
     return;
@@ -864,7 +929,46 @@ function renderMaterialDropdown(dropdown, materials, searchInput, hiddenInput) {
       searchInput.value = opt.dataset.name;
       hiddenInput.value = opt.dataset.id;
       dropdown.classList.remove('active');
+      shapeSelect.disabled = false;
+      shapeSelect.focus();
     });
+  });
+}
+
+function setupShapeSelect(partItem, partIndex) {
+  const shapeSelect = partItem.querySelector('.shape-select');
+  const rectDims = partItem.querySelector('.rect-dims');
+  const roundDims = partItem.querySelector('.round-dims');
+  const tubeDims = partItem.querySelector('.tube-dims');
+
+  shapeSelect.addEventListener('change', (e) => {
+    const shape = e.target.value;
+    
+    // Hide all dimension groups first
+    rectDims.style.display = 'none';
+    roundDims.style.display = 'none';
+    tubeDims.style.display = 'none';
+
+    // Show appropriate dimension fields based on shape
+    switch (shape) {
+      case 'plate':
+      case 'bar_square':
+        rectDims.style.display = 'flex';
+        break;
+      case 'bar_round':
+      case 'bar_hex':
+        roundDims.style.display = 'flex';
+        break;
+      case 'tube':
+        tubeDims.style.display = 'flex';
+        break;
+    }
+
+    // Focus first dimension input
+    if (shape) {
+      const firstInput = partItem.querySelector('.dimension-group:not([style*="display: none"]) input');
+      if (firstInput) firstInput.focus();
+    }
   });
 }
 
