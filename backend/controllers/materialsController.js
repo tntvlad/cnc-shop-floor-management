@@ -809,6 +809,33 @@ async function getMaterialTypes(req, res) {
   }
 }
 
+async function createMaterialType(req, res) {
+  try {
+    const { name, category, density, description } = req.body;
+
+    if (!name || !category) {
+      return res.status(400).json({ success: false, message: 'Name and category are required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO material_types (name, category, density, description)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (name) DO UPDATE SET category = $2, density = $3, description = $4
+       RETURNING *`,
+      [name, category, density || null, description || null]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Material type created',
+      type: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating material type:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 // ============================================================================
 // ALERTS & REPORTS
 // ============================================================================
@@ -961,6 +988,7 @@ module.exports = {
   
   // Material Types
   getMaterialTypes,
+  createMaterialType,
   
   // Alerts & Reports
   getLowStockAlerts,

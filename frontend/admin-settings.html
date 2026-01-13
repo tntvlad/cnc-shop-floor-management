@@ -598,6 +598,65 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        
+        /* Searchable Select Dropdown */
+        .searchable-select {
+            position: relative;
+        }
+        .searchable-select .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .searchable-select .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1001;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .dropdown-item {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .dropdown-item:hover {
+            background: #f0f4ff;
+        }
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .dropdown-item.add-new {
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-weight: 500;
+        }
+        .dropdown-item.add-new:hover {
+            background: #c8e6c9;
+        }
+        .dropdown-item .item-name {
+            font-weight: 500;
+        }
+        .dropdown-item .item-category {
+            font-size: 0.85em;
+            color: #666;
+            margin-left: 0.5rem;
+        }
         .btn-submit:hover {
             background: #5568d3;
         }
@@ -1160,9 +1219,15 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="new-material-type" class="required">Material Type</label>
-                        <select id="new-material-type" required>
-                            <option value="">Select type...</option>
-                        </select>
+                        <div class="searchable-select" id="material-type-container">
+                            <input type="text" id="new-material-type-search" class="search-input" 
+                                   placeholder="Search or type new..." autocomplete="off"
+                                   oninput="filterMaterialTypes()" onfocus="showMaterialTypeDropdown()">
+                            <input type="hidden" id="new-material-type" required>
+                            <div class="dropdown-list" id="material-type-dropdown" style="display: none;">
+                                <!-- Options populated by JS -->
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="new-shape-type" class="required">Shape Type</label>

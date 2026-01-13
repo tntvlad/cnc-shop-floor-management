@@ -19,6 +19,14 @@ async function initMaterialsTab() {
         loadStorageLocationsData()
     ]);
     await loadMaterialsData();
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('material-type-container');
+        if (container && !container.contains(e.target)) {
+            hideMaterialTypeDropdown();
+        }
+    });
 }
 
 // ============================================================================
@@ -103,22 +111,133 @@ async function loadMaterialTypes() {
 }
 
 function populateMaterialTypeSelect() {
-    const select = document.getElementById('new-material-type');
     const filterSelect = document.getElementById('filter-material-type');
     
-    if (select) {
-        select.innerHTML = '<option value="">Select type...</option>';
-        materialTypesData.forEach(type => {
-            select.innerHTML += `<option value="${type.name}">${type.name}</option>`;
-        });
-    }
+    // Populate the searchable dropdown
+    renderMaterialTypeDropdown();
     
+    // Populate filter dropdown
     if (filterSelect) {
         filterSelect.innerHTML = '<option value="">All Types</option>';
         const uniqueTypes = [...new Set(materialTypesData.map(t => t.name))];
         uniqueTypes.forEach(type => {
             filterSelect.innerHTML += `<option value="${type}">${type}</option>`;
         });
+    }
+}
+
+function renderMaterialTypeDropdown(filter = '') {
+    const dropdown = document.getElementById('material-type-dropdown');
+    if (!dropdown) return;
+    
+    const searchTerm = filter.toLowerCase();
+    const filtered = materialTypesData.filter(type => 
+        type.name.toLowerCase().includes(searchTerm) ||
+        (type.category && type.category.toLowerCase().includes(searchTerm))
+    );
+    
+    let html = '';
+    
+    // Group by category
+    const metals = filtered.filter(t => t.category === 'metal');
+    const plastics = filtered.filter(t => t.category === 'plastic');
+    const others = filtered.filter(t => t.category !== 'metal' && t.category !== 'plastic');
+    
+    if (metals.length > 0) {
+        metals.forEach(type => {
+            html += `<div class="dropdown-item" onclick="selectMaterialType('${type.name}')">
+                <span class="item-name">${type.name}</span>
+                <span class="item-category">Metal</span>
+            </div>`;
+        });
+    }
+    
+    if (plastics.length > 0) {
+        plastics.forEach(type => {
+            html += `<div class="dropdown-item" onclick="selectMaterialType('${type.name}')">
+                <span class="item-name">${type.name}</span>
+                <span class="item-category">Plastic</span>
+            </div>`;
+        });
+    }
+    
+    if (others.length > 0) {
+        others.forEach(type => {
+            html += `<div class="dropdown-item" onclick="selectMaterialType('${type.name}')">
+                <span class="item-name">${type.name}</span>
+                <span class="item-category">${type.category || 'Other'}</span>
+            </div>`;
+        });
+    }
+    
+    // Add option to create new type if search doesn't match exactly
+    const exactMatch = materialTypesData.some(t => t.name.toLowerCase() === searchTerm);
+    if (searchTerm && !exactMatch) {
+        html += `<div class="dropdown-item add-new" onclick="addNewMaterialType('${filter}')">
+            ➕ Add new type: "${filter}"
+        </div>`;
+    }
+    
+    if (!html && !searchTerm) {
+        html = '<div class="dropdown-item" style="color: #666; cursor: default;">Start typing to search...</div>';
+    } else if (!html) {
+        html = `<div class="dropdown-item add-new" onclick="addNewMaterialType('${filter}')">
+            ➕ Add new type: "${filter}"
+        </div>`;
+    }
+    
+    dropdown.innerHTML = html;
+}
+
+function showMaterialTypeDropdown() {
+    const dropdown = document.getElementById('material-type-dropdown');
+    if (dropdown) {
+        dropdown.style.display = 'block';
+        renderMaterialTypeDropdown(document.getElementById('new-material-type-search').value);
+    }
+}
+
+function hideMaterialTypeDropdown() {
+    const dropdown = document.getElementById('material-type-dropdown');
+    if (dropdown) {
+        setTimeout(() => { dropdown.style.display = 'none'; }, 200);
+    }
+}
+
+function filterMaterialTypes() {
+    const searchValue = document.getElementById('new-material-type-search').value;
+    renderMaterialTypeDropdown(searchValue);
+    showMaterialTypeDropdown();
+}
+
+function selectMaterialType(typeName) {
+    document.getElementById('new-material-type-search').value = typeName;
+    document.getElementById('new-material-type').value = typeName;
+    hideMaterialTypeDropdown();
+}
+
+async function addNewMaterialType(typeName) {
+    const category = prompt(`Enter category for "${typeName}" (metal, plastic, composite):`, 'metal');
+    if (!category) return;
+    
+    try {
+        const response = await api.post('/materials/types', {
+            name: typeName,
+            category: category.toLowerCase()
+        });
+        
+        if (response.success) {
+            // Add to local data
+            materialTypesData.push({ name: typeName, category: category.toLowerCase() });
+            selectMaterialType(typeName);
+            alert(`Material type "${typeName}" added successfully!`);
+        } else {
+            alert(response.message || 'Error adding material type');
+        }
+    } catch (error) {
+        console.error('Error adding material type:', error);
+        // Even if API fails, allow using the custom type for this session
+        selectMaterialType(typeName);
     }
 }
 
@@ -423,8 +542,12 @@ function populateMaterialSelects() {
 
 function openAddMaterialModal() {
     document.getElementById('addMaterialForm').reset();
+    document.getElementById('new-material-type-search').value = '';
+    document.getElementById('new-material-type').value = '';
     document.querySelectorAll('.dimension-field').forEach(el => el.style.display = 'none');
     document.getElementById('add-material-modal').classList.add('active');
+    populateSupplierSelect();
+    populateLocationSelect();
 }
 
 function closeAddMaterialModal() {
