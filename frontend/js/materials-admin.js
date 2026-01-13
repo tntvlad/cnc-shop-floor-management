@@ -319,15 +319,16 @@ function formatMaterialDimensions(material) {
     
     switch(material.shape_type) {
         case 'bar_round':
-            return `⌀${material.diameter || 0}mm × ${material.length || 0}mm`;
+            return `⌀${material.diameter || 0}mm × ${material.length || 0}mm L`;
         case 'tube':
-            return `⌀${material.diameter || 0}mm × ${material.thickness || 0}mm wall × ${material.length || 0}mm`;
+            return `⌀${material.diameter || 0}mm × ${material.thickness || 0}mm wall × ${material.length || 0}mm L`;
         case 'bar_square':
+            return `${material.width || 0}×${material.width || 0}mm × ${material.length || 0}mm L`;
         case 'bar_hex':
-            return `${material.width || 0}×${material.height || 0}mm × ${material.length || 0}mm`;
+            return `⬡${material.width || 0}mm × ${material.length || 0}mm L`;
         case 'plate':
         case 'sheet':
-            return `${material.width || 0}×${material.height || 0}×${material.thickness || 0}mm`;
+            return `${material.width || 0}×${material.length || 0}mm × ${material.thickness || 0}mm thick`;
         default:
             return `${material.length || 0}mm`;
     }
@@ -355,21 +356,23 @@ function updateDimensionFields() {
     switch(shapeType) {
         case 'bar_round':
             document.getElementById('diameter-field').style.display = 'block';
+            document.getElementById('length-field').style.display = 'block';
             break;
         case 'bar_square':
         case 'bar_hex':
             document.getElementById('width-field').style.display = 'block';
-            document.getElementById('height-field').style.display = 'block';
+            document.getElementById('length-field').style.display = 'block';
             break;
         case 'plate':
         case 'sheet':
             document.getElementById('width-field').style.display = 'block';
-            document.getElementById('height-field').style.display = 'block';
+            document.getElementById('length-field').style.display = 'block';
             document.getElementById('thickness-field').style.display = 'block';
             break;
         case 'tube':
             document.getElementById('diameter-field').style.display = 'block';
             document.getElementById('thickness-field').style.display = 'block';
+            document.getElementById('length-field').style.display = 'block';
             break;
     }
 }
