@@ -776,6 +776,7 @@ function addPartField() {
         <input type="hidden" name="parts[${partIndex}][material_id]">
         <input type="hidden" name="parts[${partIndex}][material_type_name]">
         <div class="material-dropdown"></div>
+        <button type="button" class="btn-smart-suggest" onclick="openSmartSuggestions(${partIndex})" title="Smart Material Suggestions">🔍 Smart</button>
       </div>
       <!-- Step 2: Shape Selection -->
       <select name="parts[${partIndex}][shape_type]" class="shape-select" data-index="${partIndex}" title="2. Select shape" disabled>
