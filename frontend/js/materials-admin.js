@@ -206,6 +206,8 @@ function hideMaterialTypeDropdown() {
 
 function filterMaterialTypes() {
     const searchValue = document.getElementById('new-material-type-search').value;
+    // Also update the hidden field as user types
+    document.getElementById('new-material-type').value = searchValue;
     renderMaterialTypeDropdown(searchValue);
     showMaterialTypeDropdown();
 }
@@ -597,21 +599,39 @@ function closeStockOutModal() {
 async function saveNewMaterial(event) {
     event.preventDefault();
     
+    // Validate required fields
+    const materialType = document.getElementById('new-material-type').value;
+    const shapeType = document.getElementById('new-shape-type').value;
+    
+    if (!materialType || !materialType.trim()) {
+        alert('Please select or enter a material type');
+        return;
+    }
+    
+    if (!shapeType) {
+        alert('Please select a shape type');
+        return;
+    }
+    
+    // Helper to convert empty string to null for numeric fields
+    const toNumberOrNull = (value) => value === '' || value === null || value === undefined ? null : parseFloat(value);
+    const toIntOrNull = (value) => value === '' || value === null || value === undefined ? null : parseInt(value, 10);
+    
     const materialData = {
-        material_type: document.getElementById('new-material-type').value,
-        material_name: document.getElementById('new-material-type').value,
-        shape_type: document.getElementById('new-shape-type').value,
-        diameter: document.getElementById('new-diameter').value || null,
-        width: document.getElementById('new-width').value || null,
-        height: document.getElementById('new-height').value || null,
-        thickness: document.getElementById('new-thickness').value || null,
-        length: document.getElementById('new-length').value,
-        current_stock: document.getElementById('new-quantity').value,
-        location_id: document.getElementById('new-location').value || null,
-        supplier_id: document.getElementById('new-supplier').value || null,
-        cost_per_unit: document.getElementById('new-cost').value || 0,
-        reorder_level: document.getElementById('new-reorder').value || 5,
-        notes: document.getElementById('new-material-notes').value
+        material_type: materialType.trim(),
+        material_name: materialType.trim(),
+        shape_type: shapeType,
+        diameter: toNumberOrNull(document.getElementById('new-diameter').value),
+        width: toNumberOrNull(document.getElementById('new-width').value),
+        height: toNumberOrNull(document.getElementById('new-height').value),
+        thickness: toNumberOrNull(document.getElementById('new-thickness').value),
+        length: toNumberOrNull(document.getElementById('new-length').value),
+        current_stock: toIntOrNull(document.getElementById('new-quantity').value) || 1,
+        location_id: toIntOrNull(document.getElementById('new-location').value),
+        supplier_id: toIntOrNull(document.getElementById('new-supplier').value),
+        cost_per_unit: toNumberOrNull(document.getElementById('new-cost').value) || 0,
+        reorder_level: toIntOrNull(document.getElementById('new-reorder').value) || 5,
+        notes: document.getElementById('new-material-notes').value || null
     };
 
     try {
