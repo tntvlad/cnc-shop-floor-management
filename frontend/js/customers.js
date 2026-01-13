@@ -4,11 +4,15 @@ let currentCustomer = null;
 let currentContacts = [];
 
 document.addEventListener('DOMContentLoaded', function() {
-  ensureAuthed();
-  checkPageAccess();
-  loadCurrentUser();
-  loadCustomers();
-  setupSearch();
+  // Only run auto-init on standalone customers.html page
+  // On admin-settings.html, switchAdminTab calls loadCustomers() and setupSearch() directly
+  if (window.location.pathname.includes('customers.html')) {
+    ensureAuthed();
+    checkPageAccess();
+    loadCurrentUser();
+    loadCustomers();
+    setupSearch();
+  }
 });
 
 // Check if user has access to this page (Supervisor+ level 400+)
@@ -47,6 +51,8 @@ function loadCurrentUser() {
 
 function setupSearch() {
   const searchInput = document.getElementById('search-input');
+  if (!searchInput) return; // Guard for pages where search doesn't exist
+  
   let debounceTimer;
   
   searchInput.addEventListener('input', (e) => {
