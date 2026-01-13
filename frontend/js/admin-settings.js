@@ -750,7 +750,7 @@ async function checkModalStatus() {
 // ADMIN TABS FUNCTIONALITY
 // =============================================
 
-let materialsData = [];
+// Note: materialsData is defined in materials-admin.js
 let machinesData = [];
 
 // Tab switching for Admin Settings
