@@ -462,12 +462,17 @@ async function deleteContact(contactId) {
 // Utility Functions
 function showAlert(message, type) {
   const container = document.getElementById('alert-container');
-  const alert = document.createElement('div');
-  alert.className = `alert alert-${type}`;
-  alert.textContent = message;
-  container.appendChild(alert);
+  if (!container) {
+    // Fallback to regular alert if container doesn't exist
+    alert(message);
+    return;
+  }
+  const alertEl = document.createElement('div');
+  alertEl.className = `alert alert-${type}`;
+  alertEl.textContent = message;
+  container.appendChild(alertEl);
 
-  setTimeout(() => alert.remove(), 5000);
+  setTimeout(() => alertEl.remove(), 5000);
 }
 
 function escapeHtml(text) {
