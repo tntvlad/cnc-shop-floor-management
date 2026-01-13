@@ -42,22 +42,26 @@ document.addEventListener('DOMContentLoaded', () => {
     500: 'Full system access, manage all data and configurations'
   };
 
-  levelSelect.addEventListener('change', (e) => {
-    const selectedLevel = parseInt(e.target.value);
-    if (selectedLevel && levelDescriptions[selectedLevel]) {
-      levelHint.textContent = `📋 ${levelDescriptions[selectedLevel]}`;
-    } else {
-      levelHint.textContent = '';
-    }
-  });
+  if (levelSelect) {
+    levelSelect.addEventListener('change', (e) => {
+      const selectedLevel = parseInt(e.target.value);
+      if (selectedLevel && levelDescriptions[selectedLevel]) {
+        levelHint.textContent = `📋 ${levelDescriptions[selectedLevel]}`;
+      } else {
+        levelHint.textContent = '';
+      }
+    });
+  }
 
   // Create user form
-  document.getElementById('createUserForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  const createUserForm = document.getElementById('createUserForm');
+  if (createUserForm) {
+    createUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
     
-    const employeeId = document.getElementById('newEmployeeId').value.trim();
-    const fullName = document.getElementById('newFullName').value.trim();
-    const password = document.getElementById('newPassword').value;
+      const employeeId = document.getElementById('newEmployeeId').value.trim();
+      const fullName = document.getElementById('newFullName').value.trim();
+      const password = document.getElementById('newPassword').value;
     const level = parseInt(document.getElementById('newLevel').value);
 
     const errorEl = document.getElementById('createUserError');
@@ -112,14 +116,18 @@ document.addEventListener('DOMContentLoaded', () => {
       errorEl.textContent = error.message;
       errorEl.style.display = 'block';
     }
-  });
+    });
+  }
 
   // Initial status check
   checkStatus();
 
   // Load users list
-  document.getElementById('refreshUsersBtn').addEventListener('click', loadUsers);
-  loadUsers();
+  const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+  if (refreshUsersBtn) {
+    refreshUsersBtn.addEventListener('click', loadUsers);
+    loadUsers();
+  }
   
   // Release checkbox toggle
   const useReleaseCheckbox = document.getElementById('useReleaseCheckbox');
