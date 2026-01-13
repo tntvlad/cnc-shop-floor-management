@@ -980,7 +980,9 @@ function openAddMaterialTypeModal() {
         document.getElementById('materialTypeForm').reset();
         document.getElementById('material-type-id').value = '';
         document.getElementById('material-type-modal-title').textContent = 'Add Material Type';
-        document.getElementById('material-type-modal').classList.add('active');
+        const modal = document.getElementById('material-type-modal');
+        modal.classList.add('active');
+        modal.style.display = 'flex';  // Force display
         console.log('Modal should be open now');
     } catch (error) {
         console.error('Error opening modal:', error);
@@ -989,7 +991,9 @@ function openAddMaterialTypeModal() {
 }
 
 function closeMaterialTypeModal() {
-    document.getElementById('material-type-modal').classList.remove('active');
+    const modal = document.getElementById('material-type-modal');
+    modal.classList.remove('active');
+    modal.style.display = 'none';  // Force hide
 }
 
 async function editMaterialType(id) {
@@ -1005,7 +1009,9 @@ async function editMaterialType(id) {
             document.getElementById('material-type-aliases').value = type.aliases ? (Array.isArray(type.aliases) ? type.aliases.join(', ') : type.aliases) : '';
             document.getElementById('material-type-description').value = type.description || '';
             document.getElementById('material-type-modal-title').textContent = 'Edit Material Type';
-            document.getElementById('material-type-modal').classList.add('active');
+            const modal = document.getElementById('material-type-modal');
+            modal.classList.add('active');
+            modal.style.display = 'flex';  // Force display
         }
     } catch (error) {
         console.error('Error loading material type:', error);
