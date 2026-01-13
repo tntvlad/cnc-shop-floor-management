@@ -13,7 +13,8 @@ class MaterialSelector {
             onMaterialSelected: options.onMaterialSelected || null,
             showQuantity: options.showQuantity !== false,
             defaultQuantity: options.defaultQuantity || 1,
-            maxSuggestions: options.maxSuggestions || 5
+            maxSuggestions: options.maxSuggestions || 5,
+            prefill: options.prefill || null
         };
         
         this.selectedMaterial = null;
@@ -27,6 +28,76 @@ class MaterialSelector {
     init() {
         this.render();
         this.attachEventListeners();
+        this.applyPrefill();
+    }
+
+    applyPrefill() {
+        if (!this.options.prefill) return;
+        
+        const prefill = this.options.prefill;
+        
+        // Pre-fill material type
+        if (prefill.materialType) {
+            const input = this.container.querySelector('#materialTypeInput');
+            if (input) input.value = prefill.materialType;
+        }
+        
+        // Pre-fill shape type
+        if (prefill.shapeType) {
+            const select = this.container.querySelector('#materialShapeType');
+            if (select) {
+                select.value = prefill.shapeType;
+                this.updateDimensionFields(prefill.shapeType);
+            }
+        }
+        
+        // Pre-fill dimensions
+        if (prefill.dimensions) {
+            const dims = prefill.dimensions;
+            if (dims.width) {
+                const el = this.container.querySelector('#materialWidth');
+                if (el) el.value = dims.width;
+            }
+            if (dims.height) {
+                const el = this.container.querySelector('#materialHeight');
+                if (el) el.value = dims.height;
+            }
+            if (dims.length) {
+                const el = this.container.querySelector('#materialThickness');
+                if (el) el.value = dims.length;
+            }
+            if (dims.diameter) {
+                const el = this.container.querySelector('#materialDiameter');
+                if (el) el.value = dims.diameter;
+            }
+        }
+        
+        // Auto-search if we have data
+        if (prefill.materialType && prefill.shapeType) {
+            setTimeout(() => this.handleGetSuggestions(), 300);
+        }
+    }
+
+    updateDimensionFields(shapeType) {
+        const widthGroup = this.container.querySelector('#widthGroup');
+        const heightGroup = this.container.querySelector('#heightGroup');
+        const thicknessGroup = this.container.querySelector('#thicknessGroup');
+        const diameterGroup = this.container.querySelector('#diameterGroup');
+        
+        // Reset all
+        [widthGroup, heightGroup, thicknessGroup].forEach(g => { if (g) g.style.display = 'block'; });
+        if (diameterGroup) diameterGroup.style.display = 'none';
+        
+        if (shapeType === 'bar_round' || shapeType === 'bar_hex' || shapeType === 'tube') {
+            [widthGroup, heightGroup].forEach(g => { if (g) g.style.display = 'none'; });
+            if (diameterGroup) diameterGroup.style.display = 'block';
+            // Use thickness as length
+            const thicknessLabel = thicknessGroup?.querySelector('label');
+            if (thicknessLabel) thicknessLabel.textContent = 'Length';
+        } else {
+            const thicknessLabel = thicknessGroup?.querySelector('label');
+            if (thicknessLabel) thicknessLabel.textContent = 'Thickness/Length';
+        }
     }
 
     render() {
@@ -312,15 +383,41 @@ class MaterialSelector {
     displaySuggestions(response) {
         const section = this.container.querySelector('#suggestionsSection');
         const container = this.container.querySelector('#suggestionsContainer');
+        const materialType = this.container.querySelector('#materialTypeInput').value;
 
         if (!response.suggestions || response.suggestions.length === 0) {
             container.innerHTML = `
                 <div class="no-suggestions">
-                    <p>No matching materials found in stock.</p>
-                    <p class="text-muted">Consider placing a material purchase order.</p>
+                    <div style="text-align: center; padding: 2rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📦❌</div>
+                        <h4 style="color: #dc3545; margin-bottom: 0.5rem;">No Stock Available</h4>
+                        <p style="color: #666;">No matching materials found for <strong>${materialType}</strong> with specified dimensions.</p>
+                        <hr style="margin: 1.5rem 0;">
+                        <p style="color: #0d6efd; font-weight: 500;">📋 Material needs to be ordered</p>
+                        <button type="button" class="btn btn-warning btn-needs-order" style="margin-top: 1rem; padding: 0.75rem 2rem;">
+                            ⚠️ Mark as "Needs Order"
+                        </button>
+                    </div>
                 </div>
             `;
             section.style.display = 'block';
+            
+            // Add click handler for "Needs Order" button
+            container.querySelector('.btn-needs-order')?.addEventListener('click', () => {
+                if (this.options.onMaterialSelected) {
+                    this.options.onMaterialSelected({
+                        material_name: materialType,
+                        stock_id: null,
+                        needs_order: true,
+                        dimensions: {
+                            width: this.container.querySelector('#materialWidth')?.value,
+                            height: this.container.querySelector('#materialHeight')?.value,
+                            thickness: this.container.querySelector('#materialThickness')?.value,
+                            diameter: this.container.querySelector('#materialDiameter')?.value
+                        }
+                    });
+                }
+            });
             return;
         }
 

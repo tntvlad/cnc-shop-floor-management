@@ -975,9 +975,30 @@ function setupShapeSelect(partItem, partIndex) {
 
 // Smart Material Suggestions Modal
 let currentSuggestionPartIndex = null;
+let materialSelectorInstance = null;
 
 function openSmartSuggestions(partIndex) {
   currentSuggestionPartIndex = partIndex;
+  
+  // Get current part data to pre-fill the modal
+  const partItem = document.querySelector(`#parts-list .part-item:nth-child(${partIndex + 1})`);
+  const materialType = partItem?.querySelector('.material-search')?.value || '';
+  const shapeType = partItem?.querySelector('.shape-select')?.value || '';
+  
+  // Get dimensions based on shape
+  let dimensions = {};
+  if (shapeType === 'plate' || shapeType === 'bar_square') {
+    dimensions.width = partItem?.querySelector(`input[name="parts[${partIndex}][dim_w]"]`)?.value || '';
+    dimensions.height = partItem?.querySelector(`input[name="parts[${partIndex}][dim_h]"]`)?.value || '';
+    dimensions.length = partItem?.querySelector(`input[name="parts[${partIndex}][dim_l]"]`)?.value || '';
+  } else if (shapeType === 'bar_round' || shapeType === 'bar_hex') {
+    dimensions.diameter = partItem?.querySelector(`input[name="parts[${partIndex}][dim_d]"]`)?.value || '';
+    dimensions.length = partItem?.querySelector(`input[name="parts[${partIndex}][dim_dl]"]`)?.value || '';
+  } else if (shapeType === 'tube') {
+    dimensions.diameter = partItem?.querySelector(`input[name="parts[${partIndex}][dim_od]"]`)?.value || '';
+    dimensions.wall = partItem?.querySelector(`input[name="parts[${partIndex}][dim_wall]"]`)?.value || '';
+    dimensions.length = partItem?.querySelector(`input[name="parts[${partIndex}][dim_tl]"]`)?.value || '';
+  }
   
   // Create modal if not exists
   let modal = document.getElementById('material-suggestion-modal');
@@ -988,7 +1009,7 @@ function openSmartSuggestions(partIndex) {
     modal.innerHTML = `
       <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header">
-          <h3>🔍 Smart Material Suggestions</h3>
+          <h3>🔍 Find Available Materials</h3>
           <button class="modal-close" onclick="closeSmartSuggestions()">&times;</button>
         </div>
         <div class="modal-body">
@@ -1001,14 +1022,19 @@ function openSmartSuggestions(partIndex) {
   
   modal.style.display = 'flex';
   
-  // Initialize MaterialSelector if available
+  // Initialize MaterialSelector with pre-filled data
   if (typeof MaterialSelector !== 'undefined') {
-    new MaterialSelector('material-selector-container', {
+    materialSelectorInstance = new MaterialSelector('material-selector-container', {
       onMaterialSelected: (material) => {
         applySelectedMaterial(currentSuggestionPartIndex, material);
         closeSmartSuggestions();
       },
-      showQuantity: false
+      showQuantity: false,
+      prefill: {
+        materialType: materialType,
+        shapeType: shapeType,
+        dimensions: dimensions
+      }
     });
   } else {
     document.getElementById('material-selector-container').innerHTML = 
@@ -1034,6 +1060,26 @@ function applySelectedMaterial(partIndex, material) {
   if (searchInput && material.material_name) {
     searchInput.value = material.material_name;
   }
+  
+  // Handle "needs order" case
+  if (material.needs_order) {
+    hiddenInput.value = 'NEEDS_ORDER';
+    searchInput.value = `⚠️ ${material.material_name} (NEEDS ORDER)`;
+    searchInput.style.borderColor = '#f59e0b';
+    searchInput.style.backgroundColor = '#fef3c7';
+    
+    // Store needs_order flag
+    let needsOrderInput = partItem.querySelector(`input[name="parts[${partIndex}][needs_order]"]`);
+    if (!needsOrderInput) {
+      needsOrderInput = document.createElement('input');
+      needsOrderInput.type = 'hidden';
+      needsOrderInput.name = `parts[${partIndex}][needs_order]`;
+      partItem.appendChild(needsOrderInput);
+    }
+    needsOrderInput.value = 'true';
+    return;
+  }
+  
   if (hiddenInput && material.stock_id) {
     hiddenInput.value = material.stock_id;
   }
@@ -1059,10 +1105,12 @@ function applySelectedMaterial(partIndex, material) {
     }
   }
   
-  // Visual feedback
+  // Visual feedback - green for success
   searchInput.style.borderColor = '#22c55e';
+  searchInput.style.backgroundColor = '#dcfce7';
   setTimeout(() => {
     searchInput.style.borderColor = '';
+    searchInput.style.backgroundColor = '';
   }, 2000);
 }
 
