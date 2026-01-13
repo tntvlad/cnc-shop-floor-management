@@ -257,6 +257,16 @@ app.post('/api/materials/:id/transfer', authMiddleware, requireSupervisor(), mat
 app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor(), materialsController.adjustMaterialStock);
 app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsController.getOrderMaterialRequirements);
 
+// ======================== MATERIAL SUGGESTIONS ROUTES ========================
+app.post('/api/materials/suggestions', authMiddleware, materialsController.getMaterialSuggestions);
+app.get('/api/materials/types/search/:term', authMiddleware, materialsController.searchMaterialTypes);
+app.get('/api/materials/types/:id/equivalents', authMiddleware, materialsController.getMaterialTypeEquivalents);
+app.post('/api/materials/types/:id/equivalents', authMiddleware, requireSupervisor(), materialsController.addMaterialEquivalent);
+app.delete('/api/materials/types/:id/equivalents/:equivalentId', authMiddleware, requireSupervisor(), materialsController.removeMaterialEquivalent);
+app.post('/api/materials/suggestions/:id/accept', authMiddleware, materialsController.acceptSuggestion);
+app.post('/api/materials/suggestions/:id/reject', authMiddleware, materialsController.rejectSuggestion);
+app.get('/api/parts/:partId/material-suggestions', authMiddleware, materialsController.getPartSuggestions);
+
 // ======================== SUPPLIERS ROUTES ========================
 app.get('/api/suppliers', authMiddleware, materialsController.getSuppliers);
 app.post('/api/suppliers', authMiddleware, requireSupervisor(), materialsController.createSupplier);

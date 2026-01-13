@@ -774,6 +774,7 @@ function addPartField() {
         <input type="text" placeholder="Search material..." class="material-search" data-index="${partIndex}" autocomplete="off">
         <input type="hidden" name="parts[${partIndex}][material_id]">
         <div class="material-dropdown"></div>
+        <button type="button" class="btn-smart-suggest" onclick="openSmartSuggestions(${partIndex})" title="Smart Material Suggestions">🔍 Smart</button>
       </div>
       <div class="dimension-group" title="Rectangular: Height x Width x Length">
         <input type="number" placeholder="H" name="parts[${partIndex}][dim_h]" min="0" step="0.1">
@@ -865,6 +866,99 @@ function renderMaterialDropdown(dropdown, materials, searchInput, hiddenInput) {
       dropdown.classList.remove('active');
     });
   });
+}
+
+// Smart Material Suggestions Modal
+let currentSuggestionPartIndex = null;
+
+function openSmartSuggestions(partIndex) {
+  currentSuggestionPartIndex = partIndex;
+  
+  // Create modal if not exists
+  let modal = document.getElementById('material-suggestion-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'material-suggestion-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+          <h3>🔍 Smart Material Suggestions</h3>
+          <button class="modal-close" onclick="closeSmartSuggestions()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="material-selector-container"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  modal.style.display = 'flex';
+  
+  // Initialize MaterialSelector if available
+  if (typeof MaterialSelector !== 'undefined') {
+    new MaterialSelector('material-selector-container', {
+      onMaterialSelected: (material) => {
+        applySelectedMaterial(currentSuggestionPartIndex, material);
+        closeSmartSuggestions();
+      },
+      showQuantity: false
+    });
+  } else {
+    document.getElementById('material-selector-container').innerHTML = 
+      '<p class="text-center text-muted">MaterialSelector component not loaded.</p>';
+  }
+}
+
+function closeSmartSuggestions() {
+  const modal = document.getElementById('material-suggestion-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function applySelectedMaterial(partIndex, material) {
+  const partItem = document.querySelector(`#parts-list .part-item:nth-child(${partIndex + 1})`);
+  if (!partItem) return;
+  
+  // Set material search input
+  const searchInput = partItem.querySelector('.material-search');
+  const hiddenInput = partItem.querySelector(`input[name="parts[${partIndex}][material_id]"]`);
+  
+  if (searchInput && material.material_name) {
+    searchInput.value = material.material_name;
+  }
+  if (hiddenInput && material.stock_id) {
+    hiddenInput.value = material.stock_id;
+  }
+  
+  // Set dimensions if available
+  if (material.dimensions) {
+    const dims = material.dimensions;
+    if (dims.height) {
+      const hInput = partItem.querySelector(`input[name="parts[${partIndex}][dim_h]"]`);
+      if (hInput) hInput.value = dims.height;
+    }
+    if (dims.width) {
+      const wInput = partItem.querySelector(`input[name="parts[${partIndex}][dim_w]"]`);
+      if (wInput) wInput.value = dims.width;
+    }
+    if (dims.length) {
+      const lInput = partItem.querySelector(`input[name="parts[${partIndex}][dim_l]"]`);
+      if (lInput) lInput.value = dims.length;
+    }
+    if (dims.diameter) {
+      const dInput = partItem.querySelector(`input[name="parts[${partIndex}][dim_d]"]`);
+      if (dInput) dInput.value = dims.diameter;
+    }
+  }
+  
+  // Visual feedback
+  searchInput.style.borderColor = '#22c55e';
+  setTimeout(() => {
+    searchInput.style.borderColor = '';
+  }, 2000);
 }
 
 function selectFolder(partIndex) {

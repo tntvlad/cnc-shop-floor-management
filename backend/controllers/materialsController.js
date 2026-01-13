@@ -1,4 +1,6 @@
 const pool = require('../config/database');
+const MaterialSuggestions = require('../models/MaterialSuggestions');
+const MaterialType = require('../models/MaterialType');
 
 // ============================================================================
 // MATERIALS CRUD
@@ -1065,6 +1067,124 @@ async function getOrderMaterialRequirements(req, res) {
   }
 }
 
+// ============================================================================
+// MATERIAL SUGGESTIONS
+// ============================================================================
+
+// Get material suggestions based on requirements
+async function getMaterialSuggestions(req, res) {
+  try {
+    const { material_type, dimensions, quantity, max_suggestions } = req.body;
+
+    if (!material_type) {
+      return res.status(400).json({ success: false, error: 'material_type is required' });
+    }
+
+    const suggestions = await MaterialSuggestions.getSuggestions(
+      material_type,
+      dimensions || {},
+      quantity || 1,
+      max_suggestions || 5
+    );
+
+    res.json({ success: true, ...suggestions });
+  } catch (error) {
+    console.error('Error getting suggestions:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Search material types by name or spec code
+async function searchMaterialTypes(req, res) {
+  try {
+    const { term } = req.params;
+    const types = await MaterialType.findByNameOrSpec(term);
+    res.json({ success: true, types });
+  } catch (error) {
+    console.error('Error searching material types:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Get material type equivalents
+async function getMaterialTypeEquivalents(req, res) {
+  try {
+    const equivalents = await MaterialType.getEquivalents(req.params.id);
+    res.json({ success: true, equivalents });
+  } catch (error) {
+    console.error('Error fetching equivalents:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Add material equivalence
+async function addMaterialEquivalent(req, res) {
+  try {
+    const { equivalent_id, rank, notes } = req.body;
+    if (!equivalent_id) {
+      return res.status(400).json({ success: false, error: 'equivalent_id is required' });
+    }
+    const equiv = await MaterialType.addEquivalent(req.params.id, equivalent_id, rank, notes);
+    res.status(201).json({ success: true, equivalent: equiv, message: 'Equivalence added' });
+  } catch (error) {
+    console.error('Error adding equivalence:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Remove material equivalence
+async function removeMaterialEquivalent(req, res) {
+  try {
+    const removed = await MaterialType.removeEquivalent(req.params.id, req.params.equivalentId);
+    if (!removed) {
+      return res.status(404).json({ success: false, error: 'Equivalence not found' });
+    }
+    res.json({ success: true, message: 'Equivalence removed' });
+  } catch (error) {
+    console.error('Error removing equivalence:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Accept material suggestion
+async function acceptSuggestion(req, res) {
+  try {
+    const suggestion = await MaterialSuggestions.acceptSuggestion(req.params.id, req.user.id);
+    if (!suggestion) {
+      return res.status(404).json({ success: false, error: 'Suggestion not found' });
+    }
+    res.json({ success: true, suggestion, message: 'Suggestion accepted' });
+  } catch (error) {
+    console.error('Error accepting suggestion:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Reject material suggestion
+async function rejectSuggestion(req, res) {
+  try {
+    const suggestion = await MaterialSuggestions.rejectSuggestion(req.params.id, req.user.id);
+    if (!suggestion) {
+      return res.status(404).json({ success: false, error: 'Suggestion not found' });
+    }
+    res.json({ success: true, suggestion, message: 'Suggestion rejected' });
+  } catch (error) {
+    console.error('Error rejecting suggestion:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Get suggestions for a part
+async function getPartSuggestions(req, res) {
+  try {
+    const suggestions = await MaterialSuggestions.getByPartId(req.params.partId);
+    res.json({ success: true, suggestions });
+  } catch (error) {
+    console.error('Error fetching part suggestions:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 module.exports = {
   // Materials
   getMaterials,
@@ -1106,5 +1226,15 @@ module.exports = {
   // Legacy compatibility
   updateMaterialStock,
   adjustMaterialStock,
-  getOrderMaterialRequirements
+  getOrderMaterialRequirements,
+  
+  // Material Suggestions (Phase 4)
+  getMaterialSuggestions,
+  searchMaterialTypes,
+  getMaterialTypeEquivalents,
+  addMaterialEquivalent,
+  removeMaterialEquivalent,
+  acceptSuggestion,
+  rejectSuggestion,
+  getPartSuggestions
 };
