@@ -341,8 +341,9 @@ CREATE TABLE storage_locations (
 CREATE TABLE material_types (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    category VARCHAR(50) NOT NULL, -- 'metal', 'plastic', 'composite'
+    category VARCHAR(50) NOT NULL, -- 'metal', 'plastic', 'composite', 'wood', 'other'
     density DECIMAL(10,4), -- kg/dm³ for weight calculations
+    aliases TEXT[] DEFAULT '{}', -- Alternative/equivalent names for this material
     description TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
