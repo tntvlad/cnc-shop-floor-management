@@ -962,10 +962,17 @@ function getCategoryBadge(category) {
 }
 
 function openAddMaterialTypeModal() {
-    document.getElementById('materialTypeForm').reset();
-    document.getElementById('material-type-id').value = '';
-    document.getElementById('material-type-modal-title').textContent = 'Add Material Type';
-    document.getElementById('material-type-modal').classList.add('active');
+    console.log('openAddMaterialTypeModal called');
+    try {
+        document.getElementById('materialTypeForm').reset();
+        document.getElementById('material-type-id').value = '';
+        document.getElementById('material-type-modal-title').textContent = 'Add Material Type';
+        document.getElementById('material-type-modal').classList.add('active');
+        console.log('Modal should be open now');
+    } catch (error) {
+        console.error('Error opening modal:', error);
+        alert('Error opening modal: ' + error.message);
+    }
 }
 
 function closeMaterialTypeModal() {
@@ -973,6 +980,7 @@ function closeMaterialTypeModal() {
 }
 
 async function editMaterialType(id) {
+    console.log('editMaterialType called with id:', id);
     try {
         const response = await api.get(`/materials/types/${id}`);
         if (response.success && response.type) {
