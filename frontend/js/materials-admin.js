@@ -634,6 +634,8 @@ async function saveNewMaterial(event) {
         notes: document.getElementById('new-material-notes').value || null
     };
 
+    console.log('Saving material data:', materialData);
+
     try {
         const response = await api.post('/materials', materialData);
         if (response.success) {
@@ -646,7 +648,7 @@ async function saveNewMaterial(event) {
         }
     } catch (error) {
         console.error('Error saving material:', error);
-        alert('Error adding material');
+        alert('Error adding material: ' + (error.message || 'Unknown error'));
     }
 }
 
