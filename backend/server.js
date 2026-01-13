@@ -237,14 +237,33 @@ app.post('/api/orders/:orderId/parts', authMiddleware, requireSupervisor(), orde
 app.put('/api/parts/:partId/priority', authMiddleware, requireSupervisor(), ordersController.updatePartPriority);
 
 // ======================== MATERIALS ROUTES ========================
+app.get('/api/materials/stats', authMiddleware, materialsController.getMaterialsStats);
+app.get('/api/materials/types', authMiddleware, materialsController.getMaterialTypes);
+app.get('/api/materials/alerts/low-stock', authMiddleware, materialsController.getLowStockAlerts);
+app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
+app.get('/api/materials/transactions', authMiddleware, materialsController.getTransactions);
 app.get('/api/materials', authMiddleware, materialsController.getMaterials);
 app.get('/api/materials/:id', authMiddleware, materialsController.getMaterialById);
 app.post('/api/materials', authMiddleware, requireSupervisor(), materialsController.createMaterial);
-app.put('/api/materials/:id', authMiddleware, requireSupervisor(), materialsController.updateMaterialStock);
+app.put('/api/materials/:id', authMiddleware, requireSupervisor(), materialsController.updateMaterial);
+app.delete('/api/materials/:id', authMiddleware, requireSupervisor(), materialsController.deleteMaterial);
+app.post('/api/materials/:id/stock-in', authMiddleware, requireSupervisor(), materialsController.stockIn);
+app.post('/api/materials/:id/stock-out', authMiddleware, requireSupervisor(), materialsController.stockOut);
+app.post('/api/materials/:id/transfer', authMiddleware, requireSupervisor(), materialsController.transferStock);
 app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor(), materialsController.adjustMaterialStock);
-app.get('/api/materials/alerts/low-stock', authMiddleware, materialsController.getLowStockAlerts);
 app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsController.getOrderMaterialRequirements);
-app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
+
+// ======================== SUPPLIERS ROUTES ========================
+app.get('/api/suppliers', authMiddleware, materialsController.getSuppliers);
+app.post('/api/suppliers', authMiddleware, requireSupervisor(), materialsController.createSupplier);
+app.put('/api/suppliers/:id', authMiddleware, requireSupervisor(), materialsController.updateSupplier);
+app.delete('/api/suppliers/:id', authMiddleware, requireSupervisor(), materialsController.deleteSupplier);
+
+// ======================== STORAGE LOCATIONS ROUTES ========================
+app.get('/api/storage-locations', authMiddleware, materialsController.getStorageLocations);
+app.post('/api/storage-locations', authMiddleware, requireSupervisor(), materialsController.createStorageLocation);
+app.put('/api/storage-locations/:id', authMiddleware, requireSupervisor(), materialsController.updateStorageLocation);
+app.delete('/api/storage-locations/:id', authMiddleware, requireSupervisor(), materialsController.deleteStorageLocation);
 
 // ======================== CUSTOMERS ROUTES ========================
 app.get('/api/customers', authMiddleware, requireSupervisor(), customersController.getCustomers);

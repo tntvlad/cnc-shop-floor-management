@@ -778,7 +778,10 @@ function switchAdminTab(tabName) {
       setupSearch();
     }
   } else if (tabName === 'materials') {
-    loadAdminMaterials();
+    // Use materials-admin.js functions
+    if (typeof initMaterialsTab === 'function') {
+      initMaterialsTab();
+    }
   } else if (tabName === 'machines') {
     loadAdminMachines();
   }

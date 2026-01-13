@@ -369,6 +369,131 @@
         label.required::after { content: ' *'; color: #dc3545; }
         .contacts-list { padding: 1rem; }
 
+        /* Materials Tab Styles */
+        .materials-subnav {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 8px;
+        }
+        .materials-subtab {
+            padding: 10px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .materials-subtab:hover { background: #e9ecef; }
+        .materials-subtab.active {
+            background: #667eea;
+            color: white;
+        }
+        .materials-subtab-content {
+            display: none;
+        }
+        .materials-subtab-content.active {
+            display: block;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .shape-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            background: #667eea;
+            color: white;
+        }
+        .stock-level {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stock-bar {
+            width: 60px;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .stock-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .stock-high { background: #4CAF50; }
+        .stock-medium { background: #ff9800; }
+        .stock-low { background: #f44336; }
+        .status-available { background: #d1e7dd; color: #0f5132; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .status-low_stock { background: #fff3cd; color: #664d03; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .status-out_of_stock { background: #f8d7da; color: #842029; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .status-reserved { background: #cff4fc; color: #055160; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .locations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .location-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+        }
+        .location-card h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 18px;
+        }
+        .location-card .location-info {
+            font-size: 13px;
+            color: #666;
+        }
+        .location-card .location-count {
+            font-weight: bold;
+            color: #333;
+            margin-top: 10px;
+        }
+        .transaction-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .transaction-stock_in { background: #d1e7dd; color: #0f5132; }
+        .transaction-stock_out { background: #f8d7da; color: #842029; }
+        .transaction-transfer { background: #cff4fc; color: #055160; }
+        .transaction-adjustment { background: #fff3cd; color: #664d03; }
+
         /* Modal Styles (matching customers.html) */
         .modal {
             position: fixed;
@@ -599,31 +724,149 @@
 
             <!-- MATERIALS TAB -->
             <div id="admin-tab-materials" class="admin-tab-content">
-                <div class="settings-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0; border: none; padding: 0;">Materials Management</h3>
-                        <button class="btn btn-primary" onclick="openAddMaterialModal()">+ Add Material</button>
+                <!-- Sub-navigation for Materials -->
+                <div class="materials-subnav">
+                    <button class="materials-subtab active" onclick="switchMaterialsSubtab('stock')">📦 Stock</button>
+                    <button class="materials-subtab" onclick="switchMaterialsSubtab('suppliers')">🏢 Suppliers</button>
+                    <button class="materials-subtab" onclick="switchMaterialsSubtab('locations')">📍 Locations</button>
+                    <button class="materials-subtab" onclick="switchMaterialsSubtab('transactions')">🔄 Transactions</button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div id="materials-stats" class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-items">0</div>
+                        <div class="stat-label">Total Items</div>
                     </div>
-                    <div class="search-bar">
-                        <input type="text" id="material-search" placeholder="Search materials..." onkeyup="searchMaterials(this.value)">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-material-types">0</div>
+                        <div class="stat-label">Material Types</div>
                     </div>
-                    <div style="overflow-x:auto;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Material Name</th>
-                                    <th>Type</th>
-                                    <th>Description</th>
-                                    <th>Stock Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="materialsTableBody">
-                                <tr>
-                                    <td colspan="5" style="padding: 10px; color: #64748b;">Loading materials...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-suppliers">0</div>
+                        <div class="stat-label">Suppliers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-value">€0</div>
+                        <div class="stat-label">Total Value</div>
+                    </div>
+                </div>
+
+                <!-- STOCK SUBTAB -->
+                <div id="materials-subtab-stock" class="materials-subtab-content active">
+                    <div class="settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                            <h3 style="margin: 0; border: none; padding: 0;">Current Stock</h3>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-primary" onclick="openAddMaterialModal()">+ Add Material</button>
+                            </div>
+                        </div>
+                        <div class="search-filters" style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                            <div class="search-bar" style="flex: 1; min-width: 200px;">
+                                <input type="text" id="material-search" placeholder="🔍 Search materials..." onkeyup="searchMaterials(this.value)">
+                            </div>
+                            <select id="filter-material-type" onchange="filterMaterialsByType()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">All Types</option>
+                            </select>
+                            <select id="filter-location" onchange="filterMaterialsByLocation()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">All Locations</option>
+                            </select>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Material</th>
+                                        <th>Shape</th>
+                                        <th>Dimensions</th>
+                                        <th>Stock</th>
+                                        <th>Location</th>
+                                        <th>Supplier</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="materialsTableBody">
+                                    <tr>
+                                        <td colspan="8" style="padding: 20px; color: #64748b; text-align: center;">Loading materials...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUPPLIERS SUBTAB -->
+                <div id="materials-subtab-suppliers" class="materials-subtab-content">
+                    <div class="settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; border: none; padding: 0;">Suppliers</h3>
+                            <button class="btn btn-primary" onclick="openAddSupplierModal()">+ Add Supplier</button>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Supplier</th>
+                                        <th>Contact</th>
+                                        <th>Materials</th>
+                                        <th>Lead Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliersTableBody">
+                                    <tr>
+                                        <td colspan="6" style="padding: 20px; color: #64748b; text-align: center;">Loading suppliers...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOCATIONS SUBTAB -->
+                <div id="materials-subtab-locations" class="materials-subtab-content">
+                    <div class="settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; border: none; padding: 0;">Storage Locations</h3>
+                            <button class="btn btn-primary" onclick="openAddLocationModal()">+ Add Location</button>
+                        </div>
+                        <div class="locations-grid" id="locationsGrid">
+                            <p style="color: #64748b; text-align: center; padding: 20px;">Loading locations...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRANSACTIONS SUBTAB -->
+                <div id="materials-subtab-transactions" class="materials-subtab-content">
+                    <div class="settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; border: none; padding: 0;">Stock Movements</h3>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn" style="background: #4CAF50;" onclick="openStockInModal()">📥 Stock In</button>
+                                <button class="btn" style="background: #2196F3;" onclick="openStockOutModal()">📤 Stock Out</button>
+                            </div>
+                        </div>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Material</th>
+                                        <th>Type</th>
+                                        <th>Quantity</th>
+                                        <th>Reference</th>
+                                        <th>By</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsTableBody">
+                                    <tr>
+                                        <td colspan="6" style="padding: 20px; color: #64748b; text-align: center;">Loading transactions...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -908,34 +1151,243 @@
 
     <!-- Add Material Modal -->
     <div class="modal" id="add-material-modal">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 650px;">
             <div class="modal-header">
-                <h3>Add Material</h3>
+                <h2>Add New Material</h2>
                 <button class="modal-close" onclick="closeAddMaterialModal()">✕</button>
             </div>
             <form id="addMaterialForm" onsubmit="saveNewMaterial(event)">
-                <div class="form-group">
-                    <label for="new-material-name">Material Name *</label>
-                    <input type="text" id="new-material-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="new-material-type">Type</label>
-                    <select id="new-material-type">
-                        <option value="">-- Select Type --</option>
-                        <option value="metal">Metal</option>
-                        <option value="plastic">Plastic</option>
-                        <option value="wood">Wood</option>
-                        <option value="composite">Composite</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="new-material-description">Description</label>
-                    <textarea id="new-material-description" rows="2"></textarea>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="new-material-type" class="required">Material Type</label>
+                        <select id="new-material-type" required>
+                            <option value="">Select type...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-shape-type" class="required">Shape Type</label>
+                        <select id="new-shape-type" required onchange="updateDimensionFields()">
+                            <option value="">Select shape...</option>
+                            <option value="bar_round">Round Bar</option>
+                            <option value="bar_square">Square Bar</option>
+                            <option value="bar_hex">Hex Bar</option>
+                            <option value="plate">Plate</option>
+                            <option value="tube">Tube</option>
+                            <option value="sheet">Sheet</option>
+                        </select>
+                    </div>
+                    <div class="form-group dimension-field" id="diameter-field" style="display: none;">
+                        <label for="new-diameter">Diameter (mm)</label>
+                        <input type="number" id="new-diameter" step="0.1" min="0">
+                    </div>
+                    <div class="form-group dimension-field" id="width-field" style="display: none;">
+                        <label for="new-width">Width (mm)</label>
+                        <input type="number" id="new-width" step="0.1" min="0">
+                    </div>
+                    <div class="form-group dimension-field" id="height-field" style="display: none;">
+                        <label for="new-height">Height (mm)</label>
+                        <input type="number" id="new-height" step="0.1" min="0">
+                    </div>
+                    <div class="form-group dimension-field" id="thickness-field" style="display: none;">
+                        <label for="new-thickness">Thickness (mm)</label>
+                        <input type="number" id="new-thickness" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-length" class="required">Length (mm)</label>
+                        <input type="number" id="new-length" step="0.1" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-quantity" class="required">Quantity</label>
+                        <input type="number" id="new-quantity" min="1" required value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-location">Storage Location</label>
+                        <select id="new-location">
+                            <option value="">Select location...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-supplier">Supplier</label>
+                        <select id="new-supplier">
+                            <option value="">Select supplier...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-cost">Unit Price (€)</label>
+                        <input type="number" id="new-cost" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-reorder">Reorder Level</label>
+                        <input type="number" id="new-reorder" min="0" value="5">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="new-material-notes">Notes</label>
+                        <textarea id="new-material-notes" rows="2" placeholder="Additional notes..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeAddMaterialModal()">Cancel</button>
-                    <button type="submit" class="btn-submit">Save Material</button>
+                    <button type="submit" class="btn-submit">Add Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Supplier Modal -->
+    <div class="modal" id="add-supplier-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Add Supplier</h2>
+                <button class="modal-close" onclick="closeAddSupplierModal()">✕</button>
+            </div>
+            <form id="addSupplierForm" onsubmit="saveNewSupplier(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="supplier-name" class="required">Supplier Name</label>
+                        <input type="text" id="supplier-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier-contact">Contact Person</label>
+                        <input type="text" id="supplier-contact">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier-email">Email</label>
+                        <input type="email" id="supplier-email">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier-phone">Phone</label>
+                        <input type="text" id="supplier-phone">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="supplier-address">Address</label>
+                        <input type="text" id="supplier-address">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier-city">City</label>
+                        <input type="text" id="supplier-city">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier-lead-time">Lead Time (days)</label>
+                        <input type="number" id="supplier-lead-time" min="1" value="7">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="supplier-notes">Notes</label>
+                        <textarea id="supplier-notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddSupplierModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Add Supplier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Location Modal -->
+    <div class="modal" id="add-location-modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>Add Storage Location</h2>
+                <button class="modal-close" onclick="closeAddLocationModal()">✕</button>
+            </div>
+            <form id="addLocationForm" onsubmit="saveNewLocation(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="location-code" class="required">Location Code</label>
+                        <input type="text" id="location-code" required placeholder="e.g., 1A">
+                    </div>
+                    <div class="form-group">
+                        <label for="location-zone">Zone</label>
+                        <input type="text" id="location-zone" placeholder="e.g., Zone 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="location-shelf">Shelf</label>
+                        <input type="text" id="location-shelf" placeholder="e.g., Shelf A">
+                    </div>
+                    <div class="form-group">
+                        <label for="location-capacity">Capacity</label>
+                        <input type="number" id="location-capacity" min="1">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="location-description">Description</label>
+                        <textarea id="location-description" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddLocationModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Add Location</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock In Modal -->
+    <div class="modal" id="stock-in-modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>📥 Stock In</h2>
+                <button class="modal-close" onclick="closeStockInModal()">✕</button>
+            </div>
+            <form id="stockInForm" onsubmit="handleStockIn(event)">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="stockin-material" class="required">Material</label>
+                        <select id="stockin-material" required>
+                            <option value="">Select material...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="stockin-quantity" class="required">Quantity</label>
+                        <input type="number" id="stockin-quantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="stockin-reference">Reference #</label>
+                        <input type="text" id="stockin-reference" placeholder="Invoice/PO number">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="stockin-notes">Notes</label>
+                        <textarea id="stockin-notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeStockInModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Out Modal -->
+    <div class="modal" id="stock-out-modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>📤 Stock Out</h2>
+                <button class="modal-close" onclick="closeStockOutModal()">✕</button>
+            </div>
+            <form id="stockOutForm" onsubmit="handleStockOut(event)">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="stockout-material" class="required">Material</label>
+                        <select id="stockout-material" required>
+                            <option value="">Select material...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="stockout-quantity" class="required">Quantity</label>
+                        <input type="number" id="stockout-quantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="stockout-reference">Reference #</label>
+                        <input type="text" id="stockout-reference" placeholder="Order/Job number">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="stockout-notes">Notes</label>
+                        <textarea id="stockout-notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeStockOutModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Remove Stock</button>
                 </div>
             </form>
         </div>
@@ -990,7 +1442,8 @@
     <script src="js/auth.js?v=20251226"></script>
     <script src="js/api.js?v=20251226"></script>
     <script src="js/customers.js?v=20251212"></script>
-    <script src="js/admin-settings.js?v=20251212"></script>
+    <script src="js/materials-admin.js?v=20260113"></script>
+    <script src="js/admin-settings.js?v=20260113"></script>
 
         <!-- Version Control Modal -->
         <link rel="stylesheet" href="css/login.css">
