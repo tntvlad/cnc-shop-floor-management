@@ -599,17 +599,24 @@ function closeStockOutModal() {
 async function saveNewMaterial(event) {
     event.preventDefault();
     
+    console.log('saveNewMaterial called');
+    
     // Validate required fields
     const materialType = document.getElementById('new-material-type').value;
     const shapeType = document.getElementById('new-shape-type').value;
     
+    console.log('Material Type:', materialType);
+    console.log('Shape Type:', shapeType);
+    
     if (!materialType || !materialType.trim()) {
         alert('Please select or enter a material type');
+        document.getElementById('new-material-type-search').focus();
         return;
     }
     
     if (!shapeType) {
         alert('Please select a shape type');
+        document.getElementById('new-shape-type').focus();
         return;
     }
     
