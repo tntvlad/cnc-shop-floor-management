@@ -229,3 +229,25 @@ const API = {
     }
   }
 };
+
+// Simple api wrapper for convenience
+const api = {
+  async get(endpoint) {
+    return API.request(endpoint, { method: 'GET' });
+  },
+  async post(endpoint, data) {
+    return API.request(endpoint, { 
+      method: 'POST', 
+      body: JSON.stringify(data) 
+    });
+  },
+  async put(endpoint, data) {
+    return API.request(endpoint, { 
+      method: 'PUT', 
+      body: JSON.stringify(data) 
+    });
+  },
+  async delete(endpoint) {
+    return API.request(endpoint, { method: 'DELETE' });
+  }
+};
