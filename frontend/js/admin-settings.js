@@ -371,6 +371,13 @@ async function applyGitBranch() {
 
 async function checkStatus() {
   try {
+    const apiStatusEl = document.getElementById('apiStatus');
+    const dbStatusEl = document.getElementById('dbStatus');
+    const currentUserEl = document.getElementById('currentUser');
+    
+    // Only proceed if elements exist (they may not on all tabs)
+    if (!apiStatusEl || !dbStatusEl) return;
+    
     const response = await fetch(`${config.API_BASE_URL}/auth/me`, {
       headers: {
         'Authorization': `Bearer ${Auth.getToken()}`
@@ -378,21 +385,27 @@ async function checkStatus() {
     });
 
     if (response.ok) {
-      document.getElementById('apiStatus').textContent = 'Healthy';
-      document.getElementById('apiStatus').className = 'status-value healthy';
-      document.getElementById('dbStatus').textContent = 'Connected';
-      document.getElementById('dbStatus').className = 'status-value healthy';
+      apiStatusEl.textContent = 'Healthy';
+      apiStatusEl.className = 'status-value healthy';
+      dbStatusEl.textContent = 'Connected';
+      dbStatusEl.className = 'status-value healthy';
 
       const user = await response.json();
-      document.getElementById('currentUser').textContent = user.name || user.employee_id;
+      if (currentUserEl) currentUserEl.textContent = user.name || user.employee_id;
     } else {
       throw new Error('API not responding');
     }
   } catch (error) {
-    document.getElementById('apiStatus').textContent = 'Error';
-    document.getElementById('apiStatus').className = 'status-value error';
-    document.getElementById('dbStatus').textContent = 'Error';
-    document.getElementById('dbStatus').className = 'status-value error';
+    const apiStatusEl = document.getElementById('apiStatus');
+    const dbStatusEl = document.getElementById('dbStatus');
+    if (apiStatusEl) {
+      apiStatusEl.textContent = 'Error';
+      apiStatusEl.className = 'status-value error';
+    }
+    if (dbStatusEl) {
+      dbStatusEl.textContent = 'Error';
+      dbStatusEl.className = 'status-value error';
+    }
   }
 }
 
