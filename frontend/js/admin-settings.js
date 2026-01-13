@@ -843,46 +843,7 @@ function searchMaterials(value) {
   renderAdminMaterials(value);
 }
 
-function openAddMaterialModal() {
-  document.getElementById('addMaterialForm').reset();
-  document.getElementById('add-material-modal').classList.add('active');
-}
-
-function closeAddMaterialModal() {
-  document.getElementById('add-material-modal').classList.remove('active');
-}
-
-async function saveNewMaterial(event) {
-  event.preventDefault();
-  
-  const materialData = {
-    name: document.getElementById('new-material-name').value,
-    type: document.getElementById('new-material-type').value || null,
-    description: document.getElementById('new-material-description').value || null
-  };
-  
-  try {
-    const response = await fetch(`${config.API_BASE_URL}/materials`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Auth.getToken()}`
-      },
-      body: JSON.stringify(materialData)
-    });
-    
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || 'Failed to create material');
-    }
-    
-    closeAddMaterialModal();
-    loadAdminMaterials();
-    showToast('Material created successfully', 'success');
-  } catch (error) {
-    showToast(error.message, 'error');
-  }
-}
+// Material modal functions are in materials-admin.js
 
 async function deleteMaterial(id) {
   if (!confirm('Are you sure you want to delete this material?')) return;
