@@ -6,6 +6,8 @@
 -- DROP EXISTING TABLES (Fresh Start)
 -- ============================================================================
 
+DROP TABLE IF EXISTS material_suggestions CASCADE;
+DROP TABLE IF EXISTS material_equivalents CASCADE;
 DROP TABLE IF EXISTS material_transactions CASCADE;
 DROP TABLE IF EXISTS storage_locations CASCADE;
 DROP TABLE IF EXISTS material_types CASCADE;
@@ -336,6 +338,7 @@ CREATE TABLE storage_locations (
 
 -- ============================================================================
 -- MATERIAL TYPES TABLE (Reference table for material categories)
+-- Enhanced with specification and equivalence support
 -- ============================================================================
 
 CREATE TABLE material_types (
@@ -346,8 +349,21 @@ CREATE TABLE material_types (
     aliases TEXT[] DEFAULT '{}', -- Alternative/equivalent names for this material
     description TEXT,
     is_active BOOLEAN DEFAULT true,
+    -- Specification fields
+    specification_code VARCHAR(50), -- e.g., 1.2027, 6061-T6
+    specification_standard VARCHAR(50), -- EN, ASTM, DIN, ISO
+    specification_name TEXT,
+    material_grade VARCHAR(100),
+    equivalent_to_id INTEGER REFERENCES material_types(id),
+    is_preferred BOOLEAN DEFAULT false,
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indexes for material_types
+CREATE INDEX idx_material_types_spec_code ON material_types(specification_code);
+CREATE INDEX idx_material_types_equivalent_to ON material_types(equivalent_to_id);
+CREATE INDEX idx_material_types_category ON material_types(category);
 
 -- ============================================================================
 -- MATERIAL STOCK TABLE (Enhanced with shapes, dimensions, locations)
@@ -382,10 +398,27 @@ CREATE TABLE material_stock (
     unit_weight DECIMAL(10,4), -- kg per unit
     total_value DECIMAL(12,2),
     
+    -- Enhanced fields for smart suggestions
+    material_type_id INTEGER REFERENCES material_types(id),
+    specification_code VARCHAR(50),
+    size_index DECIMAL(10,4),
+    size_category VARCHAR(50),
+    last_used_date TIMESTAMP,
+    supplier_batch_number VARCHAR(100),
+    quality_status VARCHAR(50) DEFAULT 'new',
+    inspection_required BOOLEAN DEFAULT false,
+    
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indexes for material_stock
+CREATE INDEX idx_material_stock_material_type_id ON material_stock(material_type_id);
+CREATE INDEX idx_material_stock_size_index ON material_stock(size_index);
+CREATE INDEX idx_material_stock_size_category ON material_stock(size_category);
+CREATE INDEX idx_material_stock_quality_status ON material_stock(quality_status);
+CREATE INDEX idx_material_stock_shape_type ON material_stock(shape_type);
 
 -- ============================================================================
 -- MATERIAL TRANSACTIONS TABLE (Stock In/Out/Transfer)
@@ -833,21 +866,25 @@ INSERT INTO storage_locations (code, zone, shelf, description) VALUES
 -- INSERT DEFAULT MATERIAL TYPES
 -- ============================================================================
 
-INSERT INTO material_types (name, category, density, description) VALUES
-('Aluminum 6061', 'metal', 2.70, 'General purpose aluminum alloy, good machinability'),
-('Aluminum 7075', 'metal', 2.81, 'High strength aluminum alloy'),
-('Steel 1018', 'metal', 7.87, 'Low carbon mild steel'),
-('Steel 4140', 'metal', 7.85, 'Chromium-molybdenum alloy steel'),
-('Stainless Steel 304', 'metal', 8.00, 'Austenitic stainless steel'),
-('Stainless Steel 316', 'metal', 8.00, 'Marine grade stainless steel'),
-('Brass C360', 'metal', 8.50, 'Free-cutting brass'),
-('Copper C101', 'metal', 8.94, 'Oxygen-free copper'),
-('POM (Delrin)', 'plastic', 1.41, 'Acetal homopolymer'),
-('PEEK', 'plastic', 1.32, 'High performance thermoplastic'),
-('Nylon 6', 'plastic', 1.14, 'General purpose nylon'),
-('PTFE (Teflon)', 'plastic', 2.20, 'Low friction plastic'),
-('HDPE', 'plastic', 0.95, 'High-density polyethylene'),
-('Acrylic (PMMA)', 'plastic', 1.18, 'Transparent thermoplastic');
+INSERT INTO material_types (name, category, density, specification_code, specification_standard, description) VALUES
+('Aluminum 6061', 'metal', 2.70, '6061-T6', 'ASTM', 'General purpose aluminum alloy, good machinability'),
+('Aluminum 7075', 'metal', 2.81, '7075-T6', 'ASTM', 'High strength aluminum alloy'),
+('Steel 1018', 'metal', 7.87, '1.0453', 'EN', 'Low carbon mild steel'),
+('Steel 4140', 'metal', 7.85, '1.7225', 'EN', 'Chromium-molybdenum alloy steel'),
+('Stainless Steel 304', 'metal', 8.00, '1.4301', 'EN', 'Austenitic stainless steel'),
+('Stainless Steel 316', 'metal', 8.00, '1.4401', 'EN', 'Marine grade stainless steel'),
+('Brass C360', 'metal', 8.50, 'CW614N', 'EN', 'Free-cutting brass'),
+('Copper C101', 'metal', 8.94, 'CW004A', 'EN', 'Oxygen-free copper'),
+('POM (Delrin)', 'plastic', 1.41, 'POM-H', NULL, 'Acetal homopolymer'),
+('PEEK', 'plastic', 1.32, 'PEEK', NULL, 'High performance thermoplastic'),
+('Nylon 6', 'plastic', 1.14, 'PA6', NULL, 'General purpose nylon'),
+('PTFE (Teflon)', 'plastic', 2.20, 'PTFE', NULL, 'Low friction plastic'),
+('HDPE', 'plastic', 0.95, 'PE-HD', NULL, 'High-density polyethylene'),
+('Acrylic (PMMA)', 'plastic', 1.18, 'PMMA', NULL, 'Transparent thermoplastic'),
+('Tool Steel 1.2017', 'metal', 7.85, '1.2017', 'EN', 'Case hardening steel - 115CrV3'),
+('Tool Steel 1.2027', 'metal', 7.85, '1.2027', 'EN', 'Cold work tool steel - 60WCrV7'),
+('Tool Steel 1.2379', 'metal', 7.70, '1.2379', 'EN', 'Cold work tool steel - X153CrMoV12'),
+('Tool Steel 1.2080', 'metal', 7.70, '1.2080', 'EN', 'Cold work tool steel - X210Cr12');
 
 -- ============================================================================
 -- INSERT DEFAULT SUPPLIERS
@@ -878,6 +915,129 @@ CREATE TRIGGER trigger_update_material_stock
     BEFORE UPDATE ON material_stock
     FOR EACH ROW
     EXECUTE FUNCTION update_material_stock_timestamp();
+
+-- ============================================================================
+-- MATERIAL EQUIVALENTS TABLE (Many-to-many equivalence)
+-- ============================================================================
+
+CREATE TABLE material_equivalents (
+    id SERIAL PRIMARY KEY,
+    material_type_id_primary INTEGER NOT NULL REFERENCES material_types(id) ON DELETE CASCADE,
+    material_type_id_equivalent INTEGER NOT NULL REFERENCES material_types(id) ON DELETE CASCADE,
+    equivalent_rank INTEGER DEFAULT 1,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(material_type_id_primary, material_type_id_equivalent),
+    CHECK (material_type_id_primary != material_type_id_equivalent)
+);
+
+CREATE INDEX idx_material_equivalents_primary ON material_equivalents(material_type_id_primary);
+CREATE INDEX idx_material_equivalents_equivalent ON material_equivalents(material_type_id_equivalent);
+
+-- ============================================================================
+-- MATERIAL SUGGESTIONS TABLE (Audit trail for smart suggestions)
+-- ============================================================================
+
+CREATE TABLE material_suggestions (
+    id SERIAL PRIMARY KEY,
+    part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+    requested_material_type_id INTEGER REFERENCES material_types(id),
+    requested_material_name VARCHAR(200),
+    requested_width DECIMAL(10,2),
+    requested_height DECIMAL(10,2),
+    requested_thickness DECIMAL(10,2),
+    requested_diameter DECIMAL(10,2),
+    requested_quantity DECIMAL(10,2),
+    suggested_stock_id INTEGER REFERENCES material_stock(id),
+    suggestion_rank INTEGER,
+    match_score DECIMAL(5,2),
+    match_reason TEXT,
+    category VARCHAR(50),
+    size_score DECIMAL(5,2),
+    availability_score DECIMAL(5,2),
+    freshness_score DECIMAL(5,2),
+    cost_score DECIMAL(5,2),
+    quality_bonus DECIMAL(5,2),
+    is_accepted BOOLEAN,
+    is_rejected BOOLEAN DEFAULT false,
+    accepted_at TIMESTAMP,
+    accepted_by INTEGER REFERENCES users(id),
+    rejected_at TIMESTAMP,
+    rejected_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_material_suggestions_part_id ON material_suggestions(part_id);
+CREATE INDEX idx_material_suggestions_stock_id ON material_suggestions(suggested_stock_id);
+CREATE INDEX idx_material_suggestions_match_score ON material_suggestions(match_score DESC);
+CREATE INDEX idx_material_suggestions_accepted ON material_suggestions(is_accepted);
+CREATE INDEX idx_material_suggestions_category ON material_suggestions(category);
+
+-- ============================================================================
+-- SIZE INDEX CALCULATION FUNCTIONS
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION calculate_size_index(
+    p_shape_type VARCHAR,
+    p_diameter DECIMAL,
+    p_width DECIMAL,
+    p_height DECIMAL,
+    p_thickness DECIMAL
+) RETURNS DECIMAL AS $$
+BEGIN
+    CASE p_shape_type
+        WHEN 'bar_round' THEN
+            RETURN COALESCE(p_diameter, 0);
+        WHEN 'bar_square' THEN
+            RETURN COALESCE(p_width * p_width, 0);
+        WHEN 'bar_hex' THEN
+            RETURN COALESCE(p_width, 0);
+        WHEN 'plate' THEN
+            RETURN COALESCE(p_width * p_height * p_thickness, 0);
+        WHEN 'sheet' THEN
+            RETURN COALESCE(p_width * p_height * p_thickness, 0);
+        WHEN 'tube' THEN
+            RETURN COALESCE(p_diameter * p_thickness, 0);
+        ELSE
+            RETURN COALESCE(p_width * p_height, 0);
+    END CASE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION determine_size_category(p_size_index DECIMAL) 
+RETURNS VARCHAR AS $$
+BEGIN
+    IF p_size_index < 10 THEN
+        RETURN 'small';
+    ELSIF p_size_index < 50 THEN
+        RETURN 'medium';
+    ELSIF p_size_index < 200 THEN
+        RETURN 'large';
+    ELSE
+        RETURN 'extra_large';
+    END IF;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION update_material_stock_size_index()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.size_index := calculate_size_index(
+        NEW.shape_type,
+        NEW.diameter,
+        NEW.width,
+        NEW.height,
+        NEW.thickness
+    );
+    NEW.size_category := determine_size_category(NEW.size_index);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_material_stock_size_index
+    BEFORE INSERT OR UPDATE ON material_stock
+    FOR EACH ROW
+    EXECUTE FUNCTION update_material_stock_size_index();
 
 -- ============================================================================
 -- END OF SCHEMA
