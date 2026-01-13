@@ -161,6 +161,8 @@ function openGitSettings() {
     return;
   }
   modal.classList.add('active');
+  // Force display flex in case CSS is not loading correctly
+  modal.style.display = 'flex';
   
   // Show status tab by default and load status
   switchVCTab('status');
@@ -309,7 +311,9 @@ async function installUpdate() {
 }
 
 function closeGitSettings() {
-  document.getElementById('git-settings-modal').classList.remove('active');
+  const modal = document.getElementById('git-settings-modal');
+  modal.classList.remove('active');
+  modal.style.display = 'none';
 }
 
 async function applySourceControl() {
