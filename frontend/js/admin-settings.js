@@ -26,8 +26,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Git settings button (may not exist on all pages)
   const gitBtn = document.getElementById('gitSettingsBtn');
+  console.log('gitBtn found:', gitBtn);
   if (gitBtn) {
-    gitBtn.addEventListener('click', openGitSettings);
+    gitBtn.addEventListener('click', () => {
+      console.log('Git settings button clicked');
+      openGitSettings();
+    });
+    console.log('gitBtn click listener attached');
   }
 
   // Update level hints when selecting a level
@@ -148,7 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Git Settings modal handlers
 function openGitSettings() {
-  document.getElementById('git-settings-modal').classList.add('active');
+  console.log('openGitSettings() called');
+  const modal = document.getElementById('git-settings-modal');
+  console.log('git-settings-modal found:', modal);
+  if (!modal) {
+    alert('Git settings modal not found!');
+    return;
+  }
+  modal.classList.add('active');
   
   // Show status tab by default and load status
   switchVCTab('status');
