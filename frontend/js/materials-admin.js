@@ -87,9 +87,12 @@ async function loadMaterialsStats() {
 
 async function loadMaterialTypes() {
     try {
+        console.log('loadMaterialTypes called');
         const response = await api.get('/materials/types');
+        console.log('loadMaterialTypes response:', response);
         if (response.success) {
             materialTypesData = response.types || [];
+            console.log('materialTypesData loaded:', materialTypesData.length, 'items');
             populateMaterialTypeSelect();
         }
     } catch (error) {
@@ -134,10 +137,18 @@ function renderMaterialTypeDropdown(filter = '') {
     if (!dropdown) return;
     
     const searchTerm = filter.toLowerCase();
-    const filtered = materialTypesData.filter(type => 
-        type.name.toLowerCase().includes(searchTerm) ||
-        (type.category && type.category.toLowerCase().includes(searchTerm))
-    );
+    const filtered = materialTypesData.filter(type => {
+        // Search by name
+        if (type.name.toLowerCase().includes(searchTerm)) return true;
+        // Search by category
+        if (type.category && type.category.toLowerCase().includes(searchTerm)) return true;
+        // Search by aliases
+        if (type.aliases) {
+            const aliasArray = Array.isArray(type.aliases) ? type.aliases : (type.aliases || '').split(',');
+            return aliasArray.some(alias => alias.trim().toLowerCase().includes(searchTerm));
+        }
+        return false;
+    });
     
     let html = '';
     
@@ -209,6 +220,8 @@ function hideMaterialTypeDropdown() {
 
 function filterMaterialTypes() {
     const searchValue = document.getElementById('new-material-type-search').value;
+    console.log('filterMaterialTypes called, searchValue:', searchValue);
+    console.log('materialTypesData:', materialTypesData);
     // Also update the hidden field as user types
     document.getElementById('new-material-type').value = searchValue;
     renderMaterialTypeDropdown(searchValue);
