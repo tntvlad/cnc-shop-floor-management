@@ -105,8 +105,9 @@ class MaterialStock {
 
     /**
      * Find available stock by material type and dimensions
+     * Also searches by material_name if type IDs not provided
      */
-    static async findAvailable(materialTypeIds, shapeType, minDimensions, requiredQty) {
+    static async findAvailable(materialTypeIds, shapeType, minDimensions, requiredQty, materialName = null) {
         const { width, height, thickness, diameter } = minDimensions;
         
         let query = `
@@ -125,10 +126,16 @@ class MaterialStock {
         const values = [requiredQty];
         let paramCount = 2;
 
-        // Filter by material type IDs if provided
+        // Filter by material type IDs or material_name
         if (materialTypeIds && materialTypeIds.length > 0) {
-            query += ` AND ms.material_type_id = ANY($${paramCount})`;
+            query += ` AND (ms.material_type_id = ANY($${paramCount}) OR LOWER(ms.material_name) = LOWER($${paramCount + 1}))`;
             values.push(materialTypeIds);
+            values.push(materialName || '');
+            paramCount += 2;
+        } else if (materialName) {
+            // Fallback: search by material_name if no type IDs
+            query += ` AND (LOWER(ms.material_name) LIKE LOWER($${paramCount}) OR LOWER(mt.name) LIKE LOWER($${paramCount}))`;
+            values.push(`%${materialName}%`);
             paramCount++;
         }
 

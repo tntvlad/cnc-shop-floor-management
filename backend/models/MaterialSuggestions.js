@@ -160,12 +160,13 @@ class MaterialSuggestions {
                 materialTypeIds = await MaterialType.getAllEquivalentIds(materialTypeId);
             }
 
-            // Step 2: Get available stock
+            // Step 2: Get available stock (pass materialType name as fallback)
             const candidates = await MaterialStock.findAvailable(
                 materialTypeIds.length > 0 ? materialTypeIds : null,
                 shape_type,
                 { width, height, thickness, diameter },
-                requiredQty
+                requiredQty,
+                materialType // Pass material name as fallback search
             );
 
             if (candidates.length === 0) {

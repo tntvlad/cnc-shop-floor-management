@@ -1099,7 +1099,7 @@ async function searchMaterialTypes(req, res) {
   try {
     const { term } = req.params;
     const types = await MaterialType.findByNameOrSpec(term);
-    res.json({ success: true, types });
+    res.json({ success: true, materialTypes: types });
   } catch (error) {
     console.error('Error searching material types:', error);
     res.status(500).json({ success: false, error: error.message });
