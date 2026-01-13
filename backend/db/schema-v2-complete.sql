@@ -6,6 +6,10 @@
 -- DROP EXISTING TABLES (Fresh Start)
 -- ============================================================================
 
+DROP TABLE IF EXISTS material_transactions CASCADE;
+DROP TABLE IF EXISTS storage_locations CASCADE;
+DROP TABLE IF EXISTS material_types CASCADE;
+DROP TABLE IF EXISTS suppliers CASCADE;
 DROP TABLE IF EXISTS qc_inspection_results CASCADE;
 DROP TABLE IF EXISTS qc_inspections CASCADE;
 DROP TABLE IF EXISTS qc_checklist_items CASCADE;
@@ -295,21 +299,110 @@ CREATE TABLE scrap_records (
 );
 
 -- ============================================================================
--- MATERIAL STOCK TABLE
+-- SUPPLIERS TABLE
+-- ============================================================================
+
+CREATE TABLE suppliers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    contact_person VARCHAR(100),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    address TEXT,
+    city VARCHAR(100),
+    country VARCHAR(100) DEFAULT 'Romania',
+    lead_time_days INTEGER DEFAULT 7,
+    payment_terms VARCHAR(100),
+    notes TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- STORAGE LOCATIONS TABLE
+-- ============================================================================
+
+CREATE TABLE storage_locations (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(20) NOT NULL UNIQUE,
+    zone VARCHAR(50),
+    shelf VARCHAR(50),
+    description TEXT,
+    capacity INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MATERIAL TYPES TABLE (Reference table for material categories)
+-- ============================================================================
+
+CREATE TABLE material_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category VARCHAR(50) NOT NULL, -- 'metal', 'plastic', 'composite'
+    density DECIMAL(10,4), -- kg/dm³ for weight calculations
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MATERIAL STOCK TABLE (Enhanced with shapes, dimensions, locations)
 -- ============================================================================
 
 CREATE TABLE material_stock (
     id SERIAL PRIMARY KEY,
     material_name VARCHAR(200) NOT NULL,
     material_type VARCHAR(100) NOT NULL,
-    supplier_id INTEGER,
+    supplier_id INTEGER REFERENCES suppliers(id),
+    
+    -- Shape and Dimensions
+    shape_type VARCHAR(50), -- 'bar_round', 'bar_square', 'bar_hex', 'plate', 'tube', 'sheet'
+    diameter DECIMAL(10,2), -- for round bars, tubes
+    width DECIMAL(10,2), -- for square bars, plates, sheets
+    height DECIMAL(10,2), -- for square bars, plates
+    thickness DECIMAL(10,2), -- for plates, sheets, tubes
+    length DECIMAL(10,2), -- standard length
+    
+    -- Stock Management
     current_stock DECIMAL(10,2) DEFAULT 0,
+    reserved_stock DECIMAL(10,2) DEFAULT 0,
     reorder_level DECIMAL(10,2) DEFAULT 0,
     unit VARCHAR(20) DEFAULT 'pieces',
+    
+    -- Location
+    location_id INTEGER REFERENCES storage_locations(id),
+    status VARCHAR(50) DEFAULT 'available', -- 'available', 'low_stock', 'out_of_stock', 'reserved'
+    
+    -- Cost and Value
     cost_per_unit DECIMAL(10,2),
+    unit_weight DECIMAL(10,4), -- kg per unit
+    total_value DECIMAL(12,2),
+    
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- MATERIAL TRANSACTIONS TABLE (Stock In/Out/Transfer)
+-- ============================================================================
+
+CREATE TABLE material_transactions (
+    id SERIAL PRIMARY KEY,
+    material_id INTEGER NOT NULL REFERENCES material_stock(id) ON DELETE CASCADE,
+    transaction_type VARCHAR(50) NOT NULL, -- 'stock_in', 'stock_out', 'transfer', 'adjustment', 'reserved'
+    quantity DECIMAL(10,2) NOT NULL,
+    from_location_id INTEGER REFERENCES storage_locations(id),
+    to_location_id INTEGER REFERENCES storage_locations(id),
+    order_id INTEGER,
+    part_id INTEGER,
+    reference_number VARCHAR(100),
+    notes TEXT,
+    performed_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
@@ -660,7 +753,14 @@ CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 
 -- Material indexes
 CREATE INDEX idx_material_stock_type ON material_stock(material_type);
+CREATE INDEX idx_material_stock_shape ON material_stock(shape_type);
+CREATE INDEX idx_material_stock_location ON material_stock(location_id);
+CREATE INDEX idx_material_stock_status ON material_stock(status);
 CREATE INDEX idx_material_orders_status ON material_orders(status);
+CREATE INDEX idx_material_transactions_material ON material_transactions(material_id);
+CREATE INDEX idx_material_transactions_type ON material_transactions(transaction_type);
+CREATE INDEX idx_material_transactions_date ON material_transactions(created_at);
+CREATE INDEX idx_suppliers_active ON suppliers(is_active);
 
 -- Customers indexes
 CREATE INDEX idx_customers_company_name ON customers(company_name);
@@ -709,6 +809,74 @@ COMMENT ON TABLE operator_skills IS 'Track operator skills and certifications';
 COMMENT ON TABLE tools IS 'Cutting tools inventory';
 COMMENT ON TABLE customers IS 'Customer companies with billing and contact information';
 COMMENT ON TABLE contact_persons IS 'Multiple contact persons per customer';
+COMMENT ON TABLE suppliers IS 'Material suppliers with contact and lead time info';
+COMMENT ON TABLE storage_locations IS 'Physical storage locations for materials';
+COMMENT ON TABLE material_types IS 'Reference table for material categories and properties';
+COMMENT ON TABLE material_transactions IS 'Stock in/out/transfer transaction history';
+
+-- ============================================================================
+-- INSERT DEFAULT STORAGE LOCATIONS
+-- ============================================================================
+
+INSERT INTO storage_locations (code, zone, shelf, description) VALUES
+('1A', 'Zone 1', 'Shelf A', 'Metal raw materials - Round bars'),
+('1B', 'Zone 1', 'Shelf B', 'Metal raw materials - Square/Flat bars'),
+('1C', 'Zone 1', 'Shelf C', 'Metal raw materials - Plates'),
+('2A', 'Zone 2', 'Shelf A', 'Aluminum materials'),
+('2B', 'Zone 2', 'Shelf B', 'Plastics - Engineering plastics'),
+('2C', 'Zone 2', 'Shelf C', 'Plastics - High performance'),
+('3A', 'Zone 3', 'Shelf A', 'Stainless steel'),
+('3B', 'Zone 3', 'Shelf B', 'Special alloys');
+
+-- ============================================================================
+-- INSERT DEFAULT MATERIAL TYPES
+-- ============================================================================
+
+INSERT INTO material_types (name, category, density, description) VALUES
+('Aluminum 6061', 'metal', 2.70, 'General purpose aluminum alloy, good machinability'),
+('Aluminum 7075', 'metal', 2.81, 'High strength aluminum alloy'),
+('Steel 1018', 'metal', 7.87, 'Low carbon mild steel'),
+('Steel 4140', 'metal', 7.85, 'Chromium-molybdenum alloy steel'),
+('Stainless Steel 304', 'metal', 8.00, 'Austenitic stainless steel'),
+('Stainless Steel 316', 'metal', 8.00, 'Marine grade stainless steel'),
+('Brass C360', 'metal', 8.50, 'Free-cutting brass'),
+('Copper C101', 'metal', 8.94, 'Oxygen-free copper'),
+('POM (Delrin)', 'plastic', 1.41, 'Acetal homopolymer'),
+('PEEK', 'plastic', 1.32, 'High performance thermoplastic'),
+('Nylon 6', 'plastic', 1.14, 'General purpose nylon'),
+('PTFE (Teflon)', 'plastic', 2.20, 'Low friction plastic'),
+('HDPE', 'plastic', 0.95, 'High-density polyethylene'),
+('Acrylic (PMMA)', 'plastic', 1.18, 'Transparent thermoplastic');
+
+-- ============================================================================
+-- INSERT DEFAULT SUPPLIERS
+-- ============================================================================
+
+INSERT INTO suppliers (name, contact_person, email, phone, address, city, lead_time_days) VALUES
+('MetalSupply SRL', 'Ion Popescu', 'comenzi@metalsupply.ro', '+40721123456', 'Str. Industriei 15', 'București', 7),
+('AluminiumPro SA', 'Maria Ionescu', 'vanzari@aluminiumpro.ro', '+40722234567', 'Bd. Metalurgiei 23', 'Cluj-Napoca', 10),
+('PlasticTech SRL', 'Andrei Georgescu', 'office@plastictech.ro', '+40723345678', 'Str. Polimeri 8', 'Timișoara', 14);
+
+-- ============================================================================
+-- UPDATE TRIGGER FOR material_stock
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION update_material_stock_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    -- Calculate total value
+    IF NEW.cost_per_unit IS NOT NULL AND NEW.current_stock IS NOT NULL THEN
+        NEW.total_value = NEW.cost_per_unit * NEW.current_stock;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_material_stock
+    BEFORE UPDATE ON material_stock
+    FOR EACH ROW
+    EXECUTE FUNCTION update_material_stock_timestamp();
 
 -- ============================================================================
 -- END OF SCHEMA
