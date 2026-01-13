@@ -51,6 +51,9 @@ function switchMaterialsSubtab(subtab) {
         case 'stock':
             loadMaterialsData();
             break;
+        case 'types':
+            loadMaterialTypesTable();
+            break;
         case 'suppliers':
             renderSuppliersTable();
             break;
@@ -896,6 +899,149 @@ function filterMaterialsByLocation() {
     materialsData = filtered;
     renderMaterialsTable();
     materialsData = original;
+}
+
+// ============================================================================
+// MATERIAL TYPES MANAGEMENT
+// ============================================================================
+
+async function loadMaterialTypesTable() {
+    try {
+        const response = await api.get('/materials/types');
+        if (response.success) {
+            materialTypesData = response.types || [];
+            renderMaterialTypesTable();
+        }
+    } catch (error) {
+        console.error('Error loading material types:', error);
+        document.getElementById('materialTypesTableBody').innerHTML = 
+            '<tr><td colspan="5" style="text-align: center; color: #dc3545;">Error loading material types</td></tr>';
+    }
+}
+
+function renderMaterialTypesTable() {
+    const tbody = document.getElementById('materialTypesTableBody');
+    if (!tbody) return;
+    
+    if (!materialTypesData || materialTypesData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">No material types defined. Click "Add Type" to create one.</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = materialTypesData.map(type => {
+        const aliases = type.aliases ? (Array.isArray(type.aliases) ? type.aliases.join(', ') : type.aliases) : '-';
+        const density = type.density ? type.density + ' kg/dm³' : '-';
+        const categoryBadge = getCategoryBadge(type.category);
+        
+        return `
+            <tr>
+                <td><strong>${type.name}</strong></td>
+                <td>${categoryBadge}</td>
+                <td style="max-width: 300px; white-space: normal;">${aliases}</td>
+                <td>${density}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-icon" onclick="editMaterialType(${type.id})" title="Edit">✏️</button>
+                        <button class="btn-icon delete" onclick="deleteMaterialType(${type.id})" title="Delete">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getCategoryBadge(category) {
+    const badges = {
+        'metal': '<span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Metal</span>',
+        'plastic': '<span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Plastic</span>',
+        'composite': '<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Composite</span>',
+        'wood': '<span style="background: #a16207; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Wood</span>',
+        'other': '<span style="background: #64748b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Other</span>'
+    };
+    return badges[category] || badges['other'];
+}
+
+function openAddMaterialTypeModal() {
+    document.getElementById('materialTypeForm').reset();
+    document.getElementById('material-type-id').value = '';
+    document.getElementById('material-type-modal-title').textContent = 'Add Material Type';
+    document.getElementById('material-type-modal').classList.add('active');
+}
+
+function closeMaterialTypeModal() {
+    document.getElementById('material-type-modal').classList.remove('active');
+}
+
+async function editMaterialType(id) {
+    try {
+        const response = await api.get(`/materials/types/${id}`);
+        if (response.success && response.type) {
+            const type = response.type;
+            document.getElementById('material-type-id').value = type.id;
+            document.getElementById('material-type-name').value = type.name || '';
+            document.getElementById('material-type-category').value = type.category || '';
+            document.getElementById('material-type-density').value = type.density || '';
+            document.getElementById('material-type-aliases').value = type.aliases ? (Array.isArray(type.aliases) ? type.aliases.join(', ') : type.aliases) : '';
+            document.getElementById('material-type-description').value = type.description || '';
+            document.getElementById('material-type-modal-title').textContent = 'Edit Material Type';
+            document.getElementById('material-type-modal').classList.add('active');
+        }
+    } catch (error) {
+        console.error('Error loading material type:', error);
+        alert('Error loading material type');
+    }
+}
+
+async function saveMaterialType(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('material-type-id').value;
+    const data = {
+        name: document.getElementById('material-type-name').value,
+        category: document.getElementById('material-type-category').value,
+        density: document.getElementById('material-type-density').value || null,
+        aliases: document.getElementById('material-type-aliases').value,
+        description: document.getElementById('material-type-description').value || null
+    };
+    
+    try {
+        let response;
+        if (id) {
+            response = await api.put(`/materials/types/${id}`, data);
+        } else {
+            response = await api.post('/materials/types', data);
+        }
+        
+        if (response.success) {
+            closeMaterialTypeModal();
+            loadMaterialTypesTable();
+            loadMaterialTypes(); // Refresh the dropdown data too
+            alert(id ? 'Material type updated successfully!' : 'Material type added successfully!');
+        } else {
+            alert(response.message || 'Error saving material type');
+        }
+    } catch (error) {
+        console.error('Error saving material type:', error);
+        alert('Error saving material type: ' + (error.message || 'Unknown error'));
+    }
+}
+
+async function deleteMaterialType(id) {
+    if (!confirm('Are you sure you want to delete this material type?')) return;
+    
+    try {
+        const response = await api.delete(`/materials/types/${id}`);
+        if (response.success) {
+            loadMaterialTypesTable();
+            loadMaterialTypes(); // Refresh the dropdown data too
+            alert('Material type deleted successfully!');
+        } else {
+            alert(response.message || 'Error deleting material type');
+        }
+    } catch (error) {
+        console.error('Error deleting material type:', error);
+        alert('Error deleting material type');
+    }
 }
 
 // ============================================================================

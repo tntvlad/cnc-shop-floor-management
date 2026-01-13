@@ -796,7 +796,10 @@ async function deleteStorageLocation(req, res) {
 async function getMaterialTypes(req, res) {
   try {
     const result = await pool.query(
-      `SELECT * FROM material_types WHERE is_active = true ORDER BY category, name`
+      `SELECT id, name, category, density, description, aliases, is_active, created_at 
+       FROM material_types 
+       WHERE is_active = true 
+       ORDER BY category, name`
     );
 
     res.status(200).json({
@@ -809,20 +812,56 @@ async function getMaterialTypes(req, res) {
   }
 }
 
+async function getMaterialTypeById(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT * FROM material_types WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Material type not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      type: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching material type:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 async function createMaterialType(req, res) {
   try {
-    const { name, category, density, description } = req.body;
+    const { name, category, density, description, aliases } = req.body;
 
     if (!name || !category) {
       return res.status(400).json({ success: false, message: 'Name and category are required' });
     }
 
+    // Convert aliases string/array to PostgreSQL array format
+    let aliasesArray = null;
+    if (aliases) {
+      if (typeof aliases === 'string') {
+        aliasesArray = aliases.split(',').map(a => a.trim()).filter(a => a);
+      } else if (Array.isArray(aliases)) {
+        aliasesArray = aliases.map(a => a.trim()).filter(a => a);
+      }
+    }
+
     const result = await pool.query(
-      `INSERT INTO material_types (name, category, density, description)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (name) DO UPDATE SET category = $2, density = $3, description = $4
+      `INSERT INTO material_types (name, category, density, description, aliases)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (name) DO UPDATE SET 
+         category = EXCLUDED.category, 
+         density = EXCLUDED.density, 
+         description = EXCLUDED.description,
+         aliases = EXCLUDED.aliases
        RETURNING *`,
-      [name, category, density || null, description || null]
+      [name, category, density || null, description || null, aliasesArray]
     );
 
     res.status(201).json({
@@ -832,6 +871,73 @@ async function createMaterialType(req, res) {
     });
   } catch (error) {
     console.error('Error creating material type:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+async function updateMaterialType(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, category, density, description, aliases } = req.body;
+
+    if (!name || !category) {
+      return res.status(400).json({ success: false, message: 'Name and category are required' });
+    }
+
+    // Convert aliases string/array to PostgreSQL array format
+    let aliasesArray = null;
+    if (aliases) {
+      if (typeof aliases === 'string') {
+        aliasesArray = aliases.split(',').map(a => a.trim()).filter(a => a);
+      } else if (Array.isArray(aliases)) {
+        aliasesArray = aliases.map(a => a.trim()).filter(a => a);
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE material_types 
+       SET name = $1, category = $2, density = $3, description = $4, aliases = $5
+       WHERE id = $6
+       RETURNING *`,
+      [name, category, density || null, description || null, aliasesArray, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Material type not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Material type updated',
+      type: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating material type:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+async function deleteMaterialType(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Soft delete - just mark as inactive
+    const result = await pool.query(
+      `UPDATE material_types SET is_active = false WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Material type not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Material type deleted',
+      type: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting material type:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 }
@@ -988,7 +1094,10 @@ module.exports = {
   
   // Material Types
   getMaterialTypes,
+  getMaterialTypeById,
   createMaterialType,
+  updateMaterialType,
+  deleteMaterialType,
   
   // Alerts & Reports
   getLowStockAlerts,

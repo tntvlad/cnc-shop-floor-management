@@ -786,6 +786,7 @@
                 <!-- Sub-navigation for Materials -->
                 <div class="materials-subnav">
                     <button class="materials-subtab active" onclick="switchMaterialsSubtab('stock')">📦 Stock</button>
+                    <button class="materials-subtab" onclick="switchMaterialsSubtab('types')">🏷️ Types</button>
                     <button class="materials-subtab" onclick="switchMaterialsSubtab('suppliers')">🏢 Suppliers</button>
                     <button class="materials-subtab" onclick="switchMaterialsSubtab('locations')">📍 Locations</button>
                     <button class="materials-subtab" onclick="switchMaterialsSubtab('transactions')">🔄 Transactions</button>
@@ -893,6 +894,35 @@
                         </div>
                         <div class="locations-grid" id="locationsGrid">
                             <p style="color: #64748b; text-align: center; padding: 20px;">Loading locations...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MATERIAL TYPES SUBTAB -->
+                <div id="materials-subtab-types" class="materials-subtab-content">
+                    <div class="settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; border: none; padding: 0;">Material Types</h3>
+                            <button class="btn btn-primary" onclick="openAddMaterialTypeModal()">+ Add Type</button>
+                        </div>
+                        <p style="color: #64748b; margin-bottom: 15px;">Define material types with their equivalent names (aliases) and physical properties like density.</p>
+                        <div style="overflow-x:auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Aliases (Equivalent Names)</th>
+                                        <th>Density (kg/dm³)</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="materialTypesTableBody">
+                                    <tr>
+                                        <td colspan="5" style="padding: 20px; color: #64748b; text-align: center;">Loading material types...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1459,6 +1489,55 @@
     </div>
 
     <!-- Add Machine Modal -->
+    <div class="modal" id="add-machine-modal">
+
+    <!-- Add/Edit Material Type Modal -->
+    <div class="modal" id="material-type-modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h2 id="material-type-modal-title">Add Material Type</h2>
+                <button class="modal-close" onclick="closeMaterialTypeModal()">✕</button>
+            </div>
+            <form id="materialTypeForm" onsubmit="saveMaterialType(event)">
+                <input type="hidden" id="material-type-id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="material-type-name" class="required">Name</label>
+                        <input type="text" id="material-type-name" required placeholder="e.g., Aluminum 6061">
+                    </div>
+                    <div class="form-group">
+                        <label for="material-type-category" class="required">Category</label>
+                        <select id="material-type-category" required>
+                            <option value="">Select category...</option>
+                            <option value="metal">Metal</option>
+                            <option value="plastic">Plastic</option>
+                            <option value="composite">Composite</option>
+                            <option value="wood">Wood</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="material-type-density">Density (kg/dm³)</label>
+                        <input type="number" id="material-type-density" step="0.001" min="0" placeholder="e.g., 2.70 for aluminum">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="material-type-aliases">Equivalent Names (Aliases)</label>
+                        <input type="text" id="material-type-aliases" placeholder="Separate with commas: EN AW-6061, AlMg1SiCu, 3.3211">
+                        <small style="color: #64748b;">Enter alternative names separated by commas</small>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="material-type-description">Description</label>
+                        <textarea id="material-type-description" rows="2" placeholder="Optional notes about this material..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeMaterialTypeModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Material Type</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal" id="add-machine-modal">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">

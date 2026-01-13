@@ -239,7 +239,10 @@ app.put('/api/parts/:partId/priority', authMiddleware, requireSupervisor(), orde
 // ======================== MATERIALS ROUTES ========================
 app.get('/api/materials/stats', authMiddleware, materialsController.getMaterialsStats);
 app.get('/api/materials/types', authMiddleware, materialsController.getMaterialTypes);
+app.get('/api/materials/types/:id', authMiddleware, materialsController.getMaterialTypeById);
 app.post('/api/materials/types', authMiddleware, requireSupervisor(), materialsController.createMaterialType);
+app.put('/api/materials/types/:id', authMiddleware, requireSupervisor(), materialsController.updateMaterialType);
+app.delete('/api/materials/types/:id', authMiddleware, requireSupervisor(), materialsController.deleteMaterialType);
 app.get('/api/materials/alerts/low-stock', authMiddleware, materialsController.getLowStockAlerts);
 app.get('/api/materials/reports/usage', authMiddleware, materialsController.getMaterialUsageReport);
 app.get('/api/materials/transactions', authMiddleware, materialsController.getTransactions);
