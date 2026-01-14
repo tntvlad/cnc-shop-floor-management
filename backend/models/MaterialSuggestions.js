@@ -13,9 +13,12 @@ class MaterialSuggestions {
         const { width: rW, height: rH, thickness: rT, diameter: rD } = requiredDims;
         const TOLERANCE = 0.02; // ±2%
 
+        console.log('[calculateSizeMatch] shape:', shapeType, 'candidate:', candidateDims, 'required:', requiredDims);
+
         if (shapeType === 'plate' || shapeType === 'sheet') {
             // For plates: thickness must be >= required
             if (rT && cT && cT < rT) {
+                console.log('[calculateSizeMatch] REJECT: thickness too small', cT, '<', rT);
                 return 0; // Too thin
             }
 
@@ -32,11 +35,14 @@ class MaterialSuggestions {
             const reqDim2 = rH || 0;
             const reqDims = [reqDim1, reqDim2].sort((a, b) => b - a);
 
+            console.log('[calculateSizeMatch] stockDims:', stockDims, 'reqDims:', reqDims);
+
             // Check if stock can accommodate required in any orientation
             // Larger stock dim must be >= larger required dim
             // Smaller stock dim must be >= smaller required dim
             if ((reqDims[0] > 0 && stockDims[0] < reqDims[0]) ||
                 (reqDims[1] > 0 && stockDims[1] < reqDims[1])) {
+                console.log('[calculateSizeMatch] REJECT: stock too small');
                 return 0; // Too small in at least one dimension
             }
 
