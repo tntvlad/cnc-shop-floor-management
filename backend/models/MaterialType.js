@@ -38,10 +38,17 @@ class MaterialType {
 
     /**
      * Find material types by name, alias, or specification code
+     * Returns matched_alias if the match was from an alias
      */
     static async findByNameOrSpec(searchTerm) {
         const query = `
-            SELECT mt.*
+            SELECT 
+                mt.*,
+                (
+                    SELECT alias FROM unnest(mt.aliases) AS alias 
+                    WHERE LOWER(alias) LIKE LOWER($1)
+                    LIMIT 1
+                ) AS matched_alias
             FROM material_types mt
             WHERE mt.is_active = true
               AND (

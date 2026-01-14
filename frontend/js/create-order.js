@@ -892,13 +892,16 @@ function renderMaterialTypeDropdown(dropdown, types, searchInput, hiddenInput, h
     return;
   }
 
-  dropdown.innerHTML = types.map(t => `
-    <div class="material-option" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-spec="${t.specification_code || ''}">
-      <strong>${escapeHtml(t.name)}</strong>
-      ${t.specification_code ? `<span style="color: #666; margin-left: 8px;">(${t.specification_code})</span>` : ''}
-      <div style="font-size: 0.85rem; color: #666;">${t.category || ''}</div>
-    </div>
-  `).join('');
+  dropdown.innerHTML = types.map(t => {
+    const aliasMatch = t.matched_alias ? `<span style="color: #0d6efd; margin-left: 8px;">≈ ${escapeHtml(t.matched_alias)}</span>` : '';
+    const specCode = t.specification_code ? `<span style="color: #666; margin-left: 8px;">(${t.specification_code})</span>` : '';
+    return `
+      <div class="material-option" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-spec="${t.specification_code || ''}">
+        <strong>${escapeHtml(t.name)}</strong>${specCode}${aliasMatch}
+        <div style="font-size: 0.85rem; color: #666;">${t.category || ''}</div>
+      </div>
+    `;
+  }).join('');
 
   dropdown.querySelectorAll('.material-option').forEach(opt => {
     opt.addEventListener('click', () => {

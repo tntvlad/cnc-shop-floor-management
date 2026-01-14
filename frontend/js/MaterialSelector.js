@@ -300,17 +300,17 @@ class MaterialSelector {
             return;
         }
 
-        dropdown.innerHTML = materials.map(mat => `
-            <div class="dropdown-item" data-material-id="${mat.id}" data-material-name="${mat.name}">
-                <strong>${mat.name}</strong>
-                ${mat.specification_code ? `<span class="spec-code">(${mat.specification_code})</span>` : ''}
-                <br>
-                <small class="text-muted">
-                    ${mat.category || ''}
-                    ${mat.aliases && mat.aliases.length ? ` • Aliases: ${mat.aliases.slice(0, 3).join(', ')}` : ''}
-                </small>
-            </div>
-        `).join('');
+        dropdown.innerHTML = materials.map(mat => {
+            const aliasMatch = mat.matched_alias ? `<span style="color: #0d6efd;"> ≈ ${mat.matched_alias}</span>` : '';
+            return `
+                <div class="dropdown-item" data-material-id="${mat.id}" data-material-name="${mat.name}">
+                    <strong>${mat.name}</strong>${aliasMatch}
+                    ${mat.specification_code ? `<span class="spec-code">(${mat.specification_code})</span>` : ''}
+                    <br>
+                    <small class="text-muted">${mat.category || ''}</small>
+                </div>
+            `;
+        }).join('');
 
         dropdown.style.display = 'block';
 
