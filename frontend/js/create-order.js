@@ -6,6 +6,47 @@ let csvSelectedRows = [];
 
 let allMaterials = [];
 
+// Category color system (shared with materials-admin)
+const categoryColorsOrder = JSON.parse(localStorage.getItem('materialCategoryColors') || '{}');
+const defaultCategoriesOrder = [
+    { value: 'metal', label: 'Metal', color: '#3b82f6' },
+    { value: 'plastic', label: 'Plastic', color: '#22c55e' },
+    { value: 'composite', label: 'Composite', color: '#f59e0b' },
+    { value: 'wood', label: 'Wood', color: '#a16207' },
+    { value: 'ceramic', label: 'Ceramic', color: '#ef4444' },
+    { value: 'rubber', label: 'Rubber', color: '#1f2937' }
+];
+
+function getCategoriesOrder() {
+    const customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
+    return [...defaultCategoriesOrder, ...customCategories];
+}
+
+function getCategoryColorOrder(categoryValue) {
+    const categories = getCategoriesOrder();
+    const cat = categories.find(c => c.value === categoryValue);
+    return categoryColorsOrder[categoryValue] || (cat ? cat.color : '#8b5cf6');
+}
+
+function getContrastTextColorOrder(hexColor) {
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
+function getCategoryBadgeOrder(category) {
+    if (!category) return '';
+    const bgColor = getCategoryColorOrder(category);
+    const textColor = getContrastTextColorOrder(bgColor);
+    const categories = getCategoriesOrder();
+    const cat = categories.find(c => c.value === category);
+    const displayName = cat ? cat.label : (category.charAt(0).toUpperCase() + category.slice(1));
+    return `<span style="background: ${bgColor}; color: ${textColor}; padding: 2px 8px; border-radius: 12px; font-size: 0.75em;">${displayName}</span>`;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   setTodayDate();
@@ -895,10 +936,11 @@ function renderMaterialTypeDropdown(dropdown, types, searchInput, hiddenInput, h
   dropdown.innerHTML = types.map(t => {
     const aliasMatch = t.matched_alias ? `<span style="color: #0d6efd; margin-left: 8px;">≈ ${escapeHtml(t.matched_alias)}</span>` : '';
     const specCode = t.specification_code ? `<span style="color: #666; margin-left: 8px;">(${t.specification_code})</span>` : '';
+    const categoryBadge = getCategoryBadgeOrder(t.category);
     return `
       <div class="material-option" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-spec="${t.specification_code || ''}">
         <strong>${escapeHtml(t.name)}</strong>${specCode}${aliasMatch}
-        <div style="font-size: 0.85rem; color: #666;">${t.category || ''}</div>
+        <div style="font-size: 0.85rem; margin-top: 4px;">${categoryBadge}</div>
       </div>
     `;
   }).join('');
