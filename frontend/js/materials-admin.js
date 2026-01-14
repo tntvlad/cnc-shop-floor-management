@@ -969,9 +969,21 @@ function getCategoryBadge(category) {
         'plastic': '<span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Plastic</span>',
         'composite': '<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Composite</span>',
         'wood': '<span style="background: #a16207; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Wood</span>',
-        'other': '<span style="background: #64748b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Other</span>'
+        'ceramic': '<span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Ceramic</span>',
+        'rubber': '<span style="background: #1f2937; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Rubber</span>'
     };
-    return badges[category] || badges['other'];
+    
+    if (badges[category]) {
+        return badges[category];
+    }
+    
+    // For custom categories, show them with a purple badge
+    if (category) {
+        const displayName = category.charAt(0).toUpperCase() + category.slice(1);
+        return `<span style="background: #8b5cf6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">${displayName}</span>`;
+    }
+    
+    return '<span style="background: #64748b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Other</span>';
 }
 
 function openAddMaterialTypeModal() {
