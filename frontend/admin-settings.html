@@ -660,6 +660,100 @@
         .btn-submit:hover {
             background: #5568d3 !important;
         }
+        
+        /* Custom Category Dropdown */
+        .custom-category-dropdown {
+            position: relative;
+            width: 100%;
+        }
+        .category-selected {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .category-selected:hover {
+            border-color: #6366f1;
+        }
+        .category-selected .dropdown-arrow {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+        .category-options {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 4px;
+        }
+        .category-options.show {
+            display: block;
+        }
+        .category-option {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            gap: 0.5rem;
+        }
+        .category-option:hover {
+            background: #f1f5f9;
+        }
+        .category-option .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .category-option .category-name {
+            flex: 1;
+        }
+        .category-option .category-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .category-option:hover .category-actions {
+            opacity: 1;
+        }
+        .category-option .btn-cat-action {
+            padding: 2px 6px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            background: #e2e8f0;
+        }
+        .category-option .btn-cat-action:hover {
+            background: #cbd5e1;
+        }
+        .category-option .btn-cat-delete:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .category-option.add-new {
+            color: #6366f1;
+            font-weight: 500;
+            border-top: 1px solid #e2e8f0;
+        }
+        .category-option.add-new:hover {
+            background: #eef2ff;
+        }
     </style>
 </head>
 <body>
@@ -1507,17 +1601,17 @@
                         <input type="text" id="material-type-name" required placeholder="e.g., Aluminum 6061">
                     </div>
                     <div class="form-group">
-                        <label for="material-type-category" class="required">Category</label>
-                        <select id="material-type-category" required onchange="handleCategoryChange(this)">
-                            <option value="">Select category...</option>
-                            <option value="metal">Metal</option>
-                            <option value="plastic">Plastic</option>
-                            <option value="composite">Composite</option>
-                            <option value="wood">Wood</option>
-                            <option value="ceramic">Ceramic</option>
-                            <option value="rubber">Rubber</option>
-                            <option value="__add_new__">+ Add new category...</option>
-                        </select>
+                        <label class="required">Category</label>
+                        <input type="hidden" id="material-type-category" required>
+                        <div class="custom-category-dropdown" id="categoryDropdown">
+                            <div class="category-selected" onclick="toggleCategoryDropdown()">
+                                <span id="selectedCategoryText">Select category...</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="category-options" id="categoryOptions">
+                                <!-- Options will be populated by JavaScript -->
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="material-type-density">Density (kg/dm³)</label>

@@ -963,24 +963,43 @@ function renderMaterialTypesTable() {
     }).join('');
 }
 
+// Category dropdown system with colors
+const categoryColors = JSON.parse(localStorage.getItem('materialCategoryColors') || '{}');
+const defaultCategories = [
+    { value: 'metal', label: 'Metal', color: '#3b82f6', isDefault: true },
+    { value: 'plastic', label: 'Plastic', color: '#22c55e', isDefault: true },
+    { value: 'composite', label: 'Composite', color: '#f59e0b', isDefault: true },
+    { value: 'wood', label: 'Wood', color: '#a16207', isDefault: true },
+    { value: 'ceramic', label: 'Ceramic', color: '#ef4444', isDefault: true },
+    { value: 'rubber', label: 'Rubber', color: '#1f2937', isDefault: true }
+];
+
+function getCategories() {
+    const customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
+    return [...defaultCategories, ...customCategories];
+}
+
+function saveCategoryColor(categoryValue, color) {
+    categoryColors[categoryValue] = color;
+    localStorage.setItem('materialCategoryColors', JSON.stringify(categoryColors));
+}
+
+function getCategoryColor(categoryValue) {
+    const categories = getCategories();
+    const cat = categories.find(c => c.value === categoryValue);
+    return categoryColors[categoryValue] || (cat ? cat.color : '#8b5cf6');
+}
+
 function getCategoryBadge(category) {
-    const badges = {
-        'metal': '<span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Metal</span>',
-        'plastic': '<span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Plastic</span>',
-        'composite': '<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Composite</span>',
-        'wood': '<span style="background: #a16207; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Wood</span>',
-        'ceramic': '<span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Ceramic</span>',
-        'rubber': '<span style="background: #1f2937; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Rubber</span>'
-    };
+    // Get color from user settings or defaults
+    const color = getCategoryColor(category);
     
-    if (badges[category]) {
-        return badges[category];
-    }
-    
-    // For custom categories, show them with a purple badge
     if (category) {
-        const displayName = category.charAt(0).toUpperCase() + category.slice(1);
-        return `<span style="background: #8b5cf6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">${displayName}</span>`;
+        // Find category label
+        const categories = getCategories();
+        const cat = categories.find(c => c.value === category);
+        const displayName = cat ? cat.label : (category.charAt(0).toUpperCase() + category.slice(1));
+        return `<span style="background: ${color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">${displayName}</span>`;
     }
     
     return '<span style="background: #64748b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Other</span>';
@@ -992,6 +1011,10 @@ function openAddMaterialTypeModal() {
         document.getElementById('materialTypeForm').reset();
         document.getElementById('material-type-id').value = '';
         document.getElementById('material-type-modal-title').textContent = 'Add Material Type';
+        
+        // Initialize category dropdown empty
+        initCategoryDropdown('');
+        
         const modal = document.getElementById('material-type-modal');
         modal.classList.add('active');
         modal.style.display = 'flex';  // Force display
@@ -1017,18 +1040,8 @@ async function editMaterialType(id) {
             document.getElementById('material-type-id').value = type.id;
             document.getElementById('material-type-name').value = type.name || '';
             
-            // Handle category - add if not in list
-            const categorySelect = document.getElementById('material-type-category');
-            const categoryValue = type.category || '';
-            if (categoryValue && !categorySelect.querySelector(`option[value="${categoryValue}"]`)) {
-                // Add custom category option
-                const newOption = document.createElement('option');
-                newOption.value = categoryValue;
-                newOption.textContent = categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
-                const addNewOption = categorySelect.querySelector('option[value="__add_new__"]');
-                categorySelect.insertBefore(newOption, addNewOption);
-            }
-            categorySelect.value = categoryValue;
+            // Initialize custom category dropdown
+            initCategoryDropdown(type.category || '');
             
             document.getElementById('material-type-density').value = type.density || '';
             document.getElementById('material-type-aliases').value = type.aliases ? (Array.isArray(type.aliases) ? type.aliases.join(', ') : type.aliases) : '';
@@ -1044,28 +1057,137 @@ async function editMaterialType(id) {
     }
 }
 
-// Handle "Add new category" option in dropdown
-function handleCategoryChange(select) {
-    if (select.value === '__add_new__') {
-        const newCategory = prompt('Enter new category name:');
-        if (newCategory && newCategory.trim()) {
-            const categoryValue = newCategory.trim().toLowerCase().replace(/\s+/g, '_');
-            const categoryLabel = newCategory.trim();
-            
-            // Add new option before the "Add new" option
-            const newOption = document.createElement('option');
-            newOption.value = categoryValue;
-            newOption.textContent = categoryLabel;
-            
-            const addNewOption = select.querySelector('option[value="__add_new__"]');
-            select.insertBefore(newOption, addNewOption);
-            
-            // Select the new option
-            select.value = categoryValue;
-        } else {
-            // Reset to empty if cancelled
-            select.value = '';
+function toggleCategoryDropdown() {
+    const options = document.getElementById('categoryOptions');
+    options.classList.toggle('show');
+    if (options.classList.contains('show')) {
+        renderCategoryOptions();
+    }
+}
+
+function closeCategoryDropdown() {
+    const options = document.getElementById('categoryOptions');
+    if (options) options.classList.remove('show');
+}
+
+function renderCategoryOptions() {
+    const container = document.getElementById('categoryOptions');
+    if (!container) return;
+    
+    const categories = getCategories();
+    let html = categories.map(cat => {
+        const color = getCategoryColor(cat.value);
+        const deleteBtn = cat.isDefault ? '' : `<button class="btn-cat-action btn-cat-delete" onclick="deleteCategory(event, '${cat.value}')" title="Delete">🗑️</button>`;
+        return `
+            <div class="category-option" onclick="selectCategory('${cat.value}', '${cat.label}')">
+                <span class="color-dot" style="background: ${color};"></span>
+                <span class="category-name">${cat.label}</span>
+                <div class="category-actions">
+                    <input type="color" value="${color}" onclick="event.stopPropagation()" onchange="changeCategoryColor(event, '${cat.value}')" title="Change color" style="width: 24px; height: 24px; border: none; cursor: pointer; padding: 0;">
+                    ${deleteBtn}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    html += `<div class="category-option add-new" onclick="addNewCategory()">+ Add new category...</div>`;
+    container.innerHTML = html;
+}
+
+function selectCategory(value, label) {
+    document.getElementById('material-type-category').value = value;
+    const color = getCategoryColor(value);
+    document.getElementById('selectedCategoryText').innerHTML = `<span class="color-dot" style="background: ${color}; display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px;"></span>${label}`;
+    closeCategoryDropdown();
+}
+
+function changeCategoryColor(event, categoryValue) {
+    event.stopPropagation();
+    const newColor = event.target.value;
+    saveCategoryColor(categoryValue, newColor);
+    
+    // Update color dot in the option
+    const dot = event.target.closest('.category-option').querySelector('.color-dot');
+    if (dot) dot.style.background = newColor;
+    
+    // Update selected display if this category is selected
+    const currentValue = document.getElementById('material-type-category').value;
+    if (currentValue === categoryValue) {
+        const selectedDot = document.querySelector('#selectedCategoryText .color-dot');
+        if (selectedDot) selectedDot.style.background = newColor;
+    }
+}
+
+function deleteCategory(event, categoryValue) {
+    event.stopPropagation();
+    if (!confirm(`Delete category "${categoryValue}"? This will not affect existing materials.`)) return;
+    
+    let customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
+    customCategories = customCategories.filter(c => c.value !== categoryValue);
+    localStorage.setItem('customCategories', JSON.stringify(customCategories));
+    
+    // Clear selection if deleted category was selected
+    if (document.getElementById('material-type-category').value === categoryValue) {
+        document.getElementById('material-type-category').value = '';
+        document.getElementById('selectedCategoryText').textContent = 'Select category...';
+    }
+    
+    renderCategoryOptions();
+}
+
+function addNewCategory() {
+    const newCategory = prompt('Enter new category name:');
+    if (newCategory && newCategory.trim()) {
+        const categoryValue = newCategory.trim().toLowerCase().replace(/\s+/g, '_');
+        const categoryLabel = newCategory.trim();
+        
+        // Check if already exists
+        const existing = getCategories().find(c => c.value === categoryValue);
+        if (existing) {
+            alert('Category already exists!');
+            selectCategory(existing.value, existing.label);
+            return;
         }
+        
+        // Add to custom categories
+        const customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
+        customCategories.push({ value: categoryValue, label: categoryLabel, color: '#8b5cf6', isDefault: false });
+        localStorage.setItem('customCategories', JSON.stringify(customCategories));
+        
+        selectCategory(categoryValue, categoryLabel);
+        renderCategoryOptions();
+    }
+    closeCategoryDropdown();
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.custom-category-dropdown')) {
+        closeCategoryDropdown();
+    }
+});
+
+// Initialize category dropdown when modal opens
+function initCategoryDropdown(currentValue = '') {
+    renderCategoryOptions();
+    if (currentValue) {
+        const categories = getCategories();
+        let cat = categories.find(c => c.value === currentValue);
+        
+        // If category doesn't exist, add it as custom
+        if (!cat) {
+            const customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
+            const label = currentValue.charAt(0).toUpperCase() + currentValue.slice(1);
+            customCategories.push({ value: currentValue, label: label, color: '#8b5cf6', isDefault: false });
+            localStorage.setItem('customCategories', JSON.stringify(customCategories));
+            cat = { value: currentValue, label: label };
+            renderCategoryOptions();
+        }
+        
+        selectCategory(cat.value, cat.label);
+    } else {
+        document.getElementById('material-type-category').value = '';
+        document.getElementById('selectedCategoryText').textContent = 'Select category...';
     }
 }
 
