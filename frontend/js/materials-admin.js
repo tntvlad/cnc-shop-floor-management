@@ -1077,14 +1077,13 @@ function renderCategoryOptions() {
     const categories = getCategories();
     let html = categories.map(cat => {
         const color = getCategoryColor(cat.value);
-        const deleteBtn = cat.isDefault ? '' : `<button class="btn-cat-action btn-cat-delete" onclick="deleteCategory(event, '${cat.value}')" title="Delete">🗑️</button>`;
         return `
             <div class="category-option" onclick="selectCategory('${cat.value}', '${cat.label}')">
                 <span class="color-dot" style="background: ${color};"></span>
                 <span class="category-name">${cat.label}</span>
                 <div class="category-actions">
                     <input type="color" value="${color}" onclick="event.stopPropagation()" onchange="changeCategoryColor(event, '${cat.value}')" title="Change color" style="width: 24px; height: 24px; border: none; cursor: pointer; padding: 0;">
-                    ${deleteBtn}
+                    <button class="btn-cat-action btn-cat-delete" onclick="deleteCategory(event, '${cat.value}')" title="Delete">🗑️</button>
                 </div>
             </div>
         `;
