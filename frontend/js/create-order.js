@@ -865,9 +865,13 @@ function setupMaterialSearch(partItem, index) {
 
 async function searchMaterialTypesForPart(query, dropdown, searchInput, hiddenInput, hiddenTypeName, shapeSelect) {
   try {
-    const response = await api.request(`/materials/types/search/${encodeURIComponent(query)}`);
+    const response = await api.get(`/materials/types/search/${encodeURIComponent(query)}`);
     if (response.success && response.materialTypes) {
       renderMaterialTypeDropdown(dropdown, response.materialTypes, searchInput, hiddenInput, hiddenTypeName, shapeSelect);
+      dropdown.classList.add('active');
+    } else {
+      // No results from types, show empty state
+      dropdown.innerHTML = '<div class="material-option" style="color: #999;">No material types found</div>';
       dropdown.classList.add('active');
     }
   } catch (error) {

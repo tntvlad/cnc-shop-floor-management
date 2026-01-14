@@ -232,6 +232,9 @@ const API = {
 
 // Simple api wrapper for convenience
 const api = {
+  async request(endpoint, options = {}) {
+    return API.request(endpoint, options);
+  },
   async get(endpoint) {
     return API.request(endpoint, { method: 'GET' });
   },
