@@ -1004,7 +1004,20 @@ async function editMaterialType(id) {
             const type = response.type;
             document.getElementById('material-type-id').value = type.id;
             document.getElementById('material-type-name').value = type.name || '';
-            document.getElementById('material-type-category').value = type.category || '';
+            
+            // Handle category - add if not in list
+            const categorySelect = document.getElementById('material-type-category');
+            const categoryValue = type.category || '';
+            if (categoryValue && !categorySelect.querySelector(`option[value="${categoryValue}"]`)) {
+                // Add custom category option
+                const newOption = document.createElement('option');
+                newOption.value = categoryValue;
+                newOption.textContent = categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
+                const addNewOption = categorySelect.querySelector('option[value="__add_new__"]');
+                categorySelect.insertBefore(newOption, addNewOption);
+            }
+            categorySelect.value = categoryValue;
+            
             document.getElementById('material-type-density').value = type.density || '';
             document.getElementById('material-type-aliases').value = type.aliases ? (Array.isArray(type.aliases) ? type.aliases.join(', ') : type.aliases) : '';
             document.getElementById('material-type-description').value = type.description || '';
@@ -1016,6 +1029,31 @@ async function editMaterialType(id) {
     } catch (error) {
         console.error('Error loading material type:', error);
         alert('Error loading material type');
+    }
+}
+
+// Handle "Add new category" option in dropdown
+function handleCategoryChange(select) {
+    if (select.value === '__add_new__') {
+        const newCategory = prompt('Enter new category name:');
+        if (newCategory && newCategory.trim()) {
+            const categoryValue = newCategory.trim().toLowerCase().replace(/\s+/g, '_');
+            const categoryLabel = newCategory.trim();
+            
+            // Add new option before the "Add new" option
+            const newOption = document.createElement('option');
+            newOption.value = categoryValue;
+            newOption.textContent = categoryLabel;
+            
+            const addNewOption = select.querySelector('option[value="__add_new__"]');
+            select.insertBefore(newOption, addNewOption);
+            
+            // Select the new option
+            select.value = categoryValue;
+        } else {
+            // Reset to empty if cancelled
+            select.value = '';
+        }
     }
 }
 

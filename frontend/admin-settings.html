@@ -1508,13 +1508,15 @@
                     </div>
                     <div class="form-group">
                         <label for="material-type-category" class="required">Category</label>
-                        <select id="material-type-category" required>
+                        <select id="material-type-category" required onchange="handleCategoryChange(this)">
                             <option value="">Select category...</option>
                             <option value="metal">Metal</option>
                             <option value="plastic">Plastic</option>
                             <option value="composite">Composite</option>
                             <option value="wood">Wood</option>
-                            <option value="other">Other</option>
+                            <option value="ceramic">Ceramic</option>
+                            <option value="rubber">Rubber</option>
+                            <option value="__add_new__">+ Add new category...</option>
                         </select>
                     </div>
                     <div class="form-group">
