@@ -5,33 +5,65 @@ const MaterialStock = require('./MaterialStock');
 class MaterialSuggestions {
     /**
      * Calculate size match score based on shape type
+     * For plates: width/height are interchangeable (can rotate the part)
+     * Only thickness must match exactly
      */
     static calculateSizeMatch(shapeType, candidateDims, requiredDims) {
-        const { width: cW, height: cH, thickness: cT, diameter: cD } = candidateDims;
+        const { width: cW, height: cH, thickness: cT, diameter: cD, length: cL } = candidateDims;
         const { width: rW, height: rH, thickness: rT, diameter: rD } = requiredDims;
         const TOLERANCE = 0.02; // ±2%
 
         if (shapeType === 'plate' || shapeType === 'sheet') {
-            // All dimensions must be >= required
-            if ((rW && cW < rW) || (rH && cH < rH) || (rT && cT < rT)) {
-                return 0; // Too small
+            // For plates: thickness must be >= required
+            if (rT && cT && cT < rT) {
+                return 0; // Too thin
+            }
+
+            // Get the two planar dimensions from stock (width/height or width/length)
+            // Stock might store height as 'length' for plates
+            const stockDim1 = cW || 0;
+            const stockDim2 = cH || cL || 0;
+            
+            // Sort stock dimensions (larger first)
+            const stockDims = [stockDim1, stockDim2].sort((a, b) => b - a);
+            
+            // Get required planar dimensions and sort (larger first)
+            const reqDim1 = rW || 0;
+            const reqDim2 = rH || 0;
+            const reqDims = [reqDim1, reqDim2].sort((a, b) => b - a);
+
+            // Check if stock can accommodate required in any orientation
+            // Larger stock dim must be >= larger required dim
+            // Smaller stock dim must be >= smaller required dim
+            if ((reqDims[0] > 0 && stockDims[0] < reqDims[0]) ||
+                (reqDims[1] > 0 && stockDims[1] < reqDims[1])) {
+                return 0; // Too small in at least one dimension
             }
 
             // Check for exact match within tolerance
-            const widthMatch = !rW || (Math.abs(cW - rW) / rW <= TOLERANCE);
-            const heightMatch = !rH || (Math.abs(cH - rH) / rH <= TOLERANCE);
-            const thicknessMatch = !rT || (Math.abs(cT - rT) / rT <= TOLERANCE);
+            const dim1Match = !reqDims[0] || (stockDims[0] > 0 && Math.abs(stockDims[0] - reqDims[0]) / reqDims[0] <= TOLERANCE);
+            const dim2Match = !reqDims[1] || (stockDims[1] > 0 && Math.abs(stockDims[1] - reqDims[1]) / reqDims[1] <= TOLERANCE);
+            const thicknessMatch = !rT || (cT && Math.abs(cT - rT) / rT <= TOLERANCE);
 
-            if (widthMatch && heightMatch && thicknessMatch) {
+            if (dim1Match && dim2Match && thicknessMatch) {
                 return 100; // Exact match
             }
 
-            // Calculate waste percentage
-            const requiredVolume = (rW || 1) * (rH || 1) * (rT || 1);
-            const candidateVolume = (cW || 1) * (cH || 1) * (cT || 1);
-            const wastePercentage = ((candidateVolume - requiredVolume) / requiredVolume) * 100;
+            // Calculate waste percentage based on area (not volume, since we cut from the plate)
+            const requiredArea = (reqDims[0] || 1) * (reqDims[1] || 1);
+            const candidateArea = (stockDims[0] || 1) * (stockDims[1] || 1);
+            const wastePercentage = ((candidateArea - requiredArea) / requiredArea) * 100;
 
-            return Math.max(0, 100 - Math.min(wastePercentage, 100));
+            // Also factor in thickness match
+            let thicknessScore = 100;
+            if (rT && cT) {
+                const thicknessWaste = ((cT - rT) / rT) * 100;
+                thicknessScore = Math.max(0, 100 - thicknessWaste);
+            }
+
+            // Combine area score (70%) and thickness score (30%)
+            const areaScore = Math.max(0, 100 - Math.min(wastePercentage, 100));
+            return areaScore * 0.7 + thicknessScore * 0.3;
         }
 
         if (shapeType === 'bar_round') {

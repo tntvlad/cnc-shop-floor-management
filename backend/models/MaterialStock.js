@@ -146,26 +146,67 @@ class MaterialStock {
             paramCount++;
         }
 
-        // Dimension filters - must be at least as large as required
-        if (width) {
-            query += ` AND (ms.width IS NULL OR ms.width >= $${paramCount})`;
-            values.push(width);
-            paramCount++;
-        }
-        if (height) {
-            query += ` AND (ms.height IS NULL OR ms.height >= $${paramCount})`;
-            values.push(height);
-            paramCount++;
-        }
-        if (thickness) {
-            query += ` AND (ms.thickness IS NULL OR ms.thickness >= $${paramCount})`;
-            values.push(thickness);
-            paramCount++;
-        }
-        if (diameter) {
-            query += ` AND (ms.diameter IS NULL OR ms.diameter >= $${paramCount})`;
-            values.push(diameter);
-            paramCount++;
+        // Dimension filters depend on shape type
+        if (shapeType === 'plate' || shapeType === 'sheet') {
+            // For plates: width/height are interchangeable (can rotate the part)
+            // Only thickness must be >= required
+            if (thickness) {
+                query += ` AND (ms.thickness IS NULL OR ms.thickness >= $${paramCount})`;
+                values.push(thickness);
+                paramCount++;
+            }
+            
+            // For width/height: check if stock can fit in any orientation
+            // Stock's larger dimension >= required larger dimension
+            // Stock's smaller dimension >= required smaller dimension
+            if (width && height) {
+                const largerReq = Math.max(width, height);
+                const smallerReq = Math.min(width, height);
+                // GREATEST/LEAST handle the rotation check
+                query += ` AND (
+                    (ms.width IS NULL AND ms.height IS NULL) OR
+                    (GREATEST(COALESCE(ms.width, 0), COALESCE(ms.height, 0), COALESCE(ms.length, 0)) >= $${paramCount}
+                     AND LEAST(
+                         CASE WHEN ms.width > 0 THEN ms.width ELSE 99999 END,
+                         CASE WHEN ms.height > 0 THEN ms.height ELSE 99999 END,
+                         CASE WHEN ms.length > 0 THEN ms.length ELSE 99999 END
+                     ) >= $${paramCount + 1})
+                )`;
+                values.push(largerReq, smallerReq);
+                paramCount += 2;
+            } else if (width) {
+                // Only width specified - any planar dimension must be >= width
+                query += ` AND (ms.width IS NULL OR ms.width >= $${paramCount} OR ms.height >= $${paramCount} OR ms.length >= $${paramCount})`;
+                values.push(width);
+                paramCount++;
+            } else if (height) {
+                // Only height specified - any planar dimension must be >= height
+                query += ` AND (ms.height IS NULL OR ms.height >= $${paramCount} OR ms.width >= $${paramCount} OR ms.length >= $${paramCount})`;
+                values.push(height);
+                paramCount++;
+            }
+        } else {
+            // For bars and other shapes: standard dimension matching
+            if (width) {
+                query += ` AND (ms.width IS NULL OR ms.width >= $${paramCount})`;
+                values.push(width);
+                paramCount++;
+            }
+            if (height) {
+                query += ` AND (ms.height IS NULL OR ms.height >= $${paramCount})`;
+                values.push(height);
+                paramCount++;
+            }
+            if (thickness) {
+                query += ` AND (ms.thickness IS NULL OR ms.thickness >= $${paramCount})`;
+                values.push(thickness);
+                paramCount++;
+            }
+            if (diameter) {
+                query += ` AND (ms.diameter IS NULL OR ms.diameter >= $${paramCount})`;
+                values.push(diameter);
+                paramCount++;
+            }
         }
 
         query += ` ORDER BY ms.size_index ASC LIMIT 20`;
