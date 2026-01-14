@@ -184,13 +184,19 @@ class MaterialSuggestions {
         try {
             const { width, height, thickness, diameter, shape_type } = dimensions;
 
+            console.log('[getSuggestions] Input:', { materialType, dimensions, requiredQty });
+
             // Step 1: Find matching material types (including equivalents)
             let materialTypeIds = [];
             const materialTypeId = await MaterialType.findIdByNameOrAlias(materialType);
             
+            console.log('[getSuggestions] materialTypeId:', materialTypeId);
+            
             if (materialTypeId) {
                 materialTypeIds = await MaterialType.getAllEquivalentIds(materialTypeId);
             }
+
+            console.log('[getSuggestions] materialTypeIds:', materialTypeIds);
 
             // Step 2: Get available stock (pass materialType name as fallback)
             const candidates = await MaterialStock.findAvailable(
@@ -200,6 +206,8 @@ class MaterialSuggestions {
                 requiredQty,
                 materialType // Pass material name as fallback search
             );
+
+            console.log('[getSuggestions] candidates found:', candidates.length);
 
             if (candidates.length === 0) {
                 return {

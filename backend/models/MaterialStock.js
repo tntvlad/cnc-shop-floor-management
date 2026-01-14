@@ -110,6 +110,8 @@ class MaterialStock {
     static async findAvailable(materialTypeIds, shapeType, minDimensions, requiredQty, materialName = null) {
         const { width, height, thickness, diameter } = minDimensions;
         
+        console.log('[findAvailable] Input:', { materialTypeIds, shapeType, minDimensions, requiredQty, materialName });
+        
         let query = `
             SELECT 
                 ms.*,
@@ -211,7 +213,11 @@ class MaterialStock {
 
         query += ` ORDER BY ms.size_index ASC LIMIT 20`;
 
+        console.log('[findAvailable] Query:', query);
+        console.log('[findAvailable] Values:', values);
+
         const result = await db.query(query, values);
+        console.log('[findAvailable] Results:', result.rows.length);
         return result.rows;
     }
 
