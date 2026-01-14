@@ -855,13 +855,14 @@ async function createMaterialType(req, res) {
     }
 
     const result = await pool.query(
-      `INSERT INTO material_types (name, category, density, description, aliases)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO material_types (name, category, density, description, aliases, is_active)
+       VALUES ($1, $2, $3, $4, $5, true)
        ON CONFLICT (name) DO UPDATE SET 
          category = EXCLUDED.category, 
          density = EXCLUDED.density, 
          description = EXCLUDED.description,
-         aliases = EXCLUDED.aliases
+         aliases = EXCLUDED.aliases,
+         is_active = true
        RETURNING *`,
       [name, category, density || null, description || null, aliasesArray]
     );
