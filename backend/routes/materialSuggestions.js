@@ -8,8 +8,6 @@ router.post('/suggest', authenticateToken, async (req, res) => {
     try {
         const { material_type, dimensions, quantity, max_suggestions } = req.body;
 
-        console.log('[Smart Search] Request:', JSON.stringify({ material_type, dimensions, quantity }));
-
         if (!material_type) {
             return res.status(400).json({ success: false, error: 'material_type is required' });
         }
@@ -20,8 +18,6 @@ router.post('/suggest', authenticateToken, async (req, res) => {
             quantity || 1,
             max_suggestions || 5
         );
-
-        console.log('[Smart Search] Result: candidates=', suggestions.total_candidates || 0, ', suggestions=', suggestions.suggestions?.length || 0);
 
         res.json({ success: true, ...suggestions });
     } catch (error) {

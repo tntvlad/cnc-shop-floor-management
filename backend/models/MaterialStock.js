@@ -110,8 +110,6 @@ class MaterialStock {
     static async findAvailable(materialTypeIds, shapeType, minDimensions, requiredQty, materialName = null) {
         const { width, height, thickness, diameter } = minDimensions;
         
-        console.log('[findAvailable] Input:', { materialTypeIds, shapeType, minDimensions, requiredQty, materialName });
-        
         let query = `
             SELECT 
                 ms.*,
@@ -150,7 +148,6 @@ class MaterialStock {
 
         // Dimension filters depend on shape type
         if (shapeType === 'plate' || shapeType === 'sheet') {
-            console.log('[findAvailable] Plate mode - width:', width, 'height:', height, 'thickness:', thickness);
             // For plates: width/height are interchangeable (can rotate the part)
             // Only thickness must be >= required
             if (thickness) {
@@ -163,7 +160,6 @@ class MaterialStock {
             // Stock's larger dimension >= required larger dimension
             // Stock's smaller dimension >= required smaller dimension
             if (width && height) {
-                console.log('[findAvailable] Both width AND height provided');
                 const largerReq = Math.max(width, height);
                 const smallerReq = Math.min(width, height);
                 // GREATEST/LEAST handle the rotation check
@@ -215,11 +211,7 @@ class MaterialStock {
 
         query += ` ORDER BY ms.size_index ASC LIMIT 20`;
 
-        console.log('[findAvailable] Query:', query);
-        console.log('[findAvailable] Values:', values);
-
         const result = await db.query(query, values);
-        console.log('[findAvailable] Results:', result.rows.length);
         return result.rows;
     }
 

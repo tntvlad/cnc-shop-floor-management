@@ -13,12 +13,9 @@ class MaterialSuggestions {
         const { width: rW, height: rH, thickness: rT, diameter: rD } = requiredDims;
         const TOLERANCE = 0.02; // ±2%
 
-        console.log('[calculateSizeMatch] shape:', shapeType, 'candidate:', candidateDims, 'required:', requiredDims);
-
         if (shapeType === 'plate' || shapeType === 'sheet') {
             // For plates: thickness must be >= required
             if (rT && cT && cT < rT) {
-                console.log('[calculateSizeMatch] REJECT: thickness too small', cT, '<', rT);
                 return 0; // Too thin
             }
 
@@ -35,14 +32,11 @@ class MaterialSuggestions {
             const reqDim2 = rH || 0;
             const reqDims = [reqDim1, reqDim2].sort((a, b) => b - a);
 
-            console.log('[calculateSizeMatch] stockDims:', stockDims, 'reqDims:', reqDims);
-
             // Check if stock can accommodate required in any orientation
             // Larger stock dim must be >= larger required dim
             // Smaller stock dim must be >= smaller required dim
             if ((reqDims[0] > 0 && stockDims[0] < reqDims[0]) ||
                 (reqDims[1] > 0 && stockDims[1] < reqDims[1])) {
-                console.log('[calculateSizeMatch] REJECT: stock too small');
                 return 0; // Too small in at least one dimension
             }
 
@@ -190,19 +184,13 @@ class MaterialSuggestions {
         try {
             const { width, height, thickness, diameter, shape_type } = dimensions;
 
-            console.log('[getSuggestions] Input:', { materialType, dimensions, requiredQty });
-
             // Step 1: Find matching material types (including equivalents)
             let materialTypeIds = [];
             const materialTypeId = await MaterialType.findIdByNameOrAlias(materialType);
             
-            console.log('[getSuggestions] materialTypeId:', materialTypeId);
-            
             if (materialTypeId) {
                 materialTypeIds = await MaterialType.getAllEquivalentIds(materialTypeId);
             }
-
-            console.log('[getSuggestions] materialTypeIds:', materialTypeIds);
 
             // Step 2: Get available stock (pass materialType name as fallback)
             const candidates = await MaterialStock.findAvailable(
@@ -212,8 +200,6 @@ class MaterialSuggestions {
                 requiredQty,
                 materialType // Pass material name as fallback search
             );
-
-            console.log('[getSuggestions] candidates found:', candidates.length);
 
             if (candidates.length === 0) {
                 return {
