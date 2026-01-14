@@ -150,6 +150,7 @@ class MaterialStock {
 
         // Dimension filters depend on shape type
         if (shapeType === 'plate' || shapeType === 'sheet') {
+            console.log('[findAvailable] Plate mode - width:', width, 'height:', height, 'thickness:', thickness);
             // For plates: width/height are interchangeable (can rotate the part)
             // Only thickness must be >= required
             if (thickness) {
@@ -162,6 +163,7 @@ class MaterialStock {
             // Stock's larger dimension >= required larger dimension
             // Stock's smaller dimension >= required smaller dimension
             if (width && height) {
+                console.log('[findAvailable] Both width AND height provided');
                 const largerReq = Math.max(width, height);
                 const smallerReq = Math.min(width, height);
                 // GREATEST/LEAST handle the rotation check
