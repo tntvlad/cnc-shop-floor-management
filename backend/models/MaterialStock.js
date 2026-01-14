@@ -148,41 +148,39 @@ class MaterialStock {
 
         // Dimension filters depend on shape type
         if (shapeType === 'plate' || shapeType === 'sheet') {
-            // For plates: width/height are interchangeable (can rotate the part)
-            // Only thickness must be >= required
-            if (thickness) {
+            // For plates: part can be oriented in any way
+            // Sort all 3 required dimensions - smallest must fit stock thickness
+            // Other two must fit on stock surface (width × length)
+            const reqDims = [width || 0, height || 0, thickness || 0].filter(d => d > 0).sort((a, b) => a - b);
+            
+            if (reqDims.length >= 1) {
+                // Smallest required dimension must fit stock thickness
+                const smallestReq = reqDims[0];
                 query += ` AND (ms.thickness IS NULL OR ms.thickness >= $${paramCount})`;
-                values.push(thickness);
+                values.push(smallestReq);
                 paramCount++;
             }
             
-            // For width/height: check if stock can fit in any orientation
-            // Stock's larger dimension >= required larger dimension
-            // Stock's smaller dimension >= required smaller dimension
-            if (width && height) {
-                const largerReq = Math.max(width, height);
-                const smallerReq = Math.min(width, height);
-                // GREATEST/LEAST handle the rotation check
+            if (reqDims.length >= 2) {
+                // Middle dimension must fit on stock surface (smaller of width/length)
+                const middleReq = reqDims.length >= 2 ? reqDims[1] : 0;
                 query += ` AND (
-                    (ms.width IS NULL AND ms.height IS NULL) OR
-                    (GREATEST(COALESCE(ms.width, 0), COALESCE(ms.height, 0), COALESCE(ms.length, 0)) >= $${paramCount}
-                     AND LEAST(
-                         CASE WHEN ms.width > 0 THEN ms.width ELSE 99999 END,
-                         CASE WHEN ms.height > 0 THEN ms.height ELSE 99999 END,
-                         CASE WHEN ms.length > 0 THEN ms.length ELSE 99999 END
-                     ) >= $${paramCount + 1})
+                    LEAST(
+                        CASE WHEN ms.width > 0 THEN ms.width ELSE 99999 END,
+                        CASE WHEN ms.length > 0 THEN ms.length ELSE 99999 END
+                    ) >= $${paramCount}
                 )`;
-                values.push(largerReq, smallerReq);
-                paramCount += 2;
-            } else if (width) {
-                // Only width specified - any planar dimension must be >= width
-                query += ` AND (ms.width IS NULL OR ms.width >= $${paramCount} OR ms.height >= $${paramCount} OR ms.length >= $${paramCount})`;
-                values.push(width);
+                values.push(middleReq);
                 paramCount++;
-            } else if (height) {
-                // Only height specified - any planar dimension must be >= height
-                query += ` AND (ms.height IS NULL OR ms.height >= $${paramCount} OR ms.width >= $${paramCount} OR ms.length >= $${paramCount})`;
-                values.push(height);
+            }
+            
+            if (reqDims.length >= 3) {
+                // Largest dimension must fit on stock surface (larger of width/length)
+                const largestReq = reqDims[2];
+                query += ` AND (
+                    GREATEST(COALESCE(ms.width, 0), COALESCE(ms.length, 0)) >= $${paramCount}
+                )`;
+                values.push(largestReq);
                 paramCount++;
             }
         } else {

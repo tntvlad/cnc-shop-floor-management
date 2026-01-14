@@ -5,8 +5,7 @@ const MaterialStock = require('./MaterialStock');
 class MaterialSuggestions {
     /**
      * Calculate size match score based on shape type
-     * For plates: width/height are interchangeable (can rotate the part)
-     * Only thickness must match exactly
+     * For plates: all 3 dimensions can be rotated - smallest goes to thickness
      */
     static calculateSizeMatch(shapeType, candidateDims, requiredDims) {
         const { width: cW, height: cH, thickness: cT, diameter: cD, length: cL } = candidateDims;
@@ -14,56 +13,52 @@ class MaterialSuggestions {
         const TOLERANCE = 0.02; // ±2%
 
         if (shapeType === 'plate' || shapeType === 'sheet') {
-            // For plates: thickness must be >= required
-            if (rT && cT && cT < rT) {
-                return 0; // Too thin
+            // Stock dimensions: thickness is fixed, surface is width × length
+            const stockThickness = cT || 0;
+            const stockSurface = [cW || 0, cL || 0].sort((a, b) => b - a); // [larger, smaller]
+            
+            // Required dimensions: can be oriented any way
+            // Sort all 3 required dims - smallest can go to thickness
+            const reqAll = [rW || 0, rH || 0, rT || 0].filter(d => d > 0).sort((a, b) => a - b);
+            
+            if (reqAll.length === 0) return 50; // No dimensions specified
+            
+            // The smallest required dimension must fit the stock thickness
+            const reqThickness = reqAll[0];
+            // The two larger dimensions must fit on the stock surface
+            const reqSurface = reqAll.length >= 3 
+                ? [reqAll[2], reqAll[1]] // [largest, middle]
+                : reqAll.length >= 2 
+                    ? [reqAll[1], reqAll[0]]
+                    : [reqAll[0], 0];
+            
+            // Check if part fits
+            if (stockThickness > 0 && stockThickness < reqThickness) {
+                return 0; // Stock too thin
             }
-
-            // Get the two planar dimensions from stock (width/height or width/length)
-            // Stock might store height as 'length' for plates
-            const stockDim1 = cW || 0;
-            const stockDim2 = cH || cL || 0;
-            
-            // Sort stock dimensions (larger first)
-            const stockDims = [stockDim1, stockDim2].sort((a, b) => b - a);
-            
-            // Get required planar dimensions and sort (larger first)
-            const reqDim1 = rW || 0;
-            const reqDim2 = rH || 0;
-            const reqDims = [reqDim1, reqDim2].sort((a, b) => b - a);
-
-            // Check if stock can accommodate required in any orientation
-            // Larger stock dim must be >= larger required dim
-            // Smaller stock dim must be >= smaller required dim
-            if ((reqDims[0] > 0 && stockDims[0] < reqDims[0]) ||
-                (reqDims[1] > 0 && stockDims[1] < reqDims[1])) {
-                return 0; // Too small in at least one dimension
+            if (reqSurface[0] > 0 && stockSurface[0] < reqSurface[0]) {
+                return 0; // Stock surface too small (largest dim)
+            }
+            if (reqSurface[1] > 0 && stockSurface[1] < reqSurface[1]) {
+                return 0; // Stock surface too small (middle dim)
             }
 
             // Check for exact match within tolerance
-            const dim1Match = !reqDims[0] || (stockDims[0] > 0 && Math.abs(stockDims[0] - reqDims[0]) / reqDims[0] <= TOLERANCE);
-            const dim2Match = !reqDims[1] || (stockDims[1] > 0 && Math.abs(stockDims[1] - reqDims[1]) / reqDims[1] <= TOLERANCE);
-            const thicknessMatch = !rT || (cT && Math.abs(cT - rT) / rT <= TOLERANCE);
+            const thicknessMatch = !reqThickness || (stockThickness > 0 && Math.abs(stockThickness - reqThickness) / reqThickness <= TOLERANCE);
+            const dim1Match = !reqSurface[0] || (stockSurface[0] > 0 && Math.abs(stockSurface[0] - reqSurface[0]) / reqSurface[0] <= TOLERANCE);
+            const dim2Match = !reqSurface[1] || (stockSurface[1] > 0 && Math.abs(stockSurface[1] - reqSurface[1]) / reqSurface[1] <= TOLERANCE);
 
             if (dim1Match && dim2Match && thicknessMatch) {
                 return 100; // Exact match
             }
 
-            // Calculate waste percentage based on area (not volume, since we cut from the plate)
-            const requiredArea = (reqDims[0] || 1) * (reqDims[1] || 1);
-            const candidateArea = (stockDims[0] || 1) * (stockDims[1] || 1);
-            const wastePercentage = ((candidateArea - requiredArea) / requiredArea) * 100;
+            // Calculate waste percentage based on volume
+            const requiredVolume = (reqSurface[0] || 1) * (reqSurface[1] || 1) * (reqThickness || 1);
+            const candidateVolume = (stockSurface[0] || 1) * (stockSurface[1] || 1) * (stockThickness || 1);
+            const wastePercentage = ((candidateVolume - requiredVolume) / requiredVolume) * 100;
 
-            // Also factor in thickness match
-            let thicknessScore = 100;
-            if (rT && cT) {
-                const thicknessWaste = ((cT - rT) / rT) * 100;
-                thicknessScore = Math.max(0, 100 - thicknessWaste);
-            }
-
-            // Combine area score (70%) and thickness score (30%)
-            const areaScore = Math.max(0, 100 - Math.min(wastePercentage, 100));
-            return areaScore * 0.7 + thicknessScore * 0.3;
+            // Score based on waste
+            return Math.max(0, 100 - Math.min(wastePercentage, 100));
         }
 
         if (shapeType === 'bar_round') {
