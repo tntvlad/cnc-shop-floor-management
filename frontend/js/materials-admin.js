@@ -974,6 +974,18 @@ const defaultCategories = [
     { value: 'rubber', label: 'Rubber', color: '#1f2937', isDefault: true }
 ];
 
+// Calculate if text should be black or white based on background color luminance
+function getContrastTextColor(hexColor) {
+    // Remove # if present
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    // Calculate relative luminance (ITU-R BT.709)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
 function getCategories() {
     const customCategories = JSON.parse(localStorage.getItem('customCategories') || '[]');
     return [...defaultCategories, ...customCategories];
@@ -992,14 +1004,15 @@ function getCategoryColor(categoryValue) {
 
 function getCategoryBadge(category) {
     // Get color from user settings or defaults
-    const color = getCategoryColor(category);
+    const bgColor = getCategoryColor(category);
+    const textColor = getContrastTextColor(bgColor);
     
     if (category) {
         // Find category label
         const categories = getCategories();
         const cat = categories.find(c => c.value === category);
         const displayName = cat ? cat.label : (category.charAt(0).toUpperCase() + category.slice(1));
-        return `<span style="background: ${color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">${displayName}</span>`;
+        return `<span style="background: ${bgColor}; color: ${textColor}; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">${displayName}</span>`;
     }
     
     return '<span style="background: #64748b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">Other</span>';
