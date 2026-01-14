@@ -212,16 +212,32 @@ async function createMaterial(req, res) {
     // Calculate total value
     const totalValue = (cost_per_unit || 0) * (current_stock || 0);
 
+    // Try to find matching material type ID
+    let materialTypeId = null;
+    if (material_name) {
+      const typeResult = await pool.query(
+        `SELECT id FROM material_types 
+         WHERE is_active = true AND (
+           LOWER(name) = LOWER($1) OR 
+           LOWER($1) = ANY(SELECT LOWER(unnest(aliases)))
+         ) LIMIT 1`,
+        [material_name]
+      );
+      if (typeResult.rows.length > 0) {
+        materialTypeId = typeResult.rows[0].id;
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO material_stock (
-        material_name, material_type, shape_type, diameter, width, height, thickness, length,
+        material_name, material_type, material_type_id, shape_type, diameter, width, height, thickness, length,
         supplier_id, location_id, current_stock, reorder_level, unit, cost_per_unit, 
         unit_weight, total_value, notes, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'available')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'available')
       RETURNING *`,
       [
-        material_name, material_type, shape_type, diameter, width, height, thickness, length,
+        material_name, material_type, materialTypeId, shape_type, diameter, width, height, thickness, length,
         supplier_id, location_id, current_stock || 0, reorder_level || 0, unit || 'pieces', 
         cost_per_unit || 0, unit_weight, totalValue, notes
       ]
