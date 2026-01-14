@@ -232,7 +232,8 @@ class MaterialSuggestions {
                     width: parseFloat(candidate.width) || 0,
                     height: parseFloat(candidate.height) || 0,
                     thickness: parseFloat(candidate.thickness) || 0,
-                    diameter: parseFloat(candidate.diameter) || 0
+                    diameter: parseFloat(candidate.diameter) || 0,
+                    length: parseFloat(candidate.length) || 0
                 };
 
                 const requiredDims = {
