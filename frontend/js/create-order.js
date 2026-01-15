@@ -922,10 +922,12 @@ function handleImportParts() {
       setTimeout(() => {
         const dropdown = partItem.querySelector('.material-dropdown');
         const firstOption = dropdown?.querySelector('.material-option[data-id]');
+        console.log('Auto-select check:', { dropdown: !!dropdown, firstOption: !!firstOption, material: row.material });
         if (firstOption) {
           firstOption.click();
+          dropdown.classList.remove('active'); // Close dropdown after selection
         }
-      }, 300); // Wait for API response
+      }, 500); // Wait longer for API response
     }
     
     importedCount++;
