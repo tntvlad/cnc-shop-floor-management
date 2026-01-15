@@ -1186,16 +1186,21 @@ async function selectFolder(partIndex) {
     return;
   }
   
-  // Get external order ID or generate a temp one based on date
+  // Get external order ID - required for folder creation
   const externalOrderId = document.getElementById('external-order-id').value.trim();
-  const orderDate = document.getElementById('order-date').value;
-  const orderFolderName = externalOrderId || `Order_${orderDate}`;
+  if (!externalOrderId) {
+    alert('Please enter the External Order ID (customer reference/PO number) before selecting a folder.');
+    document.getElementById('external-order-id').focus();
+    return;
+  }
   
   // Sanitize part name for folder (remove special characters)
   const sanitizedPartName = partName.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+  // Sanitize order ID for folder
+  const sanitizedOrderId = externalOrderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
   
   // Build the folder path: <customer_folder>/Orders/<order_id>/<part_name>
-  const folderPath = `${selectedCustomer.folder_path}/Orders/${orderFolderName}/${sanitizedPartName}`;
+  const folderPath = `${selectedCustomer.folder_path}/Orders/${sanitizedOrderId}/${sanitizedPartName}`;
   
   try {
     // Create the folder via API
