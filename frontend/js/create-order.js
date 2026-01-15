@@ -624,8 +624,14 @@ function parsePartsCsv(text) {
   const lines = text.split('\n').filter(line => line.trim());
   if (lines.length === 0) return;
 
-  // Parse header
-  const headers = parseCSVLine(lines[0], delimiter).map(h => normalizePartHeaderName(h.trim()));
+  // Parse header - first column may be empty (will use first value as part_name)
+  const rawHeaders = parseCSVLine(lines[0], delimiter);
+  const headers = rawHeaders.map((h, idx) => {
+    const normalized = normalizePartHeaderName(h.trim());
+    // If first column has empty header, treat it as part_name
+    if (idx === 0 && (!h.trim() || normalized === '')) return 'part_name';
+    return normalized;
+  });
   
   partsCsvData = [];
   for (let i = 1; i < lines.length; i++) {
@@ -637,10 +643,40 @@ function parsePartsCsv(text) {
       row[header] = values[idx]?.trim() || '';
     });
     
-    // Only include rows with part_name
-    if (row.part_name) {
-      partsCsvData.push(row);
+    // Skip empty rows
+    if (!row.part_name) continue;
+    
+    // Combine lathe and mill hours into total time (convert hours to minutes)
+    const latheHours = parseFloat(row.time_lathe) || 0;
+    const millHours = parseFloat(row.time_mill) || 0;
+    const totalHours = latheHours + millHours;
+    if (totalHours > 0) {
+      row.time = Math.round(totalHours * 60); // Convert hours to minutes
     }
+    
+    // Build dimensions description based on shape
+    const dims = [];
+    const diameter = parseFloat(row.diameter);
+    const height = parseFloat(row.height);
+    const width = parseFloat(row.width);
+    const length = parseFloat(row.length);
+    
+    if (diameter > 0 && length > 0 && !width && !height) {
+      // Round bar: Ø x L
+      dims.push(`Ø${diameter} x ${length}mm (Bara)`);
+    } else if (height > 0 && width > 0 && length > 0) {
+      // Plate with 3 dimensions: H x W x L
+      dims.push(`${height} x ${width} x ${length}mm (Placa)`);
+    } else if (diameter > 0) {
+      dims.push(`Ø${diameter}mm`);
+    }
+    
+    // Add dimensions to description
+    if (dims.length > 0) {
+      row.description = dims.join(' ') + (row.description ? ' - ' + row.description : '');
+    }
+    
+    partsCsvData.push(row);
   }
   
   renderPartsCsvPreview();
@@ -668,6 +704,23 @@ function parseCSVLine(line, delimiter = ',') {
 
 function normalizePartHeaderName(header) {
   const map = {
+    // Romanian columns from your spreadsheet
+    'descriere': 'part_name',
+    'nr. bucati': 'quantity',
+    'nr.bucati': 'quantity',
+    'tip material': 'material',
+    'diametru(mm)': 'diameter',
+    'diametru (mm)': 'diameter',
+    '� diametru(mm)': 'diameter',
+    'inaltime(mm)': 'height',
+    'inaltime (mm)': 'height',
+    'latime(mm)': 'width',
+    'latime (mm)': 'width',
+    'lungime(mm)': 'length',
+    'lungime (mm)': 'length',
+    'ore prelucrare strung/buc': 'time_lathe',
+    'ore prelucrare freza/buc': 'time_mill',
+    // English columns
     'part name': 'part_name',
     'part_name': 'part_name',
     'name': 'part_name',
@@ -689,7 +742,6 @@ function normalizePartHeaderName(header) {
     'locatie': 'folder_path',
     'description': 'description',
     'notes': 'description',
-    'descriere': 'description',
     'obs': 'description',
     'observatii': 'description'
   };
@@ -721,8 +773,7 @@ function renderPartsCsvPreview() {
         <th>Qty</th>
         <th>Material</th>
         <th>Time (min)</th>
-        <th>Folder</th>
-        <th>Description</th>
+        <th>Dimensions</th>
       </tr>
     </thead>
     <tbody>
@@ -733,8 +784,7 @@ function renderPartsCsvPreview() {
           <td>${escapeHtml(row.quantity || '1')}</td>
           <td>${escapeHtml(row.material || '')}</td>
           <td>${escapeHtml(row.time || '')}</td>
-          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(row.folder_path || '')}</td>
-          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(row.description || '')}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(row.description || '')}</td>
         </tr>
       `).join('')}
     </tbody>
