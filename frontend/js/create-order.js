@@ -843,6 +843,10 @@ function updatePartsImportBtnText() {
 }
 
 function handleImportParts() {
+  console.log('handleImportParts called');
+  console.log('partsCsvSelectedRows:', partsCsvSelectedRows);
+  console.log('partsCsvData:', partsCsvData);
+  
   if (partsCsvSelectedRows.length === 0) {
     alert('Please select at least one part to import');
     return;
@@ -853,13 +857,21 @@ function handleImportParts() {
   partsList.innerHTML = '';
   window.partIndex = 0;
 
+  let importedCount = 0;
+  
   // Add each selected part
   partsCsvSelectedRows.forEach(idx => {
     const row = partsCsvData[idx];
+    console.log('Importing row:', idx, row);
     addPartField();
     
     const currentIndex = window.partIndex - 1;
     const partItem = partsList.lastElementChild;
+    
+    if (!partItem) {
+      console.error('No part item found');
+      return;
+    }
     
     // Fill in the fields
     const nameInput = partItem.querySelector(`input[name="parts[${currentIndex}][part_name]"]`);
@@ -869,6 +881,8 @@ function handleImportParts() {
     const folderDisplay = document.getElementById(`folder-display-${currentIndex}`);
     const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][notes]"]`);
     
+    console.log('Found inputs:', { nameInput: !!nameInput, qtyInput: !!qtyInput, timeInput: !!timeInput });
+    
     if (nameInput) nameInput.value = row.part_name || '';
     if (qtyInput) qtyInput.value = row.quantity || 1;
     if (timeInput) timeInput.value = row.time || '';
@@ -876,11 +890,11 @@ function handleImportParts() {
     if (folderDisplay && row.folder_path) folderDisplay.textContent = row.folder_path;
     if (descInput) descInput.value = row.description || '';
     
-    // TODO: Could auto-search for material if provided
+    importedCount++;
   });
 
   closeImportPartsModal();
-  alert(`Imported ${partsCsvSelectedRows.length} parts successfully!`);
+  alert(`Imported ${importedCount} parts successfully!`);
 }
 
 // CSV Import Modal (for customers)
