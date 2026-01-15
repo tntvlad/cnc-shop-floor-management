@@ -900,8 +900,16 @@ function handleImportParts() {
     if (descInput) descInput.value = row.description || '';
     if (materialSearchInput && row.material) {
       materialSearchInput.value = row.material;
-      // Trigger the search to show dropdown
+      // Trigger the search and auto-select first match
       materialSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      // Auto-select first match after search completes
+      setTimeout(() => {
+        const dropdown = partItem.querySelector('.material-dropdown');
+        const firstOption = dropdown?.querySelector('.material-option[data-id]');
+        if (firstOption) {
+          firstOption.click();
+        }
+      }, 300); // Wait for API response
     }
     
     importedCount++;
