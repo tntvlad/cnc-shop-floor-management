@@ -712,7 +712,7 @@ function parseCSVLine(line, delimiter = ',') {
 function normalizePartHeaderName(header) {
   const map = {
     // Romanian columns from your spreadsheet
-    'descriere': 'part_name',
+    'descriere': 'description',  // This is notes/description, NOT part_name
     'nr. bucati': 'quantity',
     'nr.bucati': 'quantity',
     'tip material': 'material',
