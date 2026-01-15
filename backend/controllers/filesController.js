@@ -4,16 +4,17 @@ const fs = require('fs');
 const pool = require('../config/database');
 
 const BROWSE_ROOT = path.resolve(process.env.FILE_BROWSE_ROOT || process.env.UPLOAD_DIR || './uploads');
+const CLIENTS_ROOT = path.resolve(process.env.CLIENTS_ROOT_PATH || '/data/clients');
 
-function ensureWithinRoot(targetPath) {
-  const normalizedRoot = BROWSE_ROOT.endsWith(path.sep) ? BROWSE_ROOT : `${BROWSE_ROOT}${path.sep}`;
+function ensureWithinRoot(targetPath, root = BROWSE_ROOT) {
+  const normalizedRoot = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
   const normalizedTarget = targetPath.endsWith(path.sep) ? targetPath : `${targetPath}${path.sep}`;
   if (!normalizedTarget.startsWith(normalizedRoot)) {
     throw new Error('Path is outside the allowed root');
   }
 }
 
-// Create folder(s) recursively within allowed root
+// Create folder(s) recursively within clients root (for order parts)
 exports.createFolder = async (req, res) => {
   try {
     const { folderPath } = req.body;
@@ -22,14 +23,15 @@ exports.createFolder = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Folder path is required' });
     }
     
-    const resolved = path.resolve(BROWSE_ROOT, folderPath);
-    ensureWithinRoot(resolved);
+    // Use CLIENTS_ROOT for order/part folders (same as customer folders)
+    const resolved = path.resolve(CLIENTS_ROOT, folderPath);
+    ensureWithinRoot(resolved, CLIENTS_ROOT);
     
     if (!fs.existsSync(resolved)) {
       fs.mkdirSync(resolved, { recursive: true });
     }
     
-    const relPath = path.relative(BROWSE_ROOT, resolved).split(path.sep).join('/');
+    const relPath = path.relative(CLIENTS_ROOT, resolved).split(path.sep).join('/');
     
     res.json({ 
       success: true, 
