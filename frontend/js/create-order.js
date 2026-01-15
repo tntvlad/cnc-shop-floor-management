@@ -918,16 +918,23 @@ function handleImportParts() {
       materialSearchInput.value = row.material;
       // Trigger the search and auto-select first match
       materialSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
-      // Auto-select first match after search completes
-      setTimeout(() => {
+      
+      // Auto-select first match - poll until dropdown is ready
+      const checkAndSelect = (attempts = 0) => {
         const dropdown = partItem.querySelector('.material-dropdown');
         const firstOption = dropdown?.querySelector('.material-option[data-id]');
-        console.log('Auto-select check:', { dropdown: !!dropdown, firstOption: !!firstOption, material: row.material });
+        
         if (firstOption) {
           firstOption.click();
-          dropdown.classList.remove('active'); // Close dropdown after selection
+          dropdown.classList.remove('active');
+        } else if (attempts < 10) {
+          // Retry after 100ms, up to 10 times (1 second total)
+          setTimeout(() => checkAndSelect(attempts + 1), 100);
         }
-      }, 500); // Wait longer for API response
+      };
+      
+      // Start checking after initial delay
+      setTimeout(() => checkAndSelect(), 200);
     }
     
     importedCount++;
