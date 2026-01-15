@@ -621,17 +621,23 @@ function parsePartsCsv(text) {
   if (firstLine.includes(';') && !firstLine.includes(',')) delimiter = ';';
   if (firstLine.includes('\t')) delimiter = '\t';
 
+  console.log('CSV delimiter:', delimiter);
+  console.log('First line:', firstLine);
+
   const lines = text.split('\n').filter(line => line.trim());
   if (lines.length === 0) return;
 
   // Parse header - first column may be empty (will use first value as part_name)
   const rawHeaders = parseCSVLine(lines[0], delimiter);
+  console.log('Raw headers:', rawHeaders);
+  
   const headers = rawHeaders.map((h, idx) => {
     const normalized = normalizePartHeaderName(h.trim());
     // If first column has empty header, treat it as part_name
     if (idx === 0 && (!h.trim() || normalized === '')) return 'part_name';
     return normalized;
   });
+  console.log('Normalized headers:', headers);
   
   partsCsvData = [];
   for (let i = 1; i < lines.length; i++) {
@@ -679,6 +685,7 @@ function parsePartsCsv(text) {
     partsCsvData.push(row);
   }
   
+  console.log('Parsed data:', partsCsvData);
   renderPartsCsvPreview();
 }
 
