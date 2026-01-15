@@ -816,11 +816,27 @@ function toggleAllPartsCsvRows(checked) {
 }
 
 function togglePartsCsvRow(idx, event) {
-  if (event.target.type === 'checkbox') return;
-  
-  const isSelected = partsCsvSelectedRows.includes(idx);
   const row = event.currentTarget;
   const checkbox = row.querySelector('input[type="checkbox"]');
+  
+  // If clicking directly on checkbox, let it handle itself but sync state
+  if (event.target.type === 'checkbox') {
+    const isNowChecked = event.target.checked;
+    if (isNowChecked) {
+      if (!partsCsvSelectedRows.includes(idx)) {
+        partsCsvSelectedRows.push(idx);
+      }
+      row.classList.add('selected');
+    } else {
+      partsCsvSelectedRows = partsCsvSelectedRows.filter(i => i !== idx);
+      row.classList.remove('selected');
+    }
+    updatePartsImportBtnText();
+    return;
+  }
+  
+  // Clicking on row (not checkbox)
+  const isSelected = partsCsvSelectedRows.includes(idx);
 
   if (isSelected) {
     partsCsvSelectedRows = partsCsvSelectedRows.filter(i => i !== idx);
