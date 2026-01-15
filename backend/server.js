@@ -210,6 +210,8 @@ app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.comp
 
 // Folder browse (Supervisor+)
 app.get('/api/folders/browse', authMiddleware, requireSupervisor(), filesController.browseFolders);
+// Create folder (Supervisor+)
+app.post('/api/folders/create', authMiddleware, requireSupervisor(), filesController.createFolder);
 
 // Sync files from assigned folder into DB (Supervisor+)
 app.post('/api/parts/:id/files/sync', authMiddleware, requireSupervisor(), filesController.syncFromFolder);

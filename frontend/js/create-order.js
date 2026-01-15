@@ -1163,12 +1163,63 @@ function applySelectedMaterial(partIndex, material) {
   }, 2000);
 }
 
-function selectFolder(partIndex) {
-  // For now, prompt for folder path - in production this could be a file browser
-  const folder = prompt('Enter folder path for drawings/files:', '');
-  if (folder !== null) {
-    document.querySelector(`input[name="parts[${partIndex}][file_folder]"]`).value = folder;
-    document.getElementById(`folder-display-${partIndex}`).textContent = folder || 'No folder selected';
+async function selectFolder(partIndex) {
+  // Check if customer is selected
+  if (!selectedCustomer) {
+    alert('Please select a customer first before selecting a folder.');
+    document.getElementById('customer-search').focus();
+    return;
+  }
+  
+  // Check if customer has a folder path
+  if (!selectedCustomer.folder_path) {
+    alert('The selected customer does not have a folder path assigned. Please assign a folder to the customer in Customer Management first.');
+    return;
+  }
+  
+  // Check if part name is filled
+  const partNameInput = document.querySelector(`input[name="parts[${partIndex}][part_name]"]`);
+  const partName = partNameInput ? partNameInput.value.trim() : '';
+  if (!partName) {
+    alert('Please enter a part name first before selecting a folder.');
+    partNameInput?.focus();
+    return;
+  }
+  
+  // Get external order ID or generate a temp one based on date
+  const externalOrderId = document.getElementById('external-order-id').value.trim();
+  const orderDate = document.getElementById('order-date').value;
+  const orderFolderName = externalOrderId || `Order_${orderDate}`;
+  
+  // Sanitize part name for folder (remove special characters)
+  const sanitizedPartName = partName.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+  
+  // Build the folder path: <customer_folder>/Orders/<order_id>/<part_name>
+  const folderPath = `${selectedCustomer.folder_path}/Orders/${orderFolderName}/${sanitizedPartName}`;
+  
+  try {
+    // Create the folder via API
+    const response = await fetch(`${API_URL}/folders/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({ folderPath })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Set the folder path to the input
+      document.querySelector(`input[name="parts[${partIndex}][file_folder]"]`).value = data.path;
+      document.getElementById(`folder-display-${partIndex}`).textContent = data.path;
+    } else {
+      alert('Error creating folder: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error creating folder:', error);
+    alert('Error creating folder: ' + error.message);
   }
 }
 

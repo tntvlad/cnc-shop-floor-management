@@ -13,6 +13,36 @@ function ensureWithinRoot(targetPath) {
   }
 }
 
+// Create folder(s) recursively within allowed root
+exports.createFolder = async (req, res) => {
+  try {
+    const { folderPath } = req.body;
+    
+    if (!folderPath) {
+      return res.status(400).json({ success: false, error: 'Folder path is required' });
+    }
+    
+    const resolved = path.resolve(BROWSE_ROOT, folderPath);
+    ensureWithinRoot(resolved);
+    
+    if (!fs.existsSync(resolved)) {
+      fs.mkdirSync(resolved, { recursive: true });
+    }
+    
+    const relPath = path.relative(BROWSE_ROOT, resolved).split(path.sep).join('/');
+    
+    res.json({ 
+      success: true, 
+      message: 'Folder created successfully',
+      path: relPath,
+      fullPath: resolved
+    });
+  } catch (err) {
+    console.error('Create folder error:', err);
+    res.status(400).json({ success: false, error: err.message || 'Failed to create folder' });
+  }
+};
+
 async function resolveUploadDir(req, res, next) {
   try {
     let targetDir = BROWSE_ROOT;
