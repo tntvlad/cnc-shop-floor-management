@@ -855,7 +855,6 @@ function handleImportParts() {
   // Clear existing parts
   const partsList = document.getElementById('parts-list');
   partsList.innerHTML = '';
-  window.partIndex = 0;
 
   let importedCount = 0;
   
@@ -863,25 +862,33 @@ function handleImportParts() {
   partsCsvSelectedRows.forEach(idx => {
     const row = partsCsvData[idx];
     console.log('Importing row:', idx, row);
+    
+    // Get current index BEFORE adding (addPartField uses children.length)
+    const currentIndex = partsList.children.length;
+    
     addPartField();
     
-    const currentIndex = window.partIndex - 1;
-    const partItem = partsList.lastElementChild;
+    const partItem = partsList.children[currentIndex];
     
     if (!partItem) {
-      console.error('No part item found');
+      console.error('No part item found at index', currentIndex);
       return;
     }
     
-    // Fill in the fields
+    // Fill in the fields - use the correct selectors
     const nameInput = partItem.querySelector(`input[name="parts[${currentIndex}][part_name]"]`);
     const qtyInput = partItem.querySelector(`input[name="parts[${currentIndex}][quantity]"]`);
     const timeInput = partItem.querySelector(`input[name="parts[${currentIndex}][estimated_time]"]`);
     const folderInput = partItem.querySelector(`input[name="parts[${currentIndex}][file_folder]"]`);
     const folderDisplay = document.getElementById(`folder-display-${currentIndex}`);
-    const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][notes]"]`);
+    const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][description]"]`);
     
-    console.log('Found inputs:', { nameInput: !!nameInput, qtyInput: !!qtyInput, timeInput: !!timeInput });
+    console.log('Found inputs:', { 
+      nameInput: !!nameInput, 
+      qtyInput: !!qtyInput, 
+      timeInput: !!timeInput,
+      descInput: !!descInput
+    });
     
     if (nameInput) nameInput.value = row.part_name || '';
     if (qtyInput) qtyInput.value = row.quantity || 1;
