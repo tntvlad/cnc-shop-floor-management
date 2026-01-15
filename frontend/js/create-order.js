@@ -582,7 +582,251 @@ async function handleDeleteCustomer(event) {
   }
 }
 
-// CSV Import Modal
+// Parts CSV Import
+let partsCsvData = [];
+let partsCsvSelectedRows = [];
+
+function openImportPartsModal() {
+  document.getElementById('import-parts-modal').classList.add('active');
+}
+
+function closeImportPartsModal() {
+  document.getElementById('import-parts-modal').classList.remove('active');
+  document.getElementById('parts-csv-file').value = '';
+  document.getElementById('parts-csv-preview').innerHTML = '';
+  const importBtn = document.getElementById('parts-csv-import-btn');
+  if (importBtn) {
+    importBtn.style.display = 'none';
+  }
+  partsCsvData = [];
+  partsCsvSelectedRows = [];
+}
+
+function handlePartsCsvFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    parsePartsCsv(text);
+  };
+  reader.readAsText(file);
+}
+
+function parsePartsCsv(text) {
+  // Try to detect delimiter (comma, semicolon, or tab)
+  const firstLine = text.split('\n')[0];
+  let delimiter = ',';
+  if (firstLine.includes(';') && !firstLine.includes(',')) delimiter = ';';
+  if (firstLine.includes('\t')) delimiter = '\t';
+
+  const lines = text.split('\n').filter(line => line.trim());
+  if (lines.length === 0) return;
+
+  // Parse header
+  const headers = parseCSVLine(lines[0], delimiter).map(h => normalizePartHeaderName(h.trim()));
+  
+  partsCsvData = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i], delimiter);
+    if (values.length === 0 || values.every(v => !v.trim())) continue;
+    
+    const row = {};
+    headers.forEach((header, idx) => {
+      row[header] = values[idx]?.trim() || '';
+    });
+    
+    // Only include rows with part_name
+    if (row.part_name) {
+      partsCsvData.push(row);
+    }
+  }
+  
+  renderPartsCsvPreview();
+}
+
+function parseCSVLine(line, delimiter = ',') {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result.map(s => s.replace(/^"|"$/g, ''));
+}
+
+function normalizePartHeaderName(header) {
+  const map = {
+    'part name': 'part_name',
+    'part_name': 'part_name',
+    'name': 'part_name',
+    'nume piesa': 'part_name',
+    'denumire': 'part_name',
+    'qty': 'quantity',
+    'quantity': 'quantity',
+    'cantitate': 'quantity',
+    'buc': 'quantity',
+    'material': 'material',
+    'material_name': 'material',
+    'time': 'time',
+    'timp': 'time',
+    'minutes': 'time',
+    'minute': 'time',
+    'folder': 'folder_path',
+    'folder_path': 'folder_path',
+    'path': 'folder_path',
+    'locatie': 'folder_path',
+    'description': 'description',
+    'notes': 'description',
+    'descriere': 'description',
+    'obs': 'description',
+    'observatii': 'description'
+  };
+
+  const lower = header.toLowerCase().trim();
+  return map[lower] || lower.replace(/\s+/g, '_');
+}
+
+function renderPartsCsvPreview() {
+  const preview = document.getElementById('parts-csv-preview');
+  const importBtn = document.getElementById('parts-csv-import-btn');
+  
+  if (partsCsvData.length === 0) {
+    preview.innerHTML = '<p style="color: #999;">No valid parts found. Make sure CSV has a "part_name" column.</p>';
+    if (importBtn) importBtn.style.display = 'none';
+    return;
+  }
+
+  partsCsvSelectedRows = partsCsvData.map((_, i) => i);
+
+  const table = document.createElement('table');
+  table.className = 'csv-table';
+  table.style.width = '100%';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th style="width: 30px;"><input type="checkbox" checked onchange="toggleAllPartsCsvRows(this.checked)"></th>
+        <th>Part Name</th>
+        <th>Qty</th>
+        <th>Material</th>
+        <th>Time (min)</th>
+        <th>Folder</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${partsCsvData.map((row, idx) => `
+        <tr class="selected" data-row-idx="${idx}" onclick="togglePartsCsvRow(${idx}, event)">
+          <td><input type="checkbox" checked onchange="event.stopPropagation()"></td>
+          <td>${escapeHtml(row.part_name || '')}</td>
+          <td>${escapeHtml(row.quantity || '1')}</td>
+          <td>${escapeHtml(row.material || '')}</td>
+          <td>${escapeHtml(row.time || '')}</td>
+          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(row.folder_path || '')}</td>
+          <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(row.description || '')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  `;
+
+  preview.innerHTML = `<p><strong>${partsCsvData.length} parts found</strong> - Select parts to import:</p>`;
+  preview.appendChild(table);
+
+  if (importBtn) {
+    importBtn.style.display = 'inline-block';
+    importBtn.textContent = `Import ${partsCsvSelectedRows.length} Parts`;
+  }
+}
+
+function toggleAllPartsCsvRows(checked) {
+  partsCsvSelectedRows = checked ? partsCsvData.map((_, i) => i) : [];
+  document.querySelectorAll('#parts-csv-preview tbody tr').forEach((row, idx) => {
+    row.classList.toggle('selected', checked);
+    row.querySelector('input[type="checkbox"]').checked = checked;
+  });
+  updatePartsImportBtnText();
+}
+
+function togglePartsCsvRow(idx, event) {
+  if (event.target.type === 'checkbox') return;
+  
+  const isSelected = partsCsvSelectedRows.includes(idx);
+  const row = event.currentTarget;
+  const checkbox = row.querySelector('input[type="checkbox"]');
+
+  if (isSelected) {
+    partsCsvSelectedRows = partsCsvSelectedRows.filter(i => i !== idx);
+    row.classList.remove('selected');
+    checkbox.checked = false;
+  } else {
+    partsCsvSelectedRows.push(idx);
+    row.classList.add('selected');
+    checkbox.checked = true;
+  }
+  updatePartsImportBtnText();
+}
+
+function updatePartsImportBtnText() {
+  const btn = document.getElementById('parts-csv-import-btn');
+  if (btn) {
+    btn.textContent = `Import ${partsCsvSelectedRows.length} Parts`;
+    btn.disabled = partsCsvSelectedRows.length === 0;
+  }
+}
+
+function handleImportParts() {
+  if (partsCsvSelectedRows.length === 0) {
+    alert('Please select at least one part to import');
+    return;
+  }
+
+  // Clear existing parts
+  const partsList = document.getElementById('parts-list');
+  partsList.innerHTML = '';
+  window.partIndex = 0;
+
+  // Add each selected part
+  partsCsvSelectedRows.forEach(idx => {
+    const row = partsCsvData[idx];
+    addPartField();
+    
+    const currentIndex = window.partIndex - 1;
+    const partItem = partsList.lastElementChild;
+    
+    // Fill in the fields
+    const nameInput = partItem.querySelector(`input[name="parts[${currentIndex}][part_name]"]`);
+    const qtyInput = partItem.querySelector(`input[name="parts[${currentIndex}][quantity]"]`);
+    const timeInput = partItem.querySelector(`input[name="parts[${currentIndex}][estimated_time]"]`);
+    const folderInput = partItem.querySelector(`input[name="parts[${currentIndex}][file_folder]"]`);
+    const folderDisplay = document.getElementById(`folder-display-${currentIndex}`);
+    const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][notes]"]`);
+    
+    if (nameInput) nameInput.value = row.part_name || '';
+    if (qtyInput) qtyInput.value = row.quantity || 1;
+    if (timeInput) timeInput.value = row.time || '';
+    if (folderInput && row.folder_path) folderInput.value = row.folder_path;
+    if (folderDisplay && row.folder_path) folderDisplay.textContent = row.folder_path;
+    if (descInput) descInput.value = row.description || '';
+    
+    // TODO: Could auto-search for material if provided
+  });
+
+  closeImportPartsModal();
+  alert(`Imported ${partsCsvSelectedRows.length} parts successfully!`);
+}
+
+// CSV Import Modal (for customers)
 function openImportCsvModal() {
   document.getElementById('import-csv-modal').classList.add('active');
 }

@@ -845,7 +845,10 @@
               <div class="parts-list" id="parts-list">
                 <!-- Parts added here -->
               </div>
-              <button type="button" class="btn-add-part" onclick="addPartField()">+ Add Part</button>
+              <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button type="button" class="btn-add-part" onclick="addPartField()">+ Add Part</button>
+                <button type="button" class="btn-add-part" onclick="openImportPartsModal()" style="background: #6366f1;">📥 Import Parts from CSV</button>
+              </div>
             </div>
           </div>
 
@@ -1111,6 +1114,31 @@
             <div class="modal-footer">
               <button type="button" class="btn-modal-cancel" onclick="closeImportCsvModal()">Cancel</button>
               <button type="button" class="btn-modal-submit" id="csv-import-btn" onclick="handleImportCsv()" style="display: none;">Import Selected Rows</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import Parts CSV Modal -->
+        <div class="modal" id="import-parts-modal">
+          <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+              <h2>📥 Import Parts from CSV</h2>
+              <button class="modal-close" onclick="closeImportPartsModal()">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label for="parts-csv-file">Select CSV File (or save ODS/Excel as CSV)</label>
+                <input type="file" id="parts-csv-file" accept=".csv,.txt" onchange="handlePartsCsvFile(event)">
+                <small style="color: #666; margin-top: 0.5rem; display: block;">
+                  <strong>Expected columns:</strong> part_name, quantity, material, time, folder_path, description<br>
+                  <strong>Example:</strong> "My Part", 5, "Aluminum 6061", 30, "Customer/Orders/PO-123/MyPart", "Notes here"
+                </small>
+              </div>
+              <div id="parts-csv-preview" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-modal-cancel" onclick="closeImportPartsModal()">Cancel</button>
+              <button type="button" class="btn-modal-submit" id="parts-csv-import-btn" onclick="handleImportParts()" style="display: none;">Import Selected Parts</button>
             </div>
           </div>
         </div>
