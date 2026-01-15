@@ -787,11 +787,11 @@ function renderPartsCsvPreview() {
       ${partsCsvData.map((row, idx) => `
         <tr class="selected" data-row-idx="${idx}" onclick="togglePartsCsvRow(${idx}, event)">
           <td><input type="checkbox" checked onchange="event.stopPropagation()"></td>
-          <td>${escapeHtml(row.part_name || '')}</td>
-          <td>${escapeHtml(row.quantity || '1')}</td>
-          <td>${escapeHtml(row.material || '')}</td>
-          <td>${escapeHtml(row.time || '')}</td>
-          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(row.description || '')}</td>
+          <td>${escapeHtml(String(row.part_name || ''))}</td>
+          <td>${escapeHtml(String(row.quantity || '1'))}</td>
+          <td>${escapeHtml(String(row.material || ''))}</td>
+          <td>${escapeHtml(String(row.time || ''))}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(String(row.description || ''))}</td>
         </tr>
       `).join('')}
     </tbody>
