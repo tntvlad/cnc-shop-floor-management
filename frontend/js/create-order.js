@@ -898,7 +898,11 @@ function handleImportParts() {
     if (folderInput && row.folder_path) folderInput.value = row.folder_path;
     if (folderDisplay && row.folder_path) folderDisplay.textContent = row.folder_path;
     if (descInput) descInput.value = row.description || '';
-    if (materialSearchInput && row.material) materialSearchInput.value = row.material;
+    if (materialSearchInput && row.material) {
+      materialSearchInput.value = row.material;
+      // Trigger the search to show dropdown
+      materialSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     
     importedCount++;
   });
