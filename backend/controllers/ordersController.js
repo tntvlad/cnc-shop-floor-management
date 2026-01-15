@@ -20,7 +20,8 @@ async function createOrder(req, res) {
       customer_name, 
       customer_email, 
       customer_phone, 
-      order_date, 
+      order_date,
+      external_order_id,
       due_date, 
       notes, 
       parts,
@@ -61,19 +62,20 @@ async function createOrder(req, res) {
       const orderResult = await client.query(
         `INSERT INTO orders (
           customer_id, customer_name, customer_email, customer_phone, 
-          order_date, due_date, notes, status, priority,
+          order_date, external_order_id, due_date, notes, status, priority,
           invoice_contact_id, order_contact_id, technical_contact_id,
           delivery_address,
           discount_applied, requires_approval, approval_status
         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-         RETURNING id, customer_id, customer_name, customer_email, order_date, due_date, status, priority, created_at, approval_status, requires_approval`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+         RETURNING id, customer_id, customer_name, customer_email, order_date, external_order_id, due_date, status, priority, created_at, approval_status, requires_approval`,
         [
           customer_id || null,
           customerDetails.name,
           customerDetails.email,
           customerDetails.phone,
           order_date,
+          external_order_id || null,
           due_date,
           notes,
           'pending',
@@ -148,6 +150,7 @@ async function getOrders(req, res) {
         o.customer_email,
         o.customer_phone,
         o.order_date,
+        o.external_order_id,
         o.due_date,
         o.status,
         o.priority,
@@ -209,6 +212,7 @@ async function getOrderById(req, res) {
         o.customer_email,
         o.customer_phone,
         o.order_date,
+        o.external_order_id,
         o.due_date,
         o.status,
         o.priority,

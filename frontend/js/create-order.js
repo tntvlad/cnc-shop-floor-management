@@ -1256,6 +1256,7 @@ async function handleCreateOrder(event) {
     technical_contact_id: document.getElementById('technical-contact').value || null,
     delivery_address: document.getElementById('delivery-address').value.trim() || null,
     order_date: document.getElementById('order-date').value,
+    external_order_id: document.getElementById('external-order-id').value.trim() || null,
     due_date: document.getElementById('due-date').value,
     priority: document.getElementById('priority').value,
     notes: document.getElementById('notes').value.trim(),
