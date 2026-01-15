@@ -882,12 +882,14 @@ function handleImportParts() {
     const folderInput = partItem.querySelector(`input[name="parts[${currentIndex}][file_folder]"]`);
     const folderDisplay = document.getElementById(`folder-display-${currentIndex}`);
     const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][description]"]`);
+    const materialSearchInput = partItem.querySelector('.material-search');
     
     console.log('Found inputs:', { 
       nameInput: !!nameInput, 
       qtyInput: !!qtyInput, 
       timeInput: !!timeInput,
-      descInput: !!descInput
+      descInput: !!descInput,
+      materialSearchInput: !!materialSearchInput
     });
     
     if (nameInput) nameInput.value = row.part_name || '';
@@ -896,6 +898,7 @@ function handleImportParts() {
     if (folderInput && row.folder_path) folderInput.value = row.folder_path;
     if (folderDisplay && row.folder_path) folderDisplay.textContent = row.folder_path;
     if (descInput) descInput.value = row.description || '';
+    if (materialSearchInput && row.material) materialSearchInput.value = row.material;
     
     importedCount++;
   });
