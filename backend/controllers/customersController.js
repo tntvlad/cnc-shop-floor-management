@@ -511,8 +511,8 @@ exports.createClientFolder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Folder already exists' });
     }
 
-    // Create the folder
-    fs.mkdirSync(folderPath, { recursive: true });
+    // Create the folder with full permissions (777)
+    fs.mkdirSync(folderPath, { recursive: true, mode: 0o777 });
 
     res.json({ success: true, folderName: sanitizedName, message: 'Folder created successfully' });
   } catch (error) {

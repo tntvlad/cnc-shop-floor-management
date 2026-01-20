@@ -28,7 +28,7 @@ exports.createFolder = async (req, res) => {
     ensureWithinRoot(resolved, CLIENTS_ROOT);
     
     if (!fs.existsSync(resolved)) {
-      fs.mkdirSync(resolved, { recursive: true });
+      fs.mkdirSync(resolved, { recursive: true, mode: 0o777 });
     }
     
     const relPath = path.relative(CLIENTS_ROOT, resolved).split(path.sep).join('/');
@@ -64,7 +64,7 @@ async function resolveUploadDir(req, res, next) {
     }
 
     if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
+      fs.mkdirSync(targetDir, { recursive: true, mode: 0o777 });
     } else if (!fs.statSync(targetDir).isDirectory()) {
       return res.status(400).json({ error: 'Upload path is not a directory' });
     }
@@ -128,7 +128,7 @@ const storage = multer.diskStorage({
     const uploadDir = req.uploadDir || process.env.UPLOAD_DIR || './uploads';
     try {
       if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
+        fs.mkdirSync(uploadDir, { recursive: true, mode: 0o777 });
       } else if (!fs.statSync(uploadDir).isDirectory()) {
         return cb(new Error('Upload path is not a directory'));
       }
