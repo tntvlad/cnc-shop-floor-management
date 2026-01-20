@@ -498,6 +498,7 @@ exports.createClientFolder = async (req, res) => {
     const sanitizedName = folderName
       .replace(/[<>:"/\\|?*]/g, '_')  // Replace invalid chars
       .replace(/\s+/g, ' ')           // Normalize spaces
+      .replace(/\.+$/, '')            // Remove trailing dots (Windows cannot handle them)
       .trim();
 
     if (!sanitizedName) {
