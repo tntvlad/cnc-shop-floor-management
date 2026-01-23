@@ -912,6 +912,33 @@ function handleImportParts() {
     if (folderInput && row.folder_path) folderInput.value = row.folder_path;
     if (folderDisplay && row.folder_path) folderDisplay.textContent = row.folder_path;
     if (descInput) descInput.value = row.description || '';
+    
+    // Auto-detect and select shape based on description
+    const shapeSelect = partItem.querySelector('.shape-select');
+    if (shapeSelect && row.description) {
+      const desc = row.description.toLowerCase();
+      let detectedShape = '';
+      
+      if (desc.includes('(bara)') || desc.includes('bara ') || desc.includes(' bara')) {
+        detectedShape = 'bar_round';
+      } else if (desc.includes('(placa)') || desc.includes('placa ') || desc.includes(' placa')) {
+        detectedShape = 'plate';
+      } else if (desc.includes('(teava)') || desc.includes('teava ') || desc.includes(' teava') || desc.includes('tube')) {
+        detectedShape = 'tube';
+      } else if (desc.includes('patrat') || desc.includes('square')) {
+        detectedShape = 'bar_square';
+      } else if (desc.includes('hexagon') || desc.includes('hex')) {
+        detectedShape = 'bar_hex';
+      }
+      
+      if (detectedShape) {
+        shapeSelect.disabled = false;
+        shapeSelect.value = detectedShape;
+        // Trigger the change event to show dimension inputs
+        shapeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    
     if (materialSearchInput && row.material) {
       materialSearchInput.value = row.material;
       // Trigger the search and auto-select first match
