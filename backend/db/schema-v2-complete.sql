@@ -130,6 +130,8 @@ CREATE TABLE orders (
     customer_email VARCHAR(200),
     customer_phone VARCHAR(50),
     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    internal_order_id VARCHAR(100), -- Company's internal reference number
+    external_order_id VARCHAR(100), -- Customer's reference/PO number
     due_date TIMESTAMP,
     priority VARCHAR(20) DEFAULT 'normal', -- urgent, normal, low
     status VARCHAR(50) DEFAULT 'material_planning',
@@ -152,6 +154,10 @@ CREATE TABLE orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indexes for orders
+CREATE INDEX idx_orders_internal_order_id ON orders(internal_order_id);
+CREATE INDEX idx_orders_external_order_id ON orders(external_order_id);
 
 -- ============================================================================
 -- PARTS TABLE (Jobs with Complete Workflow)
