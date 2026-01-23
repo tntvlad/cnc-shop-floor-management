@@ -272,14 +272,14 @@ async function getOrderById(req, res) {
         p.material_id,
         p.material_type,
         p.priority,
-        m.material_name,
+        mt.name as material_name,
         p.estimated_setup_time,
         p.estimated_run_time_per_piece,
         p.batch_number,
         p.quantity_scrapped,
         p.created_at
       FROM parts p
-      LEFT JOIN material_stock m ON p.material_id = m.id
+      LEFT JOIN material_types mt ON p.material_id = mt.id
       WHERE p.order_id = $1
       ORDER BY p.id`,
       [id]

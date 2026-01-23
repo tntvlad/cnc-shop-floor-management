@@ -43,7 +43,7 @@ exports.getAllParts = async (req, res) => {
         COALESCE(p.material_type, 'N/A') as material,
         p.order_id as order_position,
         COALESCE(p.estimated_time, 0) as target_time,
-        m.material_name,
+        mt.name as material_name,
         u.name as assigned_user_name,
         u.employee_id as assigned_employee_id,
         o.due_date,
@@ -58,7 +58,7 @@ exports.getAllParts = async (req, res) => {
           ))
         ELSE '[]'::json END as assignments
       FROM parts p
-      LEFT JOIN material_stock m ON p.material_id = m.id
+      LEFT JOIN material_types mt ON p.material_id = mt.id
       LEFT JOIN users u ON p.assigned_to = u.id
       LEFT JOIN orders o ON p.order_id = o.id
       ORDER BY p.created_at DESC
@@ -83,7 +83,7 @@ exports.getPart = async (req, res) => {
         p.material_type as material,
         p.priority as order_position,
         p.estimated_time as target_time,
-        m.material_name,
+        mt.name as material_name,
         u.name as assigned_user_name,
         CASE WHEN p.assigned_to IS NOT NULL THEN
           json_build_object(
@@ -92,7 +92,7 @@ exports.getPart = async (req, res) => {
           )
         ELSE NULL END as assignment
       FROM parts p
-      LEFT JOIN material_stock m ON p.material_id = m.id
+      LEFT JOIN material_types mt ON p.material_id = mt.id
       LEFT JOIN users u ON p.assigned_to = u.id
       WHERE p.id = $1
     `, [id]);
@@ -377,7 +377,7 @@ exports.getOperatorJobs = async (req, res) => {
             p.material_type as material,
             p.priority as order_position,
             p.estimated_time as target_time,
-            m.material_name,
+            mt.name as material_name,
             json_build_object(
               'user_id', p.assigned_to,
               'status', CASE 
@@ -395,10 +395,10 @@ exports.getOperatorJobs = async (req, res) => {
               )
             ) FILTER (WHERE f.id IS NOT NULL), '[]') as files
           FROM parts p
-          LEFT JOIN material_stock m ON p.material_id = m.id
+          LEFT JOIN material_types mt ON p.material_id = mt.id
           LEFT JOIN files f ON p.id = f.part_id
           WHERE p.assigned_to = $1 AND p.status != 'completed'
-          GROUP BY p.id, m.material_name
+          GROUP BY p.id, mt.name
           ORDER BY p.priority DESC NULLS LAST, p.created_at DESC
     `, [userId]);
 
