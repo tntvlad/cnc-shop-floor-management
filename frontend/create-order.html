@@ -651,10 +651,6 @@
     }
 
     /* CSV Import Styles */
-    #import-csv-modal .modal-content {
-      max-width: 800px;
-    }
-
     #csv-file {
       padding: 0.5rem;
       border: 1px solid #ddd;
@@ -732,7 +728,7 @@
                 <input type="text" id="customer-search" placeholder="Type customer name, email, phone, or contact person...">
                 <div id="customer-dropdown" class="customer-dropdown"></div>
               </div>
-              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> or <button type="button" class="link-btn" onclick="openImportCsvModal(); return false;">Import from CSV</button> · <button type="button" class="link-btn" onclick="openEditCustomerModal(); return false;">Edit</button> · <button type="button" class="link-btn" onclick="openDeleteCustomerModal(); return false;">Delete</button> · <button type="button" class="link-btn" onclick="navigateTo('customers.html'); return false;">Manage All</button></small>
+              <small style="color: #666; margin-top: 0.25rem;">Can't find your customer? <button type="button" class="link-btn" onclick="openAddCustomerModal(); return false;">Create New</button> · <button type="button" class="link-btn" onclick="openEditCustomerModal(); return false;">Edit</button> · <button type="button" class="link-btn" onclick="openDeleteCustomerModal(); return false;">Delete</button> · <button type="button" class="link-btn" onclick="navigateTo('customers.html'); return false;">Manage All</button></small>
             </div>
 
             <input type="hidden" id="customer-id" value="">
@@ -1093,28 +1089,6 @@
                 <button type="submit" class="btn-modal-submit" style="background: #dc3545;">Delete</button>
               </div>
             </form>
-          </div>
-        </div>
-
-        <!-- Import CSV Modal -->
-        <div class="modal" id="import-csv-modal">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h2>Import Customers from CSV</h2>
-              <button class="modal-close" onclick="closeImportCsvModal()">✕</button>
-            </div>
-            <div class="modal-body">
-              <div class="form-group">
-                <label for="csv-file">Select CSV File</label>
-                <input type="file" id="csv-file" accept=".csv" onchange="handleCsvFile(event)">
-                <small style="color: #666; margin-top: 0.25rem;">Expected columns: Company Name, Email, Phone, City, CIF, Address, Contact Person, Technical Contact, etc.</small>
-              </div>
-              <div id="csv-preview"></div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn-modal-cancel" onclick="closeImportCsvModal()">Cancel</button>
-              <button type="button" class="btn-modal-submit" id="csv-import-btn" onclick="handleImportCsv()" style="display: none;">Import Selected Rows</button>
-            </div>
           </div>
         </div>
 
