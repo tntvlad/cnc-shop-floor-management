@@ -2,6 +2,45 @@
 
 All notable changes to the CNC Shop Floor Management system will be documented in this file.
 
+## [1.3] - 2026-01-23
+
+### 🚀 New Features
+
+#### Internal Order ID
+- Added Internal Order ID field for company's own reference numbers
+- Separate from External Order ID (customer's PO/reference)
+- Displayed in order creation form and order details
+
+#### Customer Folder Management
+- Fixed folder permissions (777) for NAS access
+- Fixed Windows compatibility for folder names ending with dots (e.g., "S.R.L.")
+- Folders now created with proper permissions for network share access
+
+#### CSV Import Enhancements
+- Auto-detect shape from description (Bara→Round Bar, Placa→Plate, etc.)
+- Auto-fill dimensions from description patterns (e.g., "20 x 85 x 85mm")
+- Removed customer CSV import (kept parts CSV import)
+
+### 🎨 UI Improvements
+
+#### Consistent Navbar
+- Unified navbar styling across all pages (Dashboard, Supervisor, Admin)
+- Gradient background matching Orders/Customers pages
+- Dashboard title shortened to "CNC Shop Floor" with timer on same row
+
+#### Material Display Fix
+- Fixed material names not showing in order details
+- Backend now correctly joins with material_types table
+
+### 🔧 Technical Changes
+
+#### Database Schema
+- Consolidated all migrations into main schema file
+- Added internal_order_id and external_order_id columns to orders table
+- Removed separate migration files (all included in schema-v2-complete.sql)
+
+---
+
 ## [1.2-beta] - 2025-01-02
 
 ### 🚀 New Features
