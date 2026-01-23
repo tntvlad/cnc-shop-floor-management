@@ -936,6 +936,39 @@ function handleImportParts() {
         shapeSelect.value = detectedShape;
         // Trigger the change event to show dimension inputs
         shapeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Parse dimensions from description (e.g., "06 x 40mm (Bara)" or "20 x 85 x 85mm (Placa)")
+        const dimMatch = row.description.match(/(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)\s*(?:x\s*(\d+(?:[.,]\d+)?))?\s*mm/i);
+        if (dimMatch) {
+          const dim1 = parseFloat(dimMatch[1].replace(',', '.'));
+          const dim2 = parseFloat(dimMatch[2].replace(',', '.'));
+          const dim3 = dimMatch[3] ? parseFloat(dimMatch[3].replace(',', '.')) : null;
+          
+          // Fill dimensions based on shape type
+          if (detectedShape === 'bar_round') {
+            // Format: D x L (diameter x length)
+            const dimD = partItem.querySelector(`input[name="parts[${currentIndex}][dim_d]"]`);
+            const dimDL = partItem.querySelector(`input[name="parts[${currentIndex}][dim_dl]"]`);
+            if (dimD) dimD.value = dim1;
+            if (dimDL) dimDL.value = dim2;
+          } else if (detectedShape === 'plate' || detectedShape === 'bar_square') {
+            // Format: W x H x L (width x height x length)
+            const dimW = partItem.querySelector(`input[name="parts[${currentIndex}][dim_w]"]`);
+            const dimH = partItem.querySelector(`input[name="parts[${currentIndex}][dim_h]"]`);
+            const dimL = partItem.querySelector(`input[name="parts[${currentIndex}][dim_l]"]`);
+            if (dimW) dimW.value = dim1;
+            if (dimH) dimH.value = dim2;
+            if (dimL && dim3) dimL.value = dim3;
+          } else if (detectedShape === 'tube') {
+            // Format: OD x Wall x L (outer diameter x wall thickness x length)
+            const dimOD = partItem.querySelector(`input[name="parts[${currentIndex}][dim_od]"]`);
+            const dimWall = partItem.querySelector(`input[name="parts[${currentIndex}][dim_wall]"]`);
+            const dimTL = partItem.querySelector(`input[name="parts[${currentIndex}][dim_tl]"]`);
+            if (dimOD) dimOD.value = dim1;
+            if (dimWall) dimWall.value = dim2;
+            if (dimTL && dim3) dimTL.value = dim3;
+          }
+        }
       }
     }
     
