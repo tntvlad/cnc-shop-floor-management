@@ -1585,6 +1585,39 @@ async function handleCreateOrder(event) {
     return;
   }
 
+  // Auto-create folders for all parts if customer has a folder path
+  if (selectedCustomer && selectedCustomer.folder_path && order.internal_order_id) {
+    const sanitizedOrderId = order.internal_order_id.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+    
+    for (let i = 0; i < order.parts.length; i++) {
+      const part = order.parts[i];
+      // Only create folder if not already set
+      if (!part.file_folder && part.part_name) {
+        const sanitizedPartName = part.part_name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+        const folderPath = `${selectedCustomer.folder_path}/Orders/${sanitizedOrderId}/${sanitizedPartName}`;
+        
+        try {
+          const response = await fetch(`${API_URL}/folders/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify({ folderPath })
+          });
+          
+          const folderData = await response.json();
+          if (folderData.success) {
+            order.parts[i].file_folder = folderData.path;
+          }
+        } catch (error) {
+          console.error(`Error creating folder for part ${part.part_name}:`, error);
+          // Continue with order creation even if folder creation fails
+        }
+      }
+    }
+  }
+
   try {
     const response = await fetch(`${API_URL}/orders`, {
       method: 'POST',
