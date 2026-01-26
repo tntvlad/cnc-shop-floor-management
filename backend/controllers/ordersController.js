@@ -515,11 +515,11 @@ module.exports = {
   getNextInternalOrderId
 };
 
-// Get next available internal order ID (format: PF-YYYY-NNN)
+// Get next available internal order ID (format: FP-YYYY-NNN)
 async function getNextInternalOrderId(req, res) {
   try {
     const currentYear = new Date().getFullYear();
-    const prefix = `PF-${currentYear}-`;
+    const prefix = `FP-${currentYear}-`;
     
     // Find the highest number for this year
     const result = await pool.query(
