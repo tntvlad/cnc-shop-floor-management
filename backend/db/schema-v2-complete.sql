@@ -197,11 +197,8 @@ CREATE TABLE parts (
     drawing_revision_date TIMESTAMP,
     revision_notes TEXT,
     
-    -- Workflow stages
-    stage VARCHAR(50) DEFAULT 'material_planning',
-    -- Stages: material_planning → cutting → programming → assigned → in_progress → qc_pending → qc_approved → shipped
+    -- Workflow stage for Kanban board: pending → cutting → programming → machining → qc → completed
     workflow_stage VARCHAR(50) DEFAULT 'pending',
-    -- Workflow stages for visual Kanban: pending → cutting → programming → machining → qc → completed
     
     -- Hold/Pause functionality
     is_on_hold BOOLEAN DEFAULT false,

@@ -672,14 +672,14 @@ exports.resumePart = async (req, res) => {
       `UPDATE parts 
        SET status = 'in-progress', hold_reason = NULL, updated_at = NOW()
        WHERE id = $1
-       RETURNING id, part_name, status, stage`,
+       RETURNING id, part_name, status, workflow_stage`,
       [partId]
     );
 
     await pool.query(
       `INSERT INTO activity_log (user_id, action, entity_type, entity_id, description)
        VALUES ($1, $2, $3, $4, $5)`,
-      [req.user?.id || null, 'part_resumed', 'part', partId, `Part resumed from hold in ${result.rows[0].stage} stage`]
+      [req.user?.id || null, 'part_resumed', 'part', partId, `Part resumed from hold in ${result.rows[0].workflow_stage} stage`]
     );
 
     res.status(200).json({

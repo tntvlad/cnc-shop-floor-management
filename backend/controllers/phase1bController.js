@@ -53,7 +53,7 @@ exports.splitPartIntoBatches = async (req, res) => {
             batch_number, quantity_in_batch, parent_part_id, is_batch_split,
             material_type, material_dimensions, material_status,
             drawing_revision, drawing_revision_date, revision_notes,
-            stage, created_at, updated_at
+            workflow_stage, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5,
             $6, $7, $8, $9,
@@ -68,7 +68,7 @@ exports.splitPartIntoBatches = async (req, res) => {
             batch.batch_number || `Batch ${i + 1} of ${batches.length}`, batch.quantity, partId, true,
             original.material_type, original.material_dimensions, original.material_status,
             original.drawing_revision, original.drawing_revision_date, batch.notes || original.revision_notes,
-            original.stage
+            original.workflow_stage
           ]
         );
 
@@ -497,14 +497,14 @@ function calculatePriorityScore(part, orderDueDate) {
 
   // Stage progression (0-150 points)
   const stageScores = {
-    'material_planning': 0,
+    'pending': 0,
     'cutting': 50,
     'programming': 100,
-    'assigned': 125,
-    'in_progress': 150
+    'machining': 125,
+    'qc': 150
   };
-  score += stageScores[part.stage] || 0;
-  factors.stageScore = stageScores[part.stage] || 0;
+  score += stageScores[part.workflow_stage] || 0;
+  factors.stageScore = stageScores[part.workflow_stage] || 0;
 
   // Setup time (0-100 points) - shorter setup = higher priority (can start sooner)
   if (part.estimated_setup_time) {
@@ -595,11 +595,11 @@ exports.getPriorityQueue = async (req, res) => {
       `SELECT 
         p.id, p.part_name, p.quantity, p.order_id, 
         p.priority_score, p.priority_factors,
-        p.stage, p.material_status, p.estimated_time,
+        p.workflow_stage, p.material_status, p.estimated_time,
         o.customer_name, o.due_date
        FROM parts p
        JOIN orders o ON p.order_id = o.id
-       WHERE p.stage != 'completed' AND p.is_on_hold = false
+       WHERE p.workflow_stage != 'completed' AND p.is_on_hold = false
        ORDER BY p.priority_score DESC, o.due_date ASC
        LIMIT 50`,
       []
