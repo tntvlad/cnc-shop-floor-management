@@ -7,8 +7,10 @@
   <link rel="stylesheet" href="css/style.css">
   <style>
     .workflow-container {
-      max-width: 1400px;
+      max-width: 100%;
+      width: 100%;
       margin: 0 auto;
+      padding: 0 1rem;
     }
 
     .workflow-header {
@@ -48,9 +50,28 @@
 
     .workflow-stages {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 1rem;
       margin-bottom: 2rem;
+    }
+
+    /* Responsive: stack columns on smaller screens */
+    @media (max-width: 1400px) {
+      .workflow-stages {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .workflow-stages {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .workflow-stages {
+        grid-template-columns: 1fr;
+      }
     }
 
     .stage-card {
@@ -58,6 +79,7 @@
       border-radius: 8px;
       overflow: hidden;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      min-width: 0;
     }
 
     .stage-header {
