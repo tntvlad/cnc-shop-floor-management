@@ -120,28 +120,21 @@ async function initThreeJsViewer(container, file) {
       if (el) el.textContent = msg;
     };
     
-    // Dynamic import of required libraries using ES module compatible versions
+    // Dynamic import of required libraries - use r128 which is stable with script tags
     if (!window.THREE) {
       updateStatus('Loading Three.js library...');
-      await loadScript('https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js');
+      await loadScript('https://unpkg.com/three@0.128.0/build/three.min.js');
     }
     
-    // Load OrbitControls as a separate module
+    // Load OrbitControls
     if (!window.THREE.OrbitControls) {
       updateStatus('Loading camera controls...');
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js';
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+      await loadScript('https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js');
     }
     
     if (!window.occtimportjs) {
       updateStatus('Loading STEP parser (this may take a moment)...');
-      await loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.20/dist/occt-import-js.js');
+      await loadScript('https://unpkg.com/occt-import-js@0.0.12/dist/occt-import-js.js');
     }
     
     // Wait for WASM to initialize
