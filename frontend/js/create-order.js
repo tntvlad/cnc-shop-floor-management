@@ -1406,20 +1406,20 @@ async function selectFolder(partIndex) {
     return;
   }
   
-  // Get external order ID - required for folder creation
-  const externalOrderId = document.getElementById('external-order-id').value.trim();
-  if (!externalOrderId) {
-    alert('Please enter the External Order ID (customer reference/PO number) before selecting a folder.');
-    document.getElementById('external-order-id').focus();
+  // Get internal order ID - required for folder creation
+  const internalOrderId = document.getElementById('internal-order-id').value.trim();
+  if (!internalOrderId) {
+    alert('Please enter the Internal Order ID before selecting a folder.');
+    document.getElementById('internal-order-id').focus();
     return;
   }
   
   // Sanitize part name for folder (remove special characters)
   const sanitizedPartName = partName.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
   // Sanitize order ID for folder
-  const sanitizedOrderId = externalOrderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+  const sanitizedOrderId = internalOrderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
   
-  // Build the folder path: <customer_folder>/Orders/<order_id>/<part_name>
+  // Build the folder path: <customer_folder>/Orders/<internal_order_id>/<part_name>
   const folderPath = `${selectedCustomer.folder_path}/Orders/${sanitizedOrderId}/${sanitizedPartName}`;
   
   try {
