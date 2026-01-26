@@ -25,30 +25,31 @@ function setupDragAndDrop() {
   const stages = ['pending', 'cutting', 'programming', 'machining', 'qc', 'completed'];
   
   stages.forEach(stage => {
-    const stageBody = document.getElementById(`${stage}-stage`);
+    const stageCard = document.getElementById(`${stage}-card`);
+    if (!stageCard) return;
     
     // Remove existing listeners by cloning and replacing
-    const newStageBody = stageBody.cloneNode(true);
-    stageBody.parentNode.replaceChild(newStageBody, stageBody);
+    const newStageCard = stageCard.cloneNode(true);
+    stageCard.parentNode.replaceChild(newStageCard, stageCard);
     
-    newStageBody.addEventListener('dragover', (e) => {
+    newStageCard.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      newStageBody.classList.add('drag-over');
+      newStageCard.classList.add('drag-over');
     });
     
-    newStageBody.addEventListener('dragleave', (e) => {
+    newStageCard.addEventListener('dragleave', (e) => {
       e.preventDefault();
-      // Only remove if we're leaving the stage body, not entering a child
-      if (!newStageBody.contains(e.relatedTarget)) {
-        newStageBody.classList.remove('drag-over');
+      // Only remove if we're leaving the stage card, not entering a child
+      if (!newStageCard.contains(e.relatedTarget)) {
+        newStageCard.classList.remove('drag-over');
       }
     });
     
-    newStageBody.addEventListener('drop', async (e) => {
+    newStageCard.addEventListener('drop', async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      newStageBody.classList.remove('drag-over');
+      newStageCard.classList.remove('drag-over');
       
       if (draggedPartId) {
         await movePartToStage(draggedPartId, stage);
