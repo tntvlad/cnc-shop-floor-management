@@ -107,13 +107,23 @@ async function openStepViewer(fileId, filename) {
 
 // Three.js based STEP viewer with occt-import-js
 async function initThreeJsViewer(container, file) {
-  // Dynamic import of required libraries
+  // Dynamic import of required libraries using ES module compatible versions
   if (!window.THREE) {
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js');
   }
-  if (!window.OrbitControls) {
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js');
+  
+  // Load OrbitControls as a separate module
+  if (!window.THREE.OrbitControls) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
   }
+  
   if (!window.occtimportjs) {
     await loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.20/dist/occt-import-js.js');
   }
