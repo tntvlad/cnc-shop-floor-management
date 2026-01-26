@@ -594,7 +594,8 @@ function showPdfPreview(fileId) {
     .then(response => response.blob())
     .then(blob => {
       const blobUrl = window.URL.createObjectURL(blob);
-      previewFrame.src = blobUrl;
+      // Add PDF.js viewer parameters: pagemode=none (no sidebar), zoom=page-width (fit to width)
+      previewFrame.src = blobUrl + '#pagemode=none&zoom=page-width';
       previewSection.style.display = 'block';
       updatePdfFullscreenState();
     })

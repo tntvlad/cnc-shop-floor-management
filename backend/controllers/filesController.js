@@ -275,7 +275,7 @@ async function performSyncForPart(partId, folderPath) {
     return { added: 0, files: [] };
   }
 
-  const allowedExts = new Set(['.pdf', '.dxf', '.nc', '.txt']);
+  const allowedExts = new Set(['.pdf', '.dxf', '.nc', '.txt', '.step', '.stp', '.sldprt', '.slddrw', '.sldasm', '.igs', '.iges', '.x_t', '.x_b', '.dwg', '.stl', '.3mf', '.gcode']);
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   let added = 0;
   const filesAdded = [];
