@@ -112,7 +112,7 @@ async function initThreeJsViewer(container, file) {
     container.innerHTML = `
       <div class="step-loading">
         <div class="step-spinner"></div>
-        <p id="stepLoadingStatus">Loading Three.js...</p>
+        <p id="stepLoadingStatus">Initializing...</p>
       </div>
     `;
     const updateStatus = (msg) => {
@@ -120,21 +120,19 @@ async function initThreeJsViewer(container, file) {
       if (el) el.textContent = msg;
     };
     
-    // Dynamic import of required libraries - use r128 which is stable with script tags
+    // Three.js and OrbitControls are loaded in HTML head
     if (!window.THREE) {
-      updateStatus('Loading Three.js library...');
-      await loadScript('https://unpkg.com/three@0.128.0/build/three.min.js');
+      throw new Error('Three.js library not loaded');
     }
     
-    // Load OrbitControls
     if (!window.THREE.OrbitControls) {
-      updateStatus('Loading camera controls...');
-      await loadScript('https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js');
+      throw new Error('OrbitControls not loaded');
     }
     
+    // Load occt-import-js for STEP parsing
     if (!window.occtimportjs) {
-      updateStatus('Loading STEP parser (this may take a moment)...');
-      await loadScript('https://unpkg.com/occt-import-js@0.0.12/dist/occt-import-js.js');
+      updateStatus('Loading STEP parser (first load may take a moment)...');
+      await loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.12/dist/occt-import-js.js');
     }
     
     // Wait for WASM to initialize
