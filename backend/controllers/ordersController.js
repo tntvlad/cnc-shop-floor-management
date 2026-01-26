@@ -273,6 +273,7 @@ async function getOrderById(req, res) {
         p.description,
         p.status,
         p.stage,
+        p.workflow_stage,
         p.material_id,
         p.material_type,
         p.priority,
