@@ -413,6 +413,7 @@ function loadPartFiles(part) {
   part.files.forEach(file => {
     const fileType = (file.fileType || file.filetype || 'FILE').toUpperCase();
     const isPdf = fileType === 'PDF';
+    const isStep = isStepFile && isStepFile(file.filename);
     const isActivePdf = isPdf && activePdfId === file.id;
     const fileDiv = document.createElement('div');
     fileDiv.style.display = 'flex';
@@ -447,6 +448,25 @@ function loadPartFiles(part) {
     }
     
     fileDiv.appendChild(btn);
+    
+    // Add "View 3D" button for STEP files
+    if (isStep && window.openStepViewer) {
+      const view3dBtn = document.createElement('button');
+      view3dBtn.className = 'btn btn-sm';
+      view3dBtn.style.background = '#2563eb';
+      view3dBtn.style.color = 'white';
+      view3dBtn.style.padding = '5px 10px';
+      view3dBtn.style.border = 'none';
+      view3dBtn.style.borderRadius = '4px';
+      view3dBtn.style.cursor = 'pointer';
+      view3dBtn.innerHTML = '🔍 3D';
+      view3dBtn.title = 'View 3D Model with Measurement';
+      view3dBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openStepViewer(file.id, file.filename);
+      });
+      fileDiv.appendChild(view3dBtn);
+    }
     
     // Add delete button for admins/supervisors
     if (canDelete) {

@@ -951,3 +951,177 @@ tr.priority-low {
         flex: 1;
     }
 }
+
+/* STEP 3D Viewer Styles */
+.step-viewer-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.step-viewer-modal.active {
+    display: flex;
+}
+
+.step-viewer-container {
+    background: white;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 1400px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+}
+
+.step-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #1e293b;
+    color: white;
+}
+
+.step-viewer-header h3 {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.step-viewer-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.step-btn {
+    background: #334155;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.step-btn:hover {
+    background: #475569;
+}
+
+.step-btn.active {
+    background: #2563eb;
+}
+
+.step-btn-close {
+    background: #dc2626;
+}
+
+.step-btn-close:hover {
+    background: #b91c1c;
+}
+
+.step-btn-small {
+    background: #475569;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.step-btn-small:hover {
+    background: #64748b;
+}
+
+.step-viewer-content {
+    flex: 1;
+    background: #f0f4f8;
+    position: relative;
+    overflow: hidden;
+}
+
+.step-viewer-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.step-measure-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.measure-result {
+    color: #dc2626;
+    font-size: 14px;
+}
+
+.measure-result strong {
+    font-size: 16px;
+}
+
+.step-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #64748b;
+}
+
+.step-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.step-loading-hint {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 8px;
+}
+
+.step-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #dc2626;
+}
+
+.step-error-detail {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 8px;
+}
+
+.step-controls-hint {
+    font-size: 12px;
+    color: #94a3b8;
+}
