@@ -914,14 +914,18 @@ function setupEventListeners() {
   document.getElementById('completeSubmitBtn').addEventListener('click', async () => {
     if (!currentPart) return;
 
-    const actualTime = parseInt(document.getElementById('actualTime').value);
-    if (!actualTime || actualTime < 1) {
+    const actualTimePerPart = parseInt(document.getElementById('actualTime').value);
+    if (!actualTimePerPart || actualTimePerPart < 1) {
       alert('Please enter a valid time');
       return;
     }
 
+    // Multiply time per part by quantity to get total actual time
+    const quantity = currentPart.quantity || 1;
+    const totalActualTime = actualTimePerPart * quantity;
+
     try {
-      await API.parts.complete(currentPart.id, actualTime);
+      await API.parts.complete(currentPart.id, totalActualTime);
       closeCompleteModal();
       closePartModal();
       loadStatistics();
