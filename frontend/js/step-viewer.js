@@ -214,6 +214,12 @@ async function initThreeJsViewer(container, file) {
     
     const threeMesh = new THREE.Mesh(geometry, material);
     group.add(threeMesh);
+    
+    // Add edges for shaded with edges look
+    const edgesGeometry = new THREE.EdgesGeometry(geometry, 30); // 30 degree threshold
+    const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 });
+    const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+    group.add(edges);
   }
   
   scene.add(group);
