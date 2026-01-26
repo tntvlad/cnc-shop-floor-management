@@ -107,42 +107,65 @@ async function openStepViewer(fileId, filename) {
 
 // Three.js based STEP viewer with occt-import-js
 async function initThreeJsViewer(container, file) {
-  // Dynamic import of required libraries using ES module compatible versions
-  if (!window.THREE) {
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js');
-  }
-  
-  // Load OrbitControls as a separate module
-  if (!window.THREE.OrbitControls) {
-    await new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js';
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
-  
-  if (!window.occtimportjs) {
-    await loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.20/dist/occt-import-js.js');
-  }
-  
-  // Wait for WASM to initialize
-  const occt = await occtimportjs();
-  
-  // Read file
-  const arrayBuffer = await file.arrayBuffer();
-  const fileBuffer = new Uint8Array(arrayBuffer);
-  
-  // Parse STEP file
-  const result = occt.ReadStepFile(fileBuffer, null);
-  
-  if (!result.success) {
-    throw new Error('Failed to parse STEP file');
-  }
-  
-  // Setup Three.js scene
+  try {
+    // Show loading progress
+    container.innerHTML = `
+      <div class="step-loading">
+        <div class="step-spinner"></div>
+        <p id="stepLoadingStatus">Loading Three.js...</p>
+      </div>
+    `;
+    const updateStatus = (msg) => {
+      const el = document.getElementById('stepLoadingStatus');
+      if (el) el.textContent = msg;
+    };
+    
+    // Dynamic import of required libraries using ES module compatible versions
+    if (!window.THREE) {
+      updateStatus('Loading Three.js library...');
+      await loadScript('https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js');
+    }
+    
+    // Load OrbitControls as a separate module
+    if (!window.THREE.OrbitControls) {
+      updateStatus('Loading camera controls...');
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/js/controls/OrbitControls.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    
+    if (!window.occtimportjs) {
+      updateStatus('Loading STEP parser (this may take a moment)...');
+      await loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.20/dist/occt-import-js.js');
+    }
+    
+    // Wait for WASM to initialize
+    updateStatus('Initializing STEP parser...');
+    const occt = await window.occtimportjs();
+    
+    // Read file
+    updateStatus('Reading file...');
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = new Uint8Array(arrayBuffer);
+    
+    // Parse STEP file
+    updateStatus('Parsing STEP file...');
+    const result = occt.ReadStepFile(fileBuffer, null);
+    
+    if (!result.success) {
+      throw new Error('Failed to parse STEP file - file may be corrupted or unsupported format');
+    }
+    
+    if (!result.meshes || result.meshes.length === 0) {
+      throw new Error('No geometry found in STEP file');
+    }
+    
+    updateStatus('Building 3D scene...');
   container.innerHTML = '';
   
   const width = container.clientWidth;
@@ -262,6 +285,11 @@ async function initThreeJsViewer(container, file) {
   
   // Click handler for measurement
   renderer.domElement.addEventListener('click', onViewerClick);
+  
+  } catch (initError) {
+    console.error('STEP viewer initialization error:', initError);
+    throw initError;
+  }
 }
 
 function onViewerClick(event) {
