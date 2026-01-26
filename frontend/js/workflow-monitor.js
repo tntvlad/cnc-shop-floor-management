@@ -27,18 +27,28 @@ function setupDragAndDrop() {
   stages.forEach(stage => {
     const stageBody = document.getElementById(`${stage}-stage`);
     
-    stageBody.addEventListener('dragover', (e) => {
+    // Remove existing listeners by cloning and replacing
+    const newStageBody = stageBody.cloneNode(true);
+    stageBody.parentNode.replaceChild(newStageBody, stageBody);
+    
+    newStageBody.addEventListener('dragover', (e) => {
       e.preventDefault();
-      stageBody.classList.add('drag-over');
+      e.stopPropagation();
+      newStageBody.classList.add('drag-over');
     });
     
-    stageBody.addEventListener('dragleave', (e) => {
-      stageBody.classList.remove('drag-over');
+    newStageBody.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      // Only remove if we're leaving the stage body, not entering a child
+      if (!newStageBody.contains(e.relatedTarget)) {
+        newStageBody.classList.remove('drag-over');
+      }
     });
     
-    stageBody.addEventListener('drop', async (e) => {
+    newStageBody.addEventListener('drop', async (e) => {
       e.preventDefault();
-      stageBody.classList.remove('drag-over');
+      e.stopPropagation();
+      newStageBody.classList.remove('drag-over');
       
       if (draggedPartId) {
         await movePartToStage(draggedPartId, stage);

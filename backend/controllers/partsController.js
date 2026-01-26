@@ -548,9 +548,9 @@ exports.setWorkflowStage = async (req, res) => {
 
     // Log activity
     await pool.query(
-      `INSERT INTO activity_log (part_id, action, details)
-       VALUES ($1, $2, $3)`,
-      [partId, 'workflow_stage_changed', `Moved from ${previousStage} to ${stage}. ${notes || ''}`]
+      `INSERT INTO activity_log (entity_type, entity_id, action, description)
+       VALUES ($1, $2, $3, $4)`,
+      ['part', partId, 'workflow_stage_changed', `Moved from ${previousStage} to ${stage}. ${notes || ''}`]
     );
 
     res.status(200).json({
@@ -603,9 +603,9 @@ exports.completeWorkflowStage = async (req, res) => {
 
     // Log activity
     await pool.query(
-      `INSERT INTO activity_log (part_id, action, details)
-       VALUES ($1, $2, $3)`,
-      [partId, `completed_${currentStage}`, `${currentStage} stage completed. ${notes || ''}`]
+      `INSERT INTO activity_log (entity_type, entity_id, action, description)
+       VALUES ($1, $2, $3, $4)`,
+      ['part', partId, `completed_${currentStage}`, `${currentStage} stage completed. ${notes || ''}`]
     );
 
     res.status(200).json({
