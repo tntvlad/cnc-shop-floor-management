@@ -147,7 +147,7 @@ function renderOrders(orders) {
 
     return `
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
-        <td style="color: #1F2937;"><strong>#${order.id}</strong></td>
+        <td style="color: #1F2937;"><strong>${order.internal_order_id || '#' + order.id}</strong></td>
         <td>
           <span class="priority-badge ${priority.badgeClass}">${escapeHtml(priority.label)}</span>
         </td>
