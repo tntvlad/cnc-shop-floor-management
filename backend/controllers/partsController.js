@@ -90,11 +90,23 @@ exports.getPart = async (req, res) => {
             'user_id', p.assigned_to,
             'status', CASE WHEN p.status = 'in_progress' THEN 'in_progress' ELSE 'ready' END
           )
-        ELSE NULL END as assignment
+        ELSE NULL END as assignment,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', f.id,
+              'filename', f.filename,
+              'fileType', f.file_type,
+              'filePath', f.file_path
+            )
+          ) FILTER (WHERE f.id IS NOT NULL), '[]'
+        ) as files
       FROM parts p
       LEFT JOIN material_types mt ON p.material_id = mt.id
       LEFT JOIN users u ON p.assigned_to = u.id
+      LEFT JOIN files f ON p.id = f.part_id
       WHERE p.id = $1
+      GROUP BY p.id, mt.name, u.name
     `, [id]);
 
     if (result.rows.length === 0) {
