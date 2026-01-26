@@ -144,9 +144,9 @@ async function initThreeJsViewer(container, file) {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = new Uint8Array(arrayBuffer);
     
-    // Parse STEP file
+    // Parse STEP file (v0.0.12 API takes only 1 argument)
     updateStatus('Parsing STEP file...');
-    const result = occt.ReadStepFile(fileBuffer, null);
+    const result = occt.ReadStepFile(fileBuffer);
     
     if (!result.success) {
       throw new Error('Failed to parse STEP file - file may be corrupted or unsupported format');
