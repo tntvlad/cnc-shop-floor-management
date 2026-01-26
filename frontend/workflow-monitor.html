@@ -90,13 +90,24 @@
       border-radius: 4px;
       margin-bottom: 1rem;
       border-left: 4px solid #667eea;
-      cursor: move;
+      cursor: grab;
       transition: all 0.3s;
+      user-select: none;
     }
 
     .part-card:hover {
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       transform: translateY(-2px);
+    }
+
+    .part-card.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+    }
+
+    .stage-body.drag-over {
+      background: #e8f4ff;
+      border: 2px dashed #667eea;
     }
 
     .part-name {

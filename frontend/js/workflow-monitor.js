@@ -1,5 +1,6 @@
 let currentOrderId = null;
 let currentParts = {};
+let draggedPartId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (currentOrderId) {
     loadWorkflow();
+    setupDragAndDrop();
     
     // Refresh every 10 seconds
     setInterval(() => {
@@ -18,6 +20,33 @@ document.addEventListener('DOMContentLoaded', function() {
     showError('Order not found');
   }
 });
+
+function setupDragAndDrop() {
+  const stages = ['pending', 'cutting', 'programming', 'machining', 'qc', 'completed'];
+  
+  stages.forEach(stage => {
+    const stageBody = document.getElementById(`${stage}-stage`);
+    
+    stageBody.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      stageBody.classList.add('drag-over');
+    });
+    
+    stageBody.addEventListener('dragleave', (e) => {
+      stageBody.classList.remove('drag-over');
+    });
+    
+    stageBody.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      stageBody.classList.remove('drag-over');
+      
+      if (draggedPartId) {
+        await movePartToStage(draggedPartId, stage);
+        draggedPartId = null;
+      }
+    });
+  });
+}
 
 function getLastOrderId() {
   // Could fetch from localStorage or session
@@ -117,7 +146,7 @@ function renderPartCard(part, stage) {
   const isCompleted = stage === 'completed';
 
   return `
-    <div class="part-card">
+    <div class="part-card" draggable="true" ondragstart="handleDragStart(event, ${part.id})" ondragend="handleDragEnd(event)">
       <div class="part-name">
         ${part.part_name}
         <span style="font-size: 0.8rem; color: #999;"> (Qty: ${part.quantity})</span>
@@ -142,6 +171,47 @@ function renderPartCard(part, stage) {
       </div>
     </div>
   `;
+}
+
+function handleDragStart(event, partId) {
+  draggedPartId = partId;
+  event.target.classList.add('dragging');
+}
+
+function handleDragEnd(event) {
+  event.target.classList.remove('dragging');
+}
+
+async function movePartToStage(partId, newStage) {
+  const part = currentParts[partId];
+  if (!part) return;
+
+  try {
+    const response = await fetch(`${API_URL}/parts/${partId}/workflow/stage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({
+        stage: newStage,
+        notes: `Manually moved to ${newStage}`
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showError(data.message || 'Failed to move part');
+      return;
+    }
+
+    showSuccess(`${part.part_name} moved to ${newStage}`);
+    loadWorkflow();
+  } catch (error) {
+    console.error('Error moving part:', error);
+    showError('Error moving part: ' + error.message);
+  }
 }
 
 function getNextStage(current) {

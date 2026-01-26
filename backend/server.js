@@ -310,6 +310,7 @@ app.post('/api/machines/:id/assign', authMiddleware, requireSupervisor(), valida
 // ======================== WORKFLOW TRANSITIONS ========================
 app.post('/api/parts/:partId/workflow/start', authMiddleware, requireSupervisor(), partsController.startWorkflowStage);
 app.post('/api/parts/:partId/workflow/complete', authMiddleware, requireSupervisor(), partsController.completeWorkflowStage);
+app.post('/api/parts/:partId/workflow/stage', authMiddleware, requireSupervisor(), partsController.setWorkflowStage);
 app.post('/api/parts/:partId/hold', authMiddleware, requireSupervisor(), partsController.holdPart);
 app.post('/api/parts/:partId/resume', authMiddleware, requireSupervisor(), partsController.resumePart);
 app.post('/api/parts/:partId/scrap', authMiddleware, requireSupervisor(), partsController.recordScrap);

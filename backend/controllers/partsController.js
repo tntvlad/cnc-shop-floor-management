@@ -317,10 +317,11 @@ exports.completePart = async (req, res) => {
       return res.status(403).json({ error: 'You are not assigned to this part' });
     }
 
-    // Update part status to completed
+    // Update part status to completed and workflow_stage to completed
     await pool.query(
       `UPDATE parts 
        SET status = 'completed', 
+           workflow_stage = 'completed',
            completed_at = NOW(),
            actual_time = $1
        WHERE id = $2`,
@@ -508,6 +509,57 @@ exports.startWorkflowStage = async (req, res) => {
     });
   } catch (error) {
     console.error('Error starting workflow:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Set workflow stage directly (for drag and drop)
+exports.setWorkflowStage = async (req, res) => {
+  try {
+    const { partId } = req.params;
+    const { stage, notes } = req.body;
+
+    const validStages = ['pending', 'cutting', 'programming', 'machining', 'qc', 'completed'];
+    if (!validStages.includes(stage)) {
+      return res.status(400).json({ success: false, message: 'Invalid workflow stage' });
+    }
+
+    // Get current part
+    const partResult = await pool.query(
+      'SELECT id, workflow_stage, part_name FROM parts WHERE id = $1',
+      [partId]
+    );
+
+    if (partResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    const previousStage = partResult.rows[0].workflow_stage;
+
+    const result = await pool.query(
+      `UPDATE parts 
+       SET workflow_stage = $1, 
+           status = $2,
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, part_name, workflow_stage, status`,
+      [stage, stage === 'completed' ? 'completed' : 'pending', partId]
+    );
+
+    // Log activity
+    await pool.query(
+      `INSERT INTO activity_log (part_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [partId, 'workflow_stage_changed', `Moved from ${previousStage} to ${stage}. ${notes || ''}`]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Part moved to ${stage}`,
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error setting workflow stage:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
