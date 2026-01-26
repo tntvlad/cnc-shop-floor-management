@@ -56,7 +56,16 @@ exports.getAllParts = async (req, res) => {
             'name', u.name,
             'status', CASE WHEN p.status = 'in_progress' THEN 'in_progress' ELSE 'ready' END
           ))
-        ELSE '[]'::json END as assignments
+        ELSE '[]'::json END as assignments,
+        COALESCE(
+          (SELECT json_agg(
+            json_build_object(
+              'id', f.id,
+              'filename', f.filename,
+              'fileType', f.file_type
+            )
+          ) FROM files f WHERE f.part_id = p.id), '[]'
+        ) as files
       FROM parts p
       LEFT JOIN material_types mt ON p.material_id = mt.id
       LEFT JOIN users u ON p.assigned_to = u.id

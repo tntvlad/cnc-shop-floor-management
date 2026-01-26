@@ -235,6 +235,9 @@ function createPartCard(part, isOperator = false) {
     statusText = 'Completed';
   }
 
+  // Find first PDF file for thumbnail preview
+  const pdfFile = part.files && part.files.find(f => f.fileType === 'PDF' || (f.filename && f.filename.toLowerCase().endsWith('.pdf')));
+
   card.innerHTML = `
     <div class="part-card-header">
       <div class="part-name">${escapeHtml(part.name)}</div>
@@ -244,27 +247,39 @@ function createPartCard(part, isOperator = false) {
       <span class="priority-badge ${priority.badgeClass}">${priority.label}</span>
       ${priority.weight ? `<span class="priority-note">Score ${priority.weight}</span>` : ''}
     </div>
-    <div class="part-info">
-      <div class="info-row">
-        <span class="info-label">Material:</span>
-        <span class="info-value">${escapeHtml(part.material)}</span>
+    <div class="part-card-body">
+      <div class="part-info">
+        <div class="info-row">
+          <span class="info-label">Material:</span>
+          <span class="info-value">${escapeHtml(part.material)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Quantity:</span>
+          <span class="info-value">${part.quantity}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Treatment:</span>
+          <span class="info-value">${escapeHtml(part.treatment || 'None')}</span>
+        </div>
+        ${isSupervisorPlus ? `
+        <div class="info-row">
+          <span class="info-label">Target Time:</span>
+          <span class="info-value">${part.target_time} min</span>
+        </div>
+        ` : ''}
       </div>
-      <div class="info-row">
-        <span class="info-label">Quantity:</span>
-        <span class="info-value">${part.quantity}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Treatment:</span>
-        <span class="info-value">${escapeHtml(part.treatment || 'None')}</span>
-      </div>
-      ${isSupervisorPlus ? `
-      <div class="info-row">
-        <span class="info-label">Target Time:</span>
-        <span class="info-value">${part.target_time} min</span>
+      ${pdfFile ? `
+      <div class="part-pdf-preview" data-file-id="${pdfFile.id}">
+        <div class="pdf-loading">Loading PDF...</div>
       </div>
       ` : ''}
     </div>
   `;
+
+  // Load PDF thumbnail if available
+  if (pdfFile) {
+    loadPdfThumbnail(card.querySelector('.part-pdf-preview'), pdfFile.id);
+  }
 
   // Allow clicking if operator has ready/in_progress assignment or if not completed/locked
   const canClick = isOperator 
@@ -603,6 +618,40 @@ function showPdfPreview(fileId) {
       console.error('PDF preview failed:', error);
       hidePdfPreview();
     });
+}
+
+// Load PDF thumbnail for card preview
+async function loadPdfThumbnail(container, fileId) {
+  if (!container) return;
+  
+  try {
+    const url = API.files.getDownloadUrl(fileId);
+    const token = Auth.getToken();
+    
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      container.innerHTML = '<div class="pdf-error">PDF unavailable</div>';
+      return;
+    }
+    
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    // Create an iframe for the PDF preview with minimal controls
+    container.innerHTML = `
+      <iframe 
+        src="${blobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" 
+        class="pdf-thumbnail-frame"
+        loading="lazy"
+      ></iframe>
+    `;
+  } catch (error) {
+    console.error('PDF thumbnail load failed:', error);
+    container.innerHTML = '<div class="pdf-error">PDF unavailable</div>';
+  }
 }
 
 // Hide PDF preview
