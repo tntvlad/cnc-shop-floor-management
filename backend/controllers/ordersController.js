@@ -511,8 +511,45 @@ module.exports = {
   deleteOrder,
   getOrderStats,
   addPartToOrder,
-  updatePartPriority
+  updatePartPriority,
+  getNextInternalOrderId
 };
+
+// Get next available internal order ID (format: PF-YYYY-NNN)
+async function getNextInternalOrderId(req, res) {
+  try {
+    const currentYear = new Date().getFullYear();
+    const prefix = `PF-${currentYear}-`;
+    
+    // Find the highest number for this year
+    const result = await pool.query(
+      `SELECT internal_order_id FROM orders 
+       WHERE internal_order_id LIKE $1 
+       ORDER BY internal_order_id DESC 
+       LIMIT 1`,
+      [`${prefix}%`]
+    );
+    
+    let nextNumber = 1;
+    if (result.rows.length > 0) {
+      const lastId = result.rows[0].internal_order_id;
+      const lastNumber = parseInt(lastId.replace(prefix, ''), 10);
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1;
+      }
+    }
+    
+    const nextInternalOrderId = `${prefix}${String(nextNumber).padStart(3, '0')}`;
+    
+    res.json({
+      success: true,
+      nextInternalOrderId
+    });
+  } catch (error) {
+    console.error('Error getting next internal order ID:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
 
 // Add a part to an existing order
 async function addPartToOrder(req, res) {

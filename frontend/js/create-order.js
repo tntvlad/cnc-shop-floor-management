@@ -52,7 +52,22 @@ document.addEventListener('DOMContentLoaded', function() {
   addPartField();
   loadCustomers();
   setupCustomerSearch();
+  loadNextInternalOrderId();
 });
+
+async function loadNextInternalOrderId() {
+  try {
+    const response = await fetch(`${API_URL}/orders/next-internal-id`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const data = await response.json();
+    if (data.success && data.nextInternalOrderId) {
+      document.getElementById('internal-order-id').value = data.nextInternalOrderId;
+    }
+  } catch (error) {
+    console.error('Error loading next internal order ID:', error);
+  }
+}
 
 async function loadMaterials() {
   try {

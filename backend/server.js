@@ -228,6 +228,7 @@ app.get('/api/parts/:partId/timelogs', authMiddleware, timeController.getPartTim
 
 // ======================== ORDERS ROUTES ========================
 // Note: requireSupervisor must be INVOKED to return the middleware instance.
+app.get('/api/orders/next-internal-id', authMiddleware, requireSupervisor(), ordersController.getNextInternalOrderId);
 app.post('/api/orders', authMiddleware, requireSupervisor(), ordersController.createOrder);
 app.get('/api/orders', authMiddleware, requireSupervisor(), ordersController.getOrders);
 app.get('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.getOrderById);
