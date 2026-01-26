@@ -1125,3 +1125,166 @@ tr.priority-low {
     font-size: 12px;
     color: #94a3b8;
 }
+
+/* Measurement Dropdown Menu */
+.step-measure-dropdown {
+    position: relative;
+}
+
+.step-measure-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    min-width: 180px;
+    padding: 8px 0;
+    display: none;
+    z-index: 100;
+    margin-top: 4px;
+}
+
+.step-measure-menu.active {
+    display: block;
+}
+
+.step-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #334155;
+    transition: background 0.15s;
+}
+
+.step-menu-item:hover {
+    background: #f1f5f9;
+}
+
+.step-menu-item.active {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.step-menu-item.text-danger {
+    color: #dc2626;
+}
+
+.step-menu-item.text-danger:hover {
+    background: #fef2f2;
+}
+
+.step-measure-menu hr {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 8px 0;
+}
+
+/* Measurement Results Display */
+.step-measure-mode {
+    background: #2563eb;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.step-measure-mode:empty {
+    display: none;
+}
+
+.measure-results {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.measure-total {
+    font-size: 15px;
+    color: #1e293b;
+}
+
+.measure-total strong {
+    font-size: 18px;
+    color: #dc2626;
+}
+
+.measure-axes {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+}
+
+.axis-x {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.axis-y {
+    color: #16a34a;
+    font-weight: 500;
+}
+
+.axis-z {
+    color: #2563eb;
+    font-weight: 500;
+}
+
+.measure-axes-large {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.axis-item {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.axis-item.axis-x {
+    background: #fef2f2;
+}
+
+.axis-item.axis-y {
+    background: #f0fdf4;
+}
+
+.axis-item.axis-z {
+    background: #eff6ff;
+}
+
+.axis-item strong {
+    font-size: 16px;
+}
+
+.measure-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.measure-coords {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    font-family: monospace;
+}
+
+.measure-normal {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.step-viewer-footer {
+    flex-wrap: wrap;
+    gap: 10px;
+}

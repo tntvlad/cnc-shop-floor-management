@@ -1,5 +1,5 @@
 // STEP File Viewer with Measurement Tools
-// Uses Online3DViewer Engine (O3DV)
+// Uses Three.js and occt-import-js
 
 let stepViewerInstance = null;
 let stepViewerModal = null;
@@ -16,9 +16,32 @@ function initStepViewer() {
         <div class="step-viewer-header">
           <h3 id="stepViewerTitle">3D STEP Viewer</h3>
           <div class="step-viewer-controls">
-            <button id="stepMeasureBtn" class="step-btn" title="Measure Distance">
-              📏 Measure
-            </button>
+            <div class="step-measure-dropdown">
+              <button id="stepMeasureBtn" class="step-btn" title="Measurement Tools">
+                📏 Measure ▼
+              </button>
+              <div id="stepMeasureMenu" class="step-measure-menu">
+                <button onclick="setMeasureMode('distance')" class="step-menu-item" title="Measure distance between two points">
+                  📏 Point Distance
+                </button>
+                <button onclick="setMeasureMode('axis')" class="step-menu-item" title="Show X/Y/Z axis dimensions">
+                  📐 Axis Dimensions
+                </button>
+                <button onclick="setMeasureMode('surface')" class="step-menu-item" title="Measure point on surface">
+                  🎯 Surface Point
+                </button>
+                <button onclick="showBoundingBox()" class="step-menu-item" title="Show model bounding box dimensions">
+                  📦 Bounding Box
+                </button>
+                <hr>
+                <button onclick="toggleSnapMode()" class="step-menu-item" id="snapModeBtn">
+                  🧲 Snap: OFF
+                </button>
+                <button onclick="clearMeasurements()" class="step-menu-item text-danger">
+                  🗑️ Clear All
+                </button>
+              </div>
+            </div>
             <button id="stepResetViewBtn" class="step-btn" title="Reset View">
               🔄 Reset
             </button>
@@ -38,6 +61,7 @@ function initStepViewer() {
         </div>
         <div class="step-viewer-footer">
           <div id="stepMeasureInfo" class="step-measure-info"></div>
+          <div id="stepMeasureMode" class="step-measure-mode"></div>
           <div class="step-controls-hint">
             🖱️ Left: Rotate | Right: Pan | Scroll: Zoom
           </div>
@@ -50,7 +74,16 @@ function initStepViewer() {
     document.getElementById('stepCloseBtn').addEventListener('click', closeStepViewer);
     document.getElementById('stepResetViewBtn').addEventListener('click', resetStepView);
     document.getElementById('stepFullscreenBtn').addEventListener('click', toggleStepFullscreen);
-    document.getElementById('stepMeasureBtn').addEventListener('click', toggleMeasureMode);
+    document.getElementById('stepMeasureBtn').addEventListener('click', toggleMeasureMenu);
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('stepMeasureMenu');
+      const btn = document.getElementById('stepMeasureBtn');
+      if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.remove('active');
+      }
+    });
     
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeStepViewer();
@@ -244,12 +277,23 @@ async function initThreeJsViewer(container, file) {
     controls,
     group,
     container,
-    measureMode: false,
+    box: box.clone(),
+    modelSize: size.clone(),
+    modelCenter: center.clone(),
+    measureMode: null, // 'distance', 'axis', 'surface'
+    snapMode: false,
     measurePoints: [],
     measureLines: [],
+    measureLabels: [],
+    measureObjects: [], // All measurement visualization objects
     raycaster: new THREE.Raycaster(),
-    mouse: new THREE.Vector2()
+    mouse: new THREE.Vector2(),
+    snapIndicator: null,
+    vertexPositions: [] // For snap-to-vertex
   };
+  
+  // Extract all vertices for snap functionality
+  extractVertices(group);
   
   // Add grid
   const gridHelper = new THREE.GridHelper(maxDim * 2, 20, 0xcccccc, 0xeeeeee);
@@ -298,84 +342,383 @@ function onViewerClick(event) {
   
   stepViewerInstance.raycaster.setFromCamera(stepViewerInstance.mouse, stepViewerInstance.camera);
   
-  const intersects = stepViewerInstance.raycaster.intersectObjects(stepViewerInstance.group.children, true);
+  // Only intersect with mesh objects, not edges
+  const meshChildren = stepViewerInstance.group.children.filter(c => c.type === 'Mesh');
+  const intersects = stepViewerInstance.raycaster.intersectObjects(meshChildren, true);
   
   if (intersects.length > 0) {
-    const point = intersects[0].point.clone();
-    addMeasurePoint(point);
+    let point = intersects[0].point.clone();
+    const face = intersects[0].face;
+    const normal = face ? face.normal.clone() : null;
+    
+    // Apply snap if enabled
+    if (stepViewerInstance.snapMode) {
+      point = findNearestVertex(point);
+    }
+    
+    handleMeasureClick(point, normal, intersects[0]);
   }
 }
 
-function addMeasurePoint(point) {
+// Extract vertices from geometry for snapping
+function extractVertices(group) {
+  stepViewerInstance.vertexPositions = [];
+  
+  group.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      const posAttr = child.geometry.getAttribute('position');
+      if (posAttr) {
+        for (let i = 0; i < posAttr.count; i++) {
+          const vertex = new THREE.Vector3(
+            posAttr.getX(i),
+            posAttr.getY(i),
+            posAttr.getZ(i)
+          );
+          // Transform to world coordinates
+          vertex.applyMatrix4(child.matrixWorld);
+          stepViewerInstance.vertexPositions.push(vertex);
+        }
+      }
+    }
+  });
+}
+
+// Find nearest vertex for snapping
+function findNearestVertex(point) {
+  if (!stepViewerInstance.vertexPositions.length) return point;
+  
+  let nearestDist = Infinity;
+  let nearestVertex = point;
+  
+  const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
+  const size = box.getSize(new THREE.Vector3());
+  const snapThreshold = Math.max(size.x, size.y, size.z) * 0.02; // 2% of model size
+  
+  for (const vertex of stepViewerInstance.vertexPositions) {
+    const dist = point.distanceTo(vertex);
+    if (dist < nearestDist && dist < snapThreshold) {
+      nearestDist = dist;
+      nearestVertex = vertex.clone();
+    }
+  }
+  
+  return nearestVertex;
+}
+
+// Handle measurement click based on current mode
+function handleMeasureClick(point, normal, intersection) {
+  const mode = stepViewerInstance.measureMode;
+  
+  switch (mode) {
+    case 'distance':
+      addDistanceMeasurePoint(point);
+      break;
+    case 'axis':
+      addAxisMeasurePoint(point);
+      break;
+    case 'surface':
+      showSurfacePoint(point, normal);
+      break;
+  }
+}
+
+// Distance measurement (point to point)
+function addDistanceMeasurePoint(point) {
   const scene = stepViewerInstance.scene;
+  const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
+  const size = box.getSize(new THREE.Vector3());
+  const sphereRadius = Math.max(size.x, size.y, size.z) * 0.01;
   
   // Create sphere at point
-  const sphereGeom = new THREE.SphereGeometry(0.5, 16, 16);
+  const sphereGeom = new THREE.SphereGeometry(sphereRadius, 16, 16);
   const sphereMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   const sphere = new THREE.Mesh(sphereGeom, sphereMat);
   sphere.position.copy(point);
   scene.add(sphere);
+  stepViewerInstance.measureObjects.push(sphere);
   
   stepViewerInstance.measurePoints.push({ point, mesh: sphere });
   
+  updateMeasureInfo(`Point ${stepViewerInstance.measurePoints.length} selected. ${stepViewerInstance.measurePoints.length < 2 ? 'Click another point.' : ''}`);
+  
   // If we have 2 points, draw line and show distance
-  if (stepViewerInstance.measurePoints.length === 2) {
-    const p1 = stepViewerInstance.measurePoints[0].point;
-    const p2 = stepViewerInstance.measurePoints[1].point;
+  if (stepViewerInstance.measurePoints.length >= 2) {
+    const p1 = stepViewerInstance.measurePoints[stepViewerInstance.measurePoints.length - 2].point;
+    const p2 = stepViewerInstance.measurePoints[stepViewerInstance.measurePoints.length - 1].point;
     
-    // Draw line
+    // Draw main measurement line
     const lineGeom = new THREE.BufferGeometry().setFromPoints([p1, p2]);
     const lineMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
     const line = new THREE.Line(lineGeom, lineMat);
     scene.add(line);
-    stepViewerInstance.measureLines.push(line);
+    stepViewerInstance.measureObjects.push(line);
     
-    // Calculate distance
-    const distance = p1.distanceTo(p2);
+    // Calculate distances
+    const totalDist = p1.distanceTo(p2);
+    const dx = Math.abs(p2.x - p1.x);
+    const dy = Math.abs(p2.y - p1.y);
+    const dz = Math.abs(p2.z - p1.z);
     
-    // Show measurement
-    const measureInfo = document.getElementById('stepMeasureInfo');
-    measureInfo.innerHTML = `
-      <span class="measure-result">📏 Distance: <strong>${distance.toFixed(2)} mm</strong></span>
-      <button onclick="clearMeasurements()" class="step-btn-small">Clear</button>
-    `;
+    // Draw axis dimension lines
+    drawAxisDimensionLines(p1, p2);
+    
+    // Show measurement with axis breakdown
+    updateMeasureInfo(`
+      <div class="measure-results">
+        <div class="measure-total">📏 <strong>Total: ${totalDist.toFixed(2)} mm</strong></div>
+        <div class="measure-axes">
+          <span class="axis-x">X: ${dx.toFixed(2)}</span>
+          <span class="axis-y">Y: ${dy.toFixed(2)}</span>
+          <span class="axis-z">Z: ${dz.toFixed(2)}</span>
+        </div>
+      </div>
+    `);
   }
+}
+
+// Draw axis-aligned dimension lines between two points
+function drawAxisDimensionLines(p1, p2) {
+  const scene = stepViewerInstance.scene;
+  
+  // X dimension line (red)
+  if (Math.abs(p2.x - p1.x) > 0.01) {
+    const xLine = createDimensionLine(
+      new THREE.Vector3(p1.x, p1.y, p1.z),
+      new THREE.Vector3(p2.x, p1.y, p1.z),
+      0xff4444
+    );
+    scene.add(xLine);
+    stepViewerInstance.measureObjects.push(xLine);
+  }
+  
+  // Y dimension line (green)
+  if (Math.abs(p2.y - p1.y) > 0.01) {
+    const yLine = createDimensionLine(
+      new THREE.Vector3(p2.x, p1.y, p1.z),
+      new THREE.Vector3(p2.x, p2.y, p1.z),
+      0x44ff44
+    );
+    scene.add(yLine);
+    stepViewerInstance.measureObjects.push(yLine);
+  }
+  
+  // Z dimension line (blue)
+  if (Math.abs(p2.z - p1.z) > 0.01) {
+    const zLine = createDimensionLine(
+      new THREE.Vector3(p2.x, p2.y, p1.z),
+      new THREE.Vector3(p2.x, p2.y, p2.z),
+      0x4444ff
+    );
+    scene.add(zLine);
+    stepViewerInstance.measureObjects.push(zLine);
+  }
+}
+
+// Create a dashed dimension line
+function createDimensionLine(start, end, color) {
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([start, end]);
+  const lineMat = new THREE.LineDashedMaterial({ 
+    color: color, 
+    linewidth: 1,
+    dashSize: 2,
+    gapSize: 1
+  });
+  const line = new THREE.Line(lineGeom, lineMat);
+  line.computeLineDistances();
+  return line;
+}
+
+// Axis-only measurement mode
+function addAxisMeasurePoint(point) {
+  const scene = stepViewerInstance.scene;
+  const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
+  const size = box.getSize(new THREE.Vector3());
+  const sphereRadius = Math.max(size.x, size.y, size.z) * 0.01;
+  
+  const sphereGeom = new THREE.SphereGeometry(sphereRadius, 16, 16);
+  const sphereMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+  sphere.position.copy(point);
+  scene.add(sphere);
+  stepViewerInstance.measureObjects.push(sphere);
+  
+  stepViewerInstance.measurePoints.push({ point, mesh: sphere });
+  
+  if (stepViewerInstance.measurePoints.length >= 2) {
+    const p1 = stepViewerInstance.measurePoints[stepViewerInstance.measurePoints.length - 2].point;
+    const p2 = stepViewerInstance.measurePoints[stepViewerInstance.measurePoints.length - 1].point;
+    
+    const dx = Math.abs(p2.x - p1.x);
+    const dy = Math.abs(p2.y - p1.y);
+    const dz = Math.abs(p2.z - p1.z);
+    
+    // Draw only axis-aligned lines
+    drawAxisDimensionLines(p1, p2);
+    
+    updateMeasureInfo(`
+      <div class="measure-results axis-only">
+        <div class="measure-axes-large">
+          <div class="axis-item axis-x">📐 X: <strong>${dx.toFixed(2)} mm</strong></div>
+          <div class="axis-item axis-y">📐 Y: <strong>${dy.toFixed(2)} mm</strong></div>
+          <div class="axis-item axis-z">📐 Z: <strong>${dz.toFixed(2)} mm</strong></div>
+        </div>
+      </div>
+    `);
+  } else {
+    updateMeasureInfo('Click second point to see axis dimensions');
+  }
+}
+
+// Surface point measurement
+function showSurfacePoint(point, normal) {
+  const scene = stepViewerInstance.scene;
+  const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
+  const size = box.getSize(new THREE.Vector3());
+  const sphereRadius = Math.max(size.x, size.y, size.z) * 0.01;
+  
+  // Create marker at point
+  const sphereGeom = new THREE.SphereGeometry(sphereRadius, 16, 16);
+  const sphereMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+  const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+  sphere.position.copy(point);
+  scene.add(sphere);
+  stepViewerInstance.measureObjects.push(sphere);
+  
+  // Draw normal arrow if available
+  if (normal) {
+    const arrowLength = Math.max(size.x, size.y, size.z) * 0.1;
+    const arrowHelper = new THREE.ArrowHelper(
+      normal.normalize(),
+      point,
+      arrowLength,
+      0xffff00
+    );
+    scene.add(arrowHelper);
+    stepViewerInstance.measureObjects.push(arrowHelper);
+  }
+  
+  stepViewerInstance.measurePoints.push({ point, mesh: sphere });
+  
+  // Get coordinates relative to model center
+  const relPoint = point.clone();
+  
+  updateMeasureInfo(`
+    <div class="measure-results surface-point">
+      <div class="measure-title">🎯 Surface Point</div>
+      <div class="measure-coords">
+        <span class="axis-x">X: ${relPoint.x.toFixed(3)}</span>
+        <span class="axis-y">Y: ${relPoint.y.toFixed(3)}</span>
+        <span class="axis-z">Z: ${relPoint.z.toFixed(3)}</span>
+      </div>
+      ${normal ? `<div class="measure-normal">Normal: (${normal.x.toFixed(2)}, ${normal.y.toFixed(2)}, ${normal.z.toFixed(2)})</div>` : ''}
+    </div>
+  `);
+}
+
+// Show bounding box dimensions
+function showBoundingBox() {
+  if (!stepViewerInstance) return;
+  
+  const scene = stepViewerInstance.scene;
+  const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  
+  // Create bounding box helper
+  const boxHelper = new THREE.Box3Helper(box, 0xffff00);
+  scene.add(boxHelper);
+  stepViewerInstance.measureObjects.push(boxHelper);
+  
+  // Close menu
+  document.getElementById('stepMeasureMenu').classList.remove('active');
+  
+  updateMeasureInfo(`
+    <div class="measure-results bounding-box">
+      <div class="measure-title">📦 Bounding Box</div>
+      <div class="measure-axes-large">
+        <div class="axis-item axis-x">Width (X): <strong>${size.x.toFixed(2)} mm</strong></div>
+        <div class="axis-item axis-y">Height (Y): <strong>${size.y.toFixed(2)} mm</strong></div>
+        <div class="axis-item axis-z">Depth (Z): <strong>${size.z.toFixed(2)} mm</strong></div>
+      </div>
+    </div>
+  `);
+}
+
+// Toggle snap mode
+function toggleSnapMode() {
+  if (!stepViewerInstance) return;
+  
+  stepViewerInstance.snapMode = !stepViewerInstance.snapMode;
+  const btn = document.getElementById('snapModeBtn');
+  btn.textContent = `🧲 Snap: ${stepViewerInstance.snapMode ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', stepViewerInstance.snapMode);
+}
+
+// Toggle measure menu dropdown
+function toggleMeasureMenu() {
+  const menu = document.getElementById('stepMeasureMenu');
+  menu.classList.toggle('active');
+}
+
+// Set measurement mode
+function setMeasureMode(mode) {
+  if (!stepViewerInstance) return;
+  
+  stepViewerInstance.measureMode = mode;
+  stepViewerInstance.measurePoints = [];
+  
+  const btn = document.getElementById('stepMeasureBtn');
+  const menu = document.getElementById('stepMeasureMenu');
+  const modeDisplay = document.getElementById('stepMeasureMode');
+  
+  btn.classList.add('active');
+  menu.classList.remove('active');
+  stepViewerInstance.renderer.domElement.style.cursor = 'crosshair';
+  
+  const modeLabels = {
+    'distance': '📏 Distance Mode',
+    'axis': '📐 Axis Mode',
+    'surface': '🎯 Surface Mode'
+  };
+  
+  modeDisplay.textContent = modeLabels[mode] || '';
+  
+  const hints = {
+    'distance': 'Click two points to measure distance with X/Y/Z breakdown',
+    'axis': 'Click two points to see axis-aligned dimensions only',
+    'surface': 'Click a surface to see point coordinates and normal'
+  };
+  
+  updateMeasureInfo(hints[mode] || '');
+}
+
+// Update measure info display
+function updateMeasureInfo(html) {
+  const el = document.getElementById('stepMeasureInfo');
+  if (el) el.innerHTML = html;
 }
 
 function clearMeasurements() {
   if (!stepViewerInstance) return;
   
-  // Remove point spheres
-  stepViewerInstance.measurePoints.forEach(p => {
-    stepViewerInstance.scene.remove(p.mesh);
+  // Remove all measurement objects
+  stepViewerInstance.measureObjects.forEach(obj => {
+    stepViewerInstance.scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) obj.material.dispose();
   });
+  stepViewerInstance.measureObjects = [];
   stepViewerInstance.measurePoints = [];
-  
-  // Remove lines
-  stepViewerInstance.measureLines.forEach(l => {
-    stepViewerInstance.scene.remove(l);
-  });
   stepViewerInstance.measureLines = [];
   
   document.getElementById('stepMeasureInfo').innerHTML = '';
-}
-
-function toggleMeasureMode() {
-  if (!stepViewerInstance) return;
+  document.getElementById('stepMeasureMode').textContent = '';
+  document.getElementById('stepMeasureMenu').classList.remove('active');
   
-  stepViewerInstance.measureMode = !stepViewerInstance.measureMode;
-  const btn = document.getElementById('stepMeasureBtn');
-  
-  if (stepViewerInstance.measureMode) {
-    btn.classList.add('active');
-    stepViewerInstance.renderer.domElement.style.cursor = 'crosshair';
-    document.getElementById('stepMeasureInfo').innerHTML = '<span>Click two points on the model to measure distance</span>';
-    clearMeasurements();
-  } else {
-    btn.classList.remove('active');
-    stepViewerInstance.renderer.domElement.style.cursor = 'grab';
-    document.getElementById('stepMeasureInfo').innerHTML = '';
-  }
+  // Reset mode
+  stepViewerInstance.measureMode = null;
+  document.getElementById('stepMeasureBtn').classList.remove('active');
+  stepViewerInstance.renderer.domElement.style.cursor = 'grab';
 }
 
 function resetStepView() {
@@ -441,3 +784,6 @@ window.openStepViewer = openStepViewer;
 window.closeStepViewer = closeStepViewer;
 window.isStepFile = isStepFile;
 window.clearMeasurements = clearMeasurements;
+window.setMeasureMode = setMeasureMode;
+window.toggleSnapMode = toggleSnapMode;
+window.showBoundingBox = showBoundingBox;
