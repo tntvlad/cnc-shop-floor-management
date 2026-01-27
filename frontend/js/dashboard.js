@@ -1028,41 +1028,58 @@ function setupEventListeners() {
       if (!currentPart) return;
 
       const fileInput = document.getElementById('fileInput');
-      const file = fileInput.files[0];
+      const files = fileInput.files;
       
-      if (!file) {
-        alert('Please select a file');
+      if (!files || files.length === 0) {
+        alert('Please select at least one file');
         return;
       }
 
-      // Validate file type
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['pdf', 'dxf', 'nc', 'txt'].includes(ext)) {
-        alert('Only PDF, DXF, NC, and TXT files are allowed');
-        return;
+      // Validate all files first
+      const validFiles = [];
+      const errors = [];
+      
+      for (const file of files) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['pdf', 'dxf', 'nc', 'txt'].includes(ext)) {
+          errors.push(`${file.name}: Invalid file type (only PDF, DXF, NC, TXT allowed)`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          errors.push(`${file.name}: File too large (max 10MB)`);
+          continue;
+        }
+        validFiles.push(file);
       }
 
-      // Validate file size (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+      if (validFiles.length === 0) {
+        alert('No valid files to upload:\n' + errors.join('\n'));
         return;
       }
 
       try {
-        const formData = new FormData();
-        formData.append('file', file);
+        let successCount = 0;
+        const uploadErrors = [];
 
-        const response = await fetch(`${config.API_BASE_URL}/parts/${currentPart.id}/files`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${Auth.getToken()}`
-          },
-          body: formData
-        });
+        // Upload files one by one
+        for (const file of validFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
 
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Upload failed');
+          const response = await fetch(`${config.API_BASE_URL}/parts/${currentPart.id}/files`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Auth.getToken()}`
+            },
+            body: formData
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            uploadErrors.push(`${file.name}: ${data.error || 'Upload failed'}`);
+          } else {
+            successCount++;
+          }
         }
 
         // Reset form and reload files
@@ -1070,9 +1087,15 @@ function setupEventListeners() {
         const part = await API.parts.getOne(currentPart.id);
         currentPart = part;
         loadPartFiles(part);
-        alert('File uploaded successfully!');
+
+        // Show result message
+        let message = `${successCount} file(s) uploaded successfully!`;
+        if (errors.length > 0 || uploadErrors.length > 0) {
+          message += '\n\nSkipped/Failed:\n' + [...errors, ...uploadErrors].join('\n');
+        }
+        alert(message);
       } catch (error) {
-        alert(error.message || 'Failed to upload file');
+        alert(error.message || 'Failed to upload files');
       }
     });
   }
