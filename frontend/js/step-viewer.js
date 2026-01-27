@@ -921,72 +921,44 @@ function measureRadiusAtPoint(point, intersection) {
 // Detect circular feature from clicked point
 function detectCircularFeature(clickPoint, intersection) {
   const mesh = intersection.object;
-  const geometry = mesh.geometry;
-  const positionAttr = geometry.getAttribute('position');
-  const normalAttr = geometry.getAttribute('normal');
   const face = intersection.face;
   
-  if (!positionAttr) return null;
+  if (!face) return null;
   
   // Get the face normal at click point - this tells us the surface orientation
-  const faceNormal = face ? face.normal.clone().transformDirection(mesh.matrixWorld) : null;
+  const faceNormal = face.normal.clone().transformDirection(mesh.matrixWorld).normalize();
   
-  // Get model scale for adaptive search
+  // Get model scale
   const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
   const modelSize = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
   
-  // Try multiple detection methods
-  let result = null;
+  // METHOD: Ray casting to find diameter
+  // For a cylindrical surface, the normal points radially outward
+  // Cast rays in multiple directions perpendicular to the normal to find the hole edge
   
-  // Method 1: Use face normal to detect cylindrical surface
-  if (faceNormal) {
-    result = detectCylinderFromNormal(clickPoint, mesh, faceNormal, maxDim);
-    if (result) return result;
-  }
-  
-  // Method 2: Sample points in rings around click point
-  result = detectCircleByRingSampling(clickPoint, mesh, maxDim);
+  const result = detectCircleByRayCasting(clickPoint, faceNormal, mesh, maxDim);
   if (result) return result;
   
-  // Method 3: Fallback - collect nearby vertices and try circle fit
-  result = detectCircleFromNearbyVertices(clickPoint, mesh, maxDim);
+  // Fallback: try opposite direction (for inner surfaces)
+  const result2 = detectCircleByRayCasting(clickPoint, faceNormal.clone().negate(), mesh, maxDim);
+  if (result2) return result2;
   
-  return result;
+  return null;
 }
 
-// Detect cylinder by analyzing points along the face normal direction
-function detectCylinderFromNormal(clickPoint, mesh, faceNormal, maxDim) {
-  const geometry = mesh.geometry;
-  const positionAttr = geometry.getAttribute('position');
+// Detect circle by casting rays to find the circular boundary
+function detectCircleByRayCasting(clickPoint, surfaceNormal, clickedMesh, maxDim) {
+  const raycaster = new THREE.Raycaster();
+  const meshChildren = stepViewerInstance.group.children.filter(c => c.type === 'Mesh');
   
-  // For a cylindrical surface, the face normal points radially outward
-  // The cylinder axis is perpendicular to the radial direction
-  // Sample points on the surface near the click point
+  // We'll cast rays in a plane perpendicular to the likely cylinder axis
+  // First, determine the most likely cylinder axis (perpendicular to surface normal)
   
-  const searchRadius = maxDim * 0.3;
-  const inverseMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
-  const localClickPoint = clickPoint.clone().applyMatrix4(inverseMatrix);
+  // For a cylinder, the surface normal is radial (perpendicular to axis)
+  // So the axis is perpendicular to the surface normal
+  // Try each major axis and see which gives consistent radii
   
-  // Collect nearby vertices
-  const nearbyVertices = [];
-  for (let i = 0; i < positionAttr.count; i++) {
-    const vertex = new THREE.Vector3(
-      positionAttr.getX(i),
-      positionAttr.getY(i),
-      positionAttr.getZ(i)
-    );
-    
-    const dist = vertex.distanceTo(localClickPoint);
-    if (dist < searchRadius) {
-      const worldVertex = vertex.clone().applyMatrix4(mesh.matrixWorld);
-      nearbyVertices.push(worldVertex);
-    }
-  }
-  
-  if (nearbyVertices.length < 10) return null;
-  
-  // Try each major axis as potential cylinder axis
   const axes = [
     new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(0, 1, 0),
@@ -997,90 +969,168 @@ function detectCylinderFromNormal(clickPoint, mesh, faceNormal, maxDim) {
   let bestScore = Infinity;
   
   for (const axis of axes) {
-    // Skip if axis is too parallel to face normal (would be end cap, not cylinder wall)
-    const axisDotNormal = Math.abs(axis.dot(faceNormal));
-    if (axisDotNormal > 0.8) continue;
+    // The axis should be perpendicular to the surface normal for a cylinder wall
+    const axisDotNormal = Math.abs(axis.dot(surfaceNormal));
     
-    const result = fitCircleOnAxis(nearbyVertices, axis, clickPoint);
+    // If axis is too parallel to normal, this is probably the wrong axis
+    if (axisDotNormal > 0.7) continue;
+    
+    const result = measureCircleOnAxis(clickPoint, axis, meshChildren, maxDim);
+    
     if (result && result.variance < bestScore) {
       bestScore = result.variance;
       bestResult = result;
     }
   }
   
-  // Accept if variance is reasonable
-  if (bestResult && bestResult.variance < bestResult.radius * 0.15) {
-    return bestResult;
-  }
-  
-  return null;
+  return bestResult;
 }
 
-// Fit a circle to vertices projected onto a plane perpendicular to given axis
-function fitCircleOnAxis(vertices, axis, clickPoint) {
-  if (vertices.length < 8) return null;
+// Measure circle by casting rays outward from click point on a given axis plane
+function measureCircleOnAxis(clickPoint, axis, meshes, maxDim) {
+  const raycaster = new THREE.Raycaster();
   
-  // Project all vertices onto the plane perpendicular to axis
-  const projected2D = vertices.map(v => {
-    const d = v.clone();
-    // Remove the component along axis
-    const alongAxis = axis.clone().multiplyScalar(v.dot(axis));
-    return d.sub(alongAxis);
-  });
+  // Create two perpendicular directions in the plane perpendicular to axis
+  const up = axis.clone();
+  let right;
+  if (Math.abs(up.x) < 0.9) {
+    right = new THREE.Vector3(1, 0, 0).cross(up).normalize();
+  } else {
+    right = new THREE.Vector3(0, 1, 0).cross(up).normalize();
+  }
+  const forward = new THREE.Vector3().crossVectors(up, right).normalize();
   
-  // Find centroid of projected points
-  const centroid = new THREE.Vector3();
-  projected2D.forEach(p => centroid.add(p));
-  centroid.divideScalar(projected2D.length);
+  // Project click point onto the axis plane
+  const axisComponent = clickPoint.dot(axis);
+  const planePoint = clickPoint.clone();
   
-  // Calculate distances from centroid (radii)
-  const radii = projected2D.map(p => p.distanceTo(centroid));
+  // Cast rays outward in multiple directions to find boundaries
+  const numRays = 36;
+  const edgePoints = [];
   
-  // Group radii into clusters to find the dominant radius
-  radii.sort((a, b) => a - b);
-  
-  // Use median radius (more robust than mean)
-  const medianRadius = radii[Math.floor(radii.length / 2)];
-  
-  // Filter points that are close to the median radius (within 20%)
-  const tolerance = medianRadius * 0.25;
-  const filteredIndices = [];
-  radii.forEach((r, i) => {
-    if (Math.abs(r - medianRadius) < tolerance) {
-      filteredIndices.push(i);
+  for (let i = 0; i < numRays; i++) {
+    const angle = (i / numRays) * Math.PI * 2;
+    const direction = right.clone().multiplyScalar(Math.cos(angle))
+      .add(forward.clone().multiplyScalar(Math.sin(angle)))
+      .normalize();
+    
+    // Cast ray outward from click point
+    raycaster.set(clickPoint, direction);
+    raycaster.far = maxDim;
+    
+    const hits = raycaster.intersectObjects(meshes, false);
+    
+    // Find the first hit that's not at the click point (skip self-intersection)
+    for (const hit of hits) {
+      if (hit.distance > 0.1 && hit.distance < maxDim * 0.5) {
+        edgePoints.push({
+          point: hit.point.clone(),
+          direction: direction.clone(),
+          distance: hit.distance
+        });
+        break;
+      }
     }
+  }
+  
+  // Also cast rays inward (in case we clicked on outer edge)
+  for (let i = 0; i < numRays; i++) {
+    const angle = (i / numRays) * Math.PI * 2;
+    const direction = right.clone().multiplyScalar(Math.cos(angle))
+      .add(forward.clone().multiplyScalar(Math.sin(angle)))
+      .normalize()
+      .negate();
+    
+    raycaster.set(clickPoint, direction);
+    raycaster.far = maxDim;
+    
+    const hits = raycaster.intersectObjects(meshes, false);
+    
+    for (const hit of hits) {
+      if (hit.distance > 0.1 && hit.distance < maxDim * 0.5) {
+        edgePoints.push({
+          point: hit.point.clone(),
+          direction: direction.clone().negate(), // Original outward direction
+          distance: hit.distance
+        });
+        break;
+      }
+    }
+  }
+  
+  if (edgePoints.length < 12) return null;
+  
+  // Analyze distances to find consistent circle
+  // Group by similar distances (these are radii from click point to edge)
+  const distances = edgePoints.map(p => p.distance).sort((a, b) => a - b);
+  
+  // Find the most common distance range (radius)
+  const buckets = {};
+  const bucketSize = maxDim * 0.02; // 2% tolerance
+  
+  for (const dist of distances) {
+    const bucketKey = Math.round(dist / bucketSize);
+    buckets[bucketKey] = (buckets[bucketKey] || 0) + 1;
+  }
+  
+  // Find the bucket with most hits
+  let maxBucket = null;
+  let maxCount = 0;
+  for (const [key, count] of Object.entries(buckets)) {
+    if (count > maxCount) {
+      maxCount = count;
+      maxBucket = parseInt(key);
+    }
+  }
+  
+  if (maxCount < 6) return null;
+  
+  // Get all points that fall in this bucket
+  const targetDist = maxBucket * bucketSize;
+  const tolerance = bucketSize * 2;
+  const circlePoints = edgePoints.filter(p => 
+    Math.abs(p.distance - targetDist) < tolerance
+  );
+  
+  if (circlePoints.length < 8) return null;
+  
+  // Calculate center - it's at distance 'radius' from click point
+  // The center is where all rays from edge points converge
+  // For now, approximate: center is click point if we're on edge,
+  // or click point minus avg distance in opposite direction
+  
+  // Calculate average of all edge points to estimate center
+  const avgEdgePoint = new THREE.Vector3();
+  circlePoints.forEach(p => avgEdgePoint.add(p.point));
+  avgEdgePoint.divideScalar(circlePoints.length);
+  
+  // The center is at the centroid of edge points
+  // But we need to project it onto the axis plane
+  const center = avgEdgePoint.clone();
+  
+  // Calculate radius as average distance from center to edge points
+  let totalRadius = 0;
+  const radii = circlePoints.map(p => {
+    // Distance in the plane (perpendicular to axis)
+    const toPoint = p.point.clone().sub(center);
+    const alongAxis = axis.clone().multiplyScalar(toPoint.dot(axis));
+    const inPlane = toPoint.sub(alongAxis);
+    const r = inPlane.length();
+    totalRadius += r;
+    return r;
   });
   
-  if (filteredIndices.length < 6) return null;
+  const avgRadius = totalRadius / radii.length;
   
-  // Recalculate with filtered points
-  const filteredVertices = filteredIndices.map(i => vertices[i]);
-  const filteredProjected = filteredIndices.map(i => projected2D[i]);
-  
-  // Recalculate centroid
-  const newCentroid = new THREE.Vector3();
-  filteredProjected.forEach(p => newCentroid.add(p));
-  newCentroid.divideScalar(filteredProjected.length);
-  
-  // Get the axis-aligned component of the center (average z along axis)
-  let axisComponent = 0;
-  filteredVertices.forEach(v => {
-    axisComponent += v.dot(axis);
-  });
-  axisComponent /= filteredVertices.length;
-  
-  // Full 3D center
-  const center = newCentroid.clone().add(axis.clone().multiplyScalar(axisComponent));
-  
-  // Calculate final radius and variance
-  const finalRadii = filteredProjected.map(p => p.distanceTo(newCentroid));
-  const avgRadius = finalRadii.reduce((a, b) => a + b, 0) / finalRadii.length;
-  
+  // Calculate variance
   let variance = 0;
-  finalRadii.forEach(r => {
+  radii.forEach(r => {
     variance += Math.pow(r - avgRadius, 2);
   });
-  variance = Math.sqrt(variance / finalRadii.length);
+  variance = Math.sqrt(variance / radii.length);
+  
+  // Reject if variance is too high
+  if (variance > avgRadius * 0.1 || avgRadius < 0.5) return null;
   
   return {
     center: center,
@@ -1090,106 +1140,6 @@ function fitCircleOnAxis(vertices, axis, clickPoint) {
     variance: variance,
     confidence: 1 - (variance / avgRadius)
   };
-}
-
-// Detect circle by sampling points in rings around click point
-function detectCircleByRingSampling(clickPoint, mesh, maxDim) {
-  // Cast rays in a circle pattern around the click point to find edge
-  const raycaster = new THREE.Raycaster();
-  const camera = stepViewerInstance.camera;
-  
-  // Get view direction
-  const viewDir = new THREE.Vector3();
-  camera.getWorldDirection(viewDir);
-  
-  // Create perpendicular directions in screen space
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-  
-  // Sample points in rings
-  const samples = [];
-  const numRays = 24;
-  
-  for (let ring = 1; ring <= 5; ring++) {
-    const ringRadius = maxDim * 0.02 * ring;
-    
-    for (let i = 0; i < numRays; i++) {
-      const angle = (i / numRays) * Math.PI * 2;
-      const offset = right.clone().multiplyScalar(Math.cos(angle) * ringRadius)
-        .add(up.clone().multiplyScalar(Math.sin(angle) * ringRadius));
-      
-      const rayOrigin = clickPoint.clone().add(offset).sub(viewDir.clone().multiplyScalar(maxDim));
-      raycaster.set(rayOrigin, viewDir);
-      
-      const intersects = raycaster.intersectObject(mesh, false);
-      if (intersects.length > 0) {
-        samples.push(intersects[0].point.clone());
-      }
-    }
-  }
-  
-  if (samples.length < 20) return null;
-  
-  // Try to fit circle to samples
-  return detectCircleFromVerticesImproved(samples, maxDim);
-}
-
-// Improved circle detection from vertices
-function detectCircleFromVerticesImproved(vertices, maxDim) {
-  if (vertices.length < 8) return null;
-  
-  // Try each major axis
-  const axes = [
-    new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(0, 0, 1)
-  ];
-  
-  let bestResult = null;
-  let bestVariance = Infinity;
-  
-  for (const axis of axes) {
-    const result = fitCircleOnAxis(vertices, axis, vertices[0]);
-    if (result && result.variance < bestVariance) {
-      bestVariance = result.variance;
-      bestResult = result;
-    }
-  }
-  
-  // Accept if variance is reasonable (within 20% of radius)
-  if (bestResult && bestResult.variance < bestResult.radius * 0.2) {
-    return bestResult;
-  }
-  
-  return null;
-}
-
-// Fallback: collect nearby vertices and try circle fit
-function detectCircleFromNearbyVertices(clickPoint, mesh, maxDim) {
-  const geometry = mesh.geometry;
-  const positionAttr = geometry.getAttribute('position');
-  
-  const searchRadius = maxDim * 0.25;
-  const inverseMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
-  const localClickPoint = clickPoint.clone().applyMatrix4(inverseMatrix);
-  
-  const nearbyVertices = [];
-  for (let i = 0; i < positionAttr.count; i++) {
-    const vertex = new THREE.Vector3(
-      positionAttr.getX(i),
-      positionAttr.getY(i),
-      positionAttr.getZ(i)
-    );
-    
-    if (vertex.distanceTo(localClickPoint) < searchRadius) {
-      const worldVertex = vertex.clone().applyMatrix4(mesh.matrixWorld);
-      nearbyVertices.push(worldVertex);
-    }
-  }
-  
-  if (nearbyVertices.length < 10) return null;
-  
-  return detectCircleFromVerticesImproved(nearbyVertices, maxDim);
 }
 
 // Detect circle from a set of vertices (legacy - kept for compatibility)
