@@ -159,6 +159,7 @@ async function getOrders(req, res) {
         o.priority,
         o.notes,
         o.created_at,
+        o.completed_at,
         o.invoice_contact_id,
         o.order_contact_id,
         o.technical_contact_id,
@@ -319,11 +320,16 @@ async function updateOrderStatus(req, res) {
       });
     }
 
+    // Set completed_at when marking as completed, clear it otherwise
+    const completedAtClause = status === 'completed' 
+      ? ', completed_at = COALESCE(completed_at, NOW())' 
+      : ', completed_at = NULL';
+
     const result = await pool.query(
       `UPDATE orders 
-       SET status = $1, updated_at = NOW()
+       SET status = $1, updated_at = NOW()${completedAtClause}
        WHERE id = $2
-       RETURNING id, status, updated_at`,
+       RETURNING id, status, updated_at, completed_at`,
       [status, id]
     );
 

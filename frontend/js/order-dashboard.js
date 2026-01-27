@@ -137,7 +137,8 @@ function renderOrders(orders) {
   emptyState.style.display = 'none';
   tbody.innerHTML = sorted.map(order => {
     const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '—';
-    const dueInfo = getDueInfo(order.due_date);
+    // For completed orders, calculate late based on completed_at, not today
+    const dueInfo = getDueInfo(order.due_date, order.status === 'completed' ? order.completed_at : null);
     const progress = order.part_count > 0 ? Math.round((order.completed_parts / order.part_count) * 100) : 0;
     const priority = getPriorityMeta(order);
     const isOverdue = dueInfo.isOverdue;
@@ -303,18 +304,22 @@ function priorityRowClass(key) {
   return 'priority-normal';
 }
 
-function getDueInfo(dueDate) {
+function getDueInfo(dueDate, completedAt = null) {
   if (!dueDate) return { label: 'No due date', chipClass: '', isOverdue: false };
-  const now = new Date();
+  
+  // Use completed_at date if order is completed, otherwise use today
+  const compareDate = completedAt ? new Date(completedAt) : new Date();
   const target = new Date(dueDate);
-  const diffMs = target.getTime() - now.getTime();
+  const diffMs = target.getTime() - compareDate.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
   
   if (diffDays < 0) {
-    return { label: `Late ${Math.abs(diffDays)}d`, chipClass: 'late', isOverdue: true };
+    // Order was late - show how late it was (frozen for completed orders)
+    const label = completedAt ? `Was late ${Math.abs(diffDays)}d` : `Late ${Math.abs(diffDays)}d`;
+    return { label, chipClass: 'late', isOverdue: true };
   }
   if (diffDays === 0) {
-    return { label: 'Due today', chipClass: 'soon', isOverdue: false };
+    return { label: completedAt ? 'Completed on time' : 'Due today', chipClass: 'soon', isOverdue: false };
   }
   if (diffDays === 1) {
     return { label: 'Due in 1 day', chipClass: 'soon', isOverdue: false };
@@ -322,7 +327,7 @@ function getDueInfo(dueDate) {
   if (diffDays <= 3) {
     return { label: `Due in ${diffDays} days`, chipClass: 'soon', isOverdue: false };
   }
-  return { label: `${diffDays} days left`, chipClass: 'ok', isOverdue: false };
+  return { label: completedAt ? 'Completed early' : `${diffDays} days left`, chipClass: 'ok', isOverdue: false };
 }
 
 function escapeHtml(text) {

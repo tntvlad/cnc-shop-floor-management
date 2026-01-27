@@ -145,6 +145,9 @@ CREATE TABLE orders (
     hold_started_at TIMESTAMP,
     hold_started_by INTEGER REFERENCES users(id),
     
+    -- Completion tracking
+    completed_at TIMESTAMP,
+    
     -- Shipping
     shipping_address TEXT,
     shipping_method VARCHAR(100),

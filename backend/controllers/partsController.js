@@ -22,7 +22,7 @@ async function checkAndAutoCompleteOrder(orderId) {
     // If all parts are completed (and there are parts), update order to completed
     if (parseInt(total_count) > 0 && parseInt(incomplete_count) === 0) {
       await pool.query(
-        `UPDATE orders SET status = 'completed', updated_at = NOW() WHERE id = $1 AND status != 'completed'`,
+        `UPDATE orders SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1 AND status != 'completed'`,
         [orderId]
       );
       console.log(`Order ${orderId} auto-completed: all ${total_count} parts finished`);
@@ -33,7 +33,7 @@ async function checkAndAutoCompleteOrder(orderId) {
     const orderResult = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
     if (orderResult.rows.length > 0 && orderResult.rows[0].status === 'completed' && parseInt(incomplete_count) > 0) {
       await pool.query(
-        `UPDATE orders SET status = 'in_progress', updated_at = NOW() WHERE id = $1`,
+        `UPDATE orders SET status = 'in_progress', completed_at = NULL, updated_at = NOW() WHERE id = $1`,
         [orderId]
       );
       console.log(`Order ${orderId} set to in_progress: ${incomplete_count} parts still incomplete`);
