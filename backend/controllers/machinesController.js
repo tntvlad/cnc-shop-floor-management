@@ -155,3 +155,26 @@ exports.assignJob = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to assign job' });
   }
 };
+
+// Delete machine
+exports.deleteMachine = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if machine has current job assigned
+    const machine = await pool.query('SELECT current_job FROM machines WHERE id = $1', [id]);
+    if (!machine.rows.length) {
+      return res.status(404).json({ success: false, message: 'Machine not found' });
+    }
+
+    if (machine.rows[0].current_job) {
+      return res.status(400).json({ success: false, message: 'Cannot delete machine with active job assignment' });
+    }
+
+    await pool.query('DELETE FROM machines WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Machine deleted' });
+  } catch (error) {
+    console.error('Delete machine error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete machine' });
+  }
+};
