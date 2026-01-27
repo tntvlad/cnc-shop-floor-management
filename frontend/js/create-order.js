@@ -627,6 +627,144 @@ function handlePartsCsvFile(event) {
   reader.readAsText(file);
 }
 
+// Handle ODS, XLSX, XLS, and CSV files using SheetJS
+function handleSpreadsheetFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const extension = file.name.split('.').pop().toLowerCase();
+  
+  // For CSV files, use the original CSV parser
+  if (extension === 'csv' || extension === 'txt') {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      parsePartsCsv(text);
+    };
+    reader.readAsText(file);
+    return;
+  }
+  
+  // For ODS, XLSX, XLS files, use SheetJS
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      
+      // Get the first sheet (or "CerereOferta" if it exists)
+      let sheetName = workbook.SheetNames[0];
+      if (workbook.SheetNames.includes('CerereOferta')) {
+        sheetName = 'CerereOferta';
+      }
+      
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Convert to JSON with raw headers
+      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      
+      if (rawData.length < 2) {
+        document.getElementById('parts-csv-preview').innerHTML = '<p style="color: #dc3545;">No data found in spreadsheet.</p>';
+        return;
+      }
+      
+      // Find the header row (look for row containing "Descriere" or similar keywords)
+      let headerRowIdx = 0;
+      for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+        const row = rawData[i];
+        if (row && row.some(cell => {
+          const cellStr = String(cell || '').toLowerCase();
+          return cellStr.includes('descriere') || cellStr.includes('nr. bucati') || 
+                 cellStr.includes('part name') || cellStr.includes('quantity') ||
+                 cellStr.includes('tip material');
+        })) {
+          headerRowIdx = i;
+          break;
+        }
+      }
+      
+      console.log('Header row index:', headerRowIdx);
+      console.log('Header row:', rawData[headerRowIdx]);
+      
+      // Parse headers
+      const rawHeaders = rawData[headerRowIdx];
+      const headers = rawHeaders.map((h, idx) => {
+        const normalized = normalizePartHeaderName(String(h || '').trim());
+        // If first column has empty header, treat it as part_name
+        if (idx === 0 && (!h || normalized === '')) return 'part_name';
+        return normalized;
+      });
+      
+      console.log('Normalized headers:', headers);
+      
+      // Parse data rows
+      partsCsvData = [];
+      for (let i = headerRowIdx + 1; i < rawData.length; i++) {
+        const values = rawData[i];
+        if (!values || values.length === 0 || values.every(v => !v && v !== 0)) continue;
+        
+        const row = {};
+        headers.forEach((header, idx) => {
+          row[header] = values[idx] !== undefined ? String(values[idx]).trim() : '';
+        });
+        
+        // Get part name from descriere or first column
+        if (!row.part_name && row.description) {
+          // "Descriere" in Romanian spreadsheet is typically the part name
+          row.part_name = row.description;
+          row.description = ''; // Clear so we can build it from dimensions
+        }
+        
+        // Skip empty rows or rows with no part name
+        if (!row.part_name) continue;
+        
+        // Combine lathe and mill hours into total time (convert hours to minutes)
+        const latheHours = parseFloat(row.time_lathe) || 0;
+        const millHours = parseFloat(row.time_mill) || 0;
+        const totalHours = latheHours + millHours;
+        if (totalHours > 0) {
+          row.time = Math.round(totalHours * 60); // Convert hours to minutes
+        }
+        
+        // Build dimensions description based on available data
+        const dims = [];
+        const diameter = parseFloat(row.diameter);
+        const height = parseFloat(row.height);
+        const width = parseFloat(row.width);
+        const length = parseFloat(row.length);
+        
+        if (diameter > 0 && length > 0 && !width && !height) {
+          // Round bar: Ø x L
+          dims.push(`Ø${diameter} x ${length}mm (Bara)`);
+        } else if (height > 0 && width > 0 && length > 0) {
+          // Plate with 3 dimensions: H x W x L
+          dims.push(`${height} x ${width} x ${length}mm (Placa)`);
+        } else if (height > 0 && width > 0) {
+          dims.push(`${height} x ${width}mm (Placa)`);
+        } else if (diameter > 0) {
+          dims.push(`Ø${diameter}mm`);
+        }
+        
+        // Add dimensions to description
+        if (dims.length > 0) {
+          row.description = dims.join(' ');
+        }
+        
+        partsCsvData.push(row);
+      }
+      
+      console.log('Parsed spreadsheet data:', partsCsvData);
+      renderPartsCsvPreview();
+      
+    } catch (error) {
+      console.error('Error parsing spreadsheet:', error);
+      document.getElementById('parts-csv-preview').innerHTML = 
+        `<p style="color: #dc3545;">Error reading file: ${error.message}</p>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function parsePartsCsv(text) {
   // Try to detect delimiter (comma, semicolon, or tab)
   const firstLine = text.split('\n')[0];
@@ -724,11 +862,13 @@ function parseCSVLine(line, delimiter = ',') {
 
 function normalizePartHeaderName(header) {
   const map = {
-    // Romanian columns from your spreadsheet
-    'descriere': 'description',  // This is notes/description, NOT part_name
+    // Romanian columns from ODS spreadsheet (CerereOferta)
+    'client': 'customer',
+    'descriere': 'description',  // This is the part name in Romanian
     'nr. bucati': 'quantity',
     'nr.bucati': 'quantity',
     'tip material': 'material',
+    'ø diametru(mm)': 'diameter',
     'diametru(mm)': 'diameter',
     'diametru (mm)': 'diameter',
     '� diametru(mm)': 'diameter',
@@ -740,6 +880,17 @@ function normalizePartHeaderName(header) {
     'lungime (mm)': 'length',
     'ore prelucrare strung/buc': 'time_lathe',
     'ore prelucrare freza/buc': 'time_mill',
+    'strungul pe care se executa': 'lathe_machine',
+    'freza pe care se executa': 'mill_machine',
+    'colaborare taiere la fir': 'wire_cutting',
+    'taiere fir(pret euro)': 'wire_cutting_price',
+    'tiptratament termic': 'heat_treatment',
+    'colaborator tratament termic': 'heat_treatment_partner',
+    'pret tratament termic': 'heat_treatment_price',
+    'pret prelucrare': 'processing_price',
+    'termen de livrare': 'delivery_date',
+    'pret/buc': 'price_per_piece',
+    'sudura': 'welding',
     // English columns
     'part name': 'part_name',
     'part_name': 'part_name',
@@ -763,7 +914,12 @@ function normalizePartHeaderName(header) {
     'description': 'description',
     'notes': 'description',
     'obs': 'description',
-    'observatii': 'description'
+    'observatii': 'description',
+    // Dimensional
+    'diameter': 'diameter',
+    'height': 'height',
+    'width': 'width',
+    'length': 'length'
   };
 
   const lower = header.toLowerCase().trim();
