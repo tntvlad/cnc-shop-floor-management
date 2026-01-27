@@ -307,7 +307,7 @@ async function initThreeJsViewer(container, file) {
     box: box.clone(),
     modelSize: size.clone(),
     modelCenter: center.clone(),
-    measureMode: null, // 'distance', 'axis', 'surface'
+    measureMode: null, // 'distance', 'axis', 'surface', 'diameter', 'radius'
     snapMode: false,
     measurePoints: [],
     measureLines: [],
@@ -316,11 +316,18 @@ async function initThreeJsViewer(container, file) {
     raycaster: new THREE.Raycaster(),
     mouse: new THREE.Vector2(),
     snapIndicator: null,
-    vertexPositions: [] // For snap-to-vertex
+    vertexPositions: [], // For snap-to-vertex
+    edgeSegments: [], // For edge detection
+    highlightedEdge: null, // Currently highlighted edge
+    highlightCircle: null, // Preview circle for diameter/radius
+    detectedCircle: null // Stored detected circle data
   };
   
   // Extract all vertices for snap functionality
   extractVertices(group);
+  
+  // Extract edges for edge detection
+  extractEdges(group);
   
   // Add grid
   const gridHelper = new THREE.GridHelper(maxDim * 2, 20, 0xcccccc, 0xeeeeee);
@@ -353,6 +360,9 @@ async function initThreeJsViewer(container, file) {
   
   // Click handler for measurement
   renderer.domElement.addEventListener('click', onViewerClick);
+  
+  // Mousemove handler for edge highlighting
+  renderer.domElement.addEventListener('mousemove', onViewerMouseMove);
   
   } catch (initError) {
     console.error('STEP viewer initialization error:', initError);
@@ -430,6 +440,178 @@ function findNearestVertex(point) {
   }
   
   return nearestVertex;
+}
+
+// Extract edges from geometry for edge detection/highlighting
+function extractEdges(group) {
+  stepViewerInstance.edgeSegments = [];
+  
+  group.traverse((child) => {
+    if (child.isLineSegments && child.geometry) {
+      // This is an edge geometry
+      const posAttr = child.geometry.getAttribute('position');
+      if (posAttr) {
+        for (let i = 0; i < posAttr.count; i += 2) {
+          const p1 = new THREE.Vector3(
+            posAttr.getX(i),
+            posAttr.getY(i),
+            posAttr.getZ(i)
+          );
+          const p2 = new THREE.Vector3(
+            posAttr.getX(i + 1),
+            posAttr.getY(i + 1),
+            posAttr.getZ(i + 1)
+          );
+          // Transform to world coordinates
+          p1.applyMatrix4(child.matrixWorld);
+          p2.applyMatrix4(child.matrixWorld);
+          
+          stepViewerInstance.edgeSegments.push({ p1, p2, mesh: child });
+        }
+      }
+    }
+  });
+}
+
+// Handle mouse move for edge highlighting
+function onViewerMouseMove(event) {
+  if (!stepViewerInstance) return;
+  
+  // Only highlight for diameter/radius modes
+  const mode = stepViewerInstance.measureMode;
+  if (mode !== 'diameter' && mode !== 'radius') {
+    clearEdgeHighlight();
+    return;
+  }
+  
+  const rect = stepViewerInstance.renderer.domElement.getBoundingClientRect();
+  stepViewerInstance.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  stepViewerInstance.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  
+  stepViewerInstance.raycaster.setFromCamera(stepViewerInstance.mouse, stepViewerInstance.camera);
+  
+  // First, find intersection with model
+  const meshChildren = stepViewerInstance.group.children.filter(c => c.type === 'Mesh');
+  const intersects = stepViewerInstance.raycaster.intersectObjects(meshChildren, true);
+  
+  if (intersects.length > 0) {
+    const intersection = intersects[0];
+    const point = intersection.point.clone();
+    
+    // Try to detect circle at this point
+    const circleData = detectCircularFeature(point, intersection);
+    
+    if (circleData) {
+      // Show preview highlight
+      showCirclePreview(circleData);
+      stepViewerInstance.detectedCircle = { data: circleData, intersection: intersection };
+    } else {
+      clearEdgeHighlight();
+      stepViewerInstance.detectedCircle = null;
+    }
+  } else {
+    clearEdgeHighlight();
+    stepViewerInstance.detectedCircle = null;
+  }
+}
+
+// Show circle preview highlight
+function showCirclePreview(circleData) {
+  // Remove previous highlight
+  clearEdgeHighlight();
+  
+  const { center, radius, axis } = circleData;
+  const scene = stepViewerInstance.scene;
+  
+  // Create preview group
+  const previewGroup = new THREE.Group();
+  previewGroup.name = 'circlePreview';
+  
+  // Draw circle outline in green
+  const circleGeom = new THREE.BufferGeometry();
+  const circlePoints = [];
+  const segments = 64;
+  
+  const perp1 = getPerpendicular(axis);
+  const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
+  
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const p = center.clone();
+    p.add(perp1.clone().multiplyScalar(Math.cos(angle) * radius));
+    p.add(perp2.clone().multiplyScalar(Math.sin(angle) * radius));
+    circlePoints.push(p);
+  }
+  
+  circleGeom.setFromPoints(circlePoints);
+  const circleMat = new THREE.LineBasicMaterial({ 
+    color: 0x00ff00, 
+    linewidth: 3,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.9
+  });
+  const circle = new THREE.Line(circleGeom, circleMat);
+  circle.renderOrder = 999;
+  previewGroup.add(circle);
+  
+  // Add center point marker
+  const modelSize = stepViewerInstance.modelSize;
+  const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+  const sphereRadius = maxDim * 0.012;
+  
+  const centerGeom = new THREE.SphereGeometry(sphereRadius, 16, 16);
+  const centerMat = new THREE.MeshBasicMaterial({ 
+    color: 0x00ff00,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.9
+  });
+  const centerMarker = new THREE.Mesh(centerGeom, centerMat);
+  centerMarker.position.copy(center);
+  centerMarker.renderOrder = 999;
+  previewGroup.add(centerMarker);
+  
+  // Add diameter line preview
+  const startPoint = center.clone().add(perp1.clone().multiplyScalar(radius));
+  const endPoint = center.clone().add(perp1.clone().multiplyScalar(-radius));
+  
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([startPoint, endPoint]);
+  const lineMat = new THREE.LineBasicMaterial({ 
+    color: 0x00ff00, 
+    linewidth: 2,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.7
+  });
+  const diameterLine = new THREE.Line(lineGeom, lineMat);
+  diameterLine.renderOrder = 999;
+  previewGroup.add(diameterLine);
+  
+  // Add dimension text preview
+  const diameter = radius * 2;
+  const textSprite = createTextSprite(`⌀${diameter.toFixed(2)}`, 0x00cc00);
+  const textOffset = axis.clone().multiplyScalar(radius * 0.6);
+  textSprite.position.copy(center).add(textOffset);
+  textSprite.scale.set(radius * 0.7, radius * 0.28, 1);
+  textSprite.renderOrder = 1000;
+  previewGroup.add(textSprite);
+  
+  scene.add(previewGroup);
+  stepViewerInstance.highlightCircle = previewGroup;
+}
+
+// Clear edge highlight
+function clearEdgeHighlight() {
+  if (stepViewerInstance && stepViewerInstance.highlightCircle) {
+    stepViewerInstance.scene.remove(stepViewerInstance.highlightCircle);
+    // Dispose geometry and materials
+    stepViewerInstance.highlightCircle.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+    stepViewerInstance.highlightCircle = null;
+  }
 }
 
 // Handle measurement click based on current mode
@@ -650,10 +832,19 @@ function showSurfacePoint(point, normal) {
 
 // Measure diameter at clicked point by detecting circular features
 function measureDiameterAtPoint(point, intersection) {
-  const circleData = detectCircularFeature(point, intersection);
+  // Use pre-detected circle from hover if available
+  let circleData = null;
+  if (stepViewerInstance.detectedCircle && stepViewerInstance.detectedCircle.data) {
+    circleData = stepViewerInstance.detectedCircle.data;
+  } else {
+    circleData = detectCircularFeature(point, intersection);
+  }
+  
+  // Clear the preview
+  clearEdgeHighlight();
   
   if (!circleData) {
-    updateMeasureInfo('<div class="measure-error">❌ No circular feature detected. Try clicking on the edge of a hole or cylinder.</div>');
+    updateMeasureInfo('<div class="measure-error">❌ No circular feature detected. Hover over a hole or cylinder edge until it highlights green, then click.</div>');
     return;
   }
   
@@ -685,10 +876,19 @@ function measureDiameterAtPoint(point, intersection) {
 
 // Measure radius at clicked point
 function measureRadiusAtPoint(point, intersection) {
-  const circleData = detectCircularFeature(point, intersection);
+  // Use pre-detected circle from hover if available
+  let circleData = null;
+  if (stepViewerInstance.detectedCircle && stepViewerInstance.detectedCircle.data) {
+    circleData = stepViewerInstance.detectedCircle.data;
+  } else {
+    circleData = detectCircularFeature(point, intersection);
+  }
+  
+  // Clear the preview
+  clearEdgeHighlight();
   
   if (!circleData) {
-    updateMeasureInfo('<div class="measure-error">❌ No circular feature detected. Try clicking on the edge of a hole or cylinder.</div>');
+    updateMeasureInfo('<div class="measure-error">❌ No circular feature detected. Hover over a hole or cylinder edge until it highlights green, then click.</div>');
     return;
   }
   
@@ -1409,6 +1609,10 @@ function updateMeasureInfo(html) {
 
 function clearMeasurements() {
   if (!stepViewerInstance) return;
+  
+  // Clear edge highlight
+  clearEdgeHighlight();
+  stepViewerInstance.detectedCircle = null;
   
   // Remove all measurement objects
   stepViewerInstance.measureObjects.forEach(obj => {
