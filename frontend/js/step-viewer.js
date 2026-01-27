@@ -24,6 +24,12 @@ function initStepViewer() {
                 <button onclick="setMeasureMode('distance')" class="step-menu-item" title="Measure distance between two points">
                   📏 Point Distance
                 </button>
+                <button onclick="setMeasureMode('diameter')" class="step-menu-item" title="Click on edge of circular feature to measure diameter">
+                  ⌀ Diameter
+                </button>
+                <button onclick="setMeasureMode('radius')" class="step-menu-item" title="Click on edge of circular feature to measure radius">
+                  R Radius
+                </button>
                 <button onclick="setMeasureMode('axis')" class="step-menu-item" title="Show X/Y/Z axis dimensions">
                   📐 Axis Dimensions
                 </button>
@@ -36,6 +42,9 @@ function initStepViewer() {
                 <hr>
                 <button onclick="toggleSnapMode()" class="step-menu-item" id="snapModeBtn">
                   🧲 Snap: OFF
+                </button>
+                <button onclick="toggleMeasurementPanel()" class="step-menu-item" id="measurePanelBtn">
+                  📋 Measurement List
                 </button>
                 <button onclick="clearMeasurements()" class="step-menu-item text-danger">
                   🗑️ Clear All
@@ -57,6 +66,17 @@ function initStepViewer() {
           <div class="step-loading">
             <div class="step-spinner"></div>
             <p>Loading 3D Model...</p>
+          </div>
+        </div>
+        <div id="stepMeasurementPanel" class="step-measurement-panel">
+          <div class="step-measurement-panel-header">
+            <h4>📋 Measurements</h4>
+            <button onclick="toggleMeasurementPanel()" class="step-panel-close">✕</button>
+          </div>
+          <div id="stepMeasurementList" class="step-measurement-list"></div>
+          <div class="step-measurement-summary">
+            <span>Total: <strong id="measurementCount">0</strong></span>
+            <button onclick="exportMeasurements()" class="step-btn-small" title="Export to CSV">💾 Export</button>
           </div>
         </div>
         <div class="step-viewer-footer">
@@ -426,6 +446,12 @@ function handleMeasureClick(point, normal, intersection) {
     case 'surface':
       showSurfacePoint(point, normal);
       break;
+    case 'diameter':
+      measureDiameterAtPoint(point, intersection);
+      break;
+    case 'radius':
+      measureRadiusAtPoint(point, intersection);
+      break;
   }
 }
 
@@ -622,6 +648,449 @@ function showSurfacePoint(point, normal) {
   `);
 }
 
+// Measure diameter at clicked point by detecting circular features
+function measureDiameterAtPoint(point, intersection) {
+  const circleData = detectCircularFeature(point, intersection);
+  
+  if (!circleData) {
+    updateMeasureInfo('<div class="measure-error">❌ No circular feature detected. Try clicking on the edge of a hole or cylinder.</div>');
+    return;
+  }
+  
+  const { center, radius, axis, diameter } = circleData;
+  
+  // Create visualization
+  const group = createDiameterVisualization(center, radius, axis, diameter);
+  stepViewerInstance.scene.add(group);
+  stepViewerInstance.measureObjects.push(group);
+  
+  // Add to measurement list
+  addMeasurementToList({
+    id: Date.now(),
+    type: 'diameter',
+    value: diameter,
+    symbol: '⌀',
+    center: center.clone(),
+    objects: [group]
+  });
+  
+  updateMeasureInfo(`
+    <div class="measure-results">
+      <div class="measure-total">⌀ <strong>Diameter: ${diameter.toFixed(3)} mm</strong></div>
+      <div class="measure-detail">Radius: ${radius.toFixed(3)} mm</div>
+      <div class="measure-coords">Center: (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)})</div>
+    </div>
+  `);
+}
+
+// Measure radius at clicked point
+function measureRadiusAtPoint(point, intersection) {
+  const circleData = detectCircularFeature(point, intersection);
+  
+  if (!circleData) {
+    updateMeasureInfo('<div class="measure-error">❌ No circular feature detected. Try clicking on the edge of a hole or cylinder.</div>');
+    return;
+  }
+  
+  const { center, radius, axis, diameter } = circleData;
+  
+  // Create visualization
+  const group = createRadiusVisualization(center, radius, axis, point);
+  stepViewerInstance.scene.add(group);
+  stepViewerInstance.measureObjects.push(group);
+  
+  // Add to measurement list
+  addMeasurementToList({
+    id: Date.now(),
+    type: 'radius',
+    value: radius,
+    symbol: 'R',
+    center: center.clone(),
+    objects: [group]
+  });
+  
+  updateMeasureInfo(`
+    <div class="measure-results">
+      <div class="measure-total">R <strong>Radius: ${radius.toFixed(3)} mm</strong></div>
+      <div class="measure-detail">Diameter: ${diameter.toFixed(3)} mm</div>
+      <div class="measure-coords">Center: (${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)})</div>
+    </div>
+  `);
+}
+
+// Detect circular feature from clicked point
+function detectCircularFeature(clickPoint, intersection) {
+  const mesh = intersection.object;
+  const geometry = mesh.geometry;
+  const positionAttr = geometry.getAttribute('position');
+  const normalAttr = geometry.getAttribute('normal');
+  
+  if (!positionAttr) return null;
+  
+  // Get model scale for adaptive search
+  const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
+  const modelSize = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+  
+  // Search radius is adaptive to model size
+  const searchRadius = maxDim * 0.15;
+  
+  // Transform click point to local space
+  const localClickPoint = clickPoint.clone();
+  const inverseMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+  localClickPoint.applyMatrix4(inverseMatrix);
+  
+  // Find nearby vertices
+  const nearbyVertices = [];
+  for (let i = 0; i < positionAttr.count; i++) {
+    const vertex = new THREE.Vector3(
+      positionAttr.getX(i),
+      positionAttr.getY(i),
+      positionAttr.getZ(i)
+    );
+    
+    if (vertex.distanceTo(localClickPoint) < searchRadius) {
+      const worldVertex = vertex.clone().applyMatrix4(mesh.matrixWorld);
+      nearbyVertices.push(worldVertex);
+    }
+  }
+  
+  if (nearbyVertices.length < 8) {
+    // Try with larger search radius
+    return detectCircleFromVertices(clickPoint, nearbyVertices, maxDim * 0.25);
+  }
+  
+  return detectCircleFromVertices(clickPoint, nearbyVertices, searchRadius);
+}
+
+// Detect circle from a set of vertices
+function detectCircleFromVertices(clickPoint, vertices, searchRadius) {
+  if (vertices.length < 6) return null;
+  
+  // Calculate centroid
+  const centroid = new THREE.Vector3();
+  vertices.forEach(v => centroid.add(v));
+  centroid.divideScalar(vertices.length);
+  
+  // Estimate the plane normal using PCA-like approach
+  // Calculate covariance matrix and find principal axis
+  let cov = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+  ];
+  
+  vertices.forEach(v => {
+    const d = v.clone().sub(centroid);
+    cov[0][0] += d.x * d.x;
+    cov[0][1] += d.x * d.y;
+    cov[0][2] += d.x * d.z;
+    cov[1][0] += d.y * d.x;
+    cov[1][1] += d.y * d.y;
+    cov[1][2] += d.y * d.z;
+    cov[2][0] += d.z * d.x;
+    cov[2][1] += d.z * d.y;
+    cov[2][2] += d.z * d.z;
+  });
+  
+  // Find axis with minimum variance (normal to the plane)
+  const varX = cov[0][0];
+  const varY = cov[1][1];
+  const varZ = cov[2][2];
+  
+  let axis;
+  if (varX <= varY && varX <= varZ) {
+    axis = new THREE.Vector3(1, 0, 0);
+  } else if (varY <= varX && varY <= varZ) {
+    axis = new THREE.Vector3(0, 1, 0);
+  } else {
+    axis = new THREE.Vector3(0, 0, 1);
+  }
+  
+  // Project vertices onto the plane perpendicular to axis
+  // and fit a circle
+  const projectedVertices = vertices.map(v => {
+    const d = v.clone().sub(centroid);
+    const proj = d.clone().sub(axis.clone().multiplyScalar(d.dot(axis)));
+    return proj.add(centroid);
+  });
+  
+  // Calculate center by averaging projected vertices
+  const center = new THREE.Vector3();
+  projectedVertices.forEach(v => center.add(v));
+  center.divideScalar(projectedVertices.length);
+  
+  // Calculate average radius
+  let totalRadius = 0;
+  let radiusVariance = 0;
+  const radii = projectedVertices.map(v => {
+    const r = v.distanceTo(center);
+    totalRadius += r;
+    return r;
+  });
+  const avgRadius = totalRadius / projectedVertices.length;
+  
+  // Check variance to validate circle fit
+  radii.forEach(r => {
+    radiusVariance += Math.pow(r - avgRadius, 2);
+  });
+  radiusVariance = Math.sqrt(radiusVariance / radii.length);
+  
+  // If variance is too high, this isn't a circle
+  const varianceThreshold = avgRadius * 0.3;
+  if (radiusVariance > varianceThreshold || avgRadius < 0.1) {
+    return null;
+  }
+  
+  return {
+    center: center,
+    radius: avgRadius,
+    diameter: avgRadius * 2,
+    axis: axis,
+    confidence: 1 - (radiusVariance / avgRadius)
+  };
+}
+
+// Create diameter visualization
+function createDiameterVisualization(center, radius, axis, diameter) {
+  const group = new THREE.Group();
+  
+  // Get perpendicular direction
+  const perpendicular = getPerpendicular(axis);
+  
+  // Calculate line endpoints
+  const startPoint = center.clone().add(perpendicular.clone().multiplyScalar(radius));
+  const endPoint = center.clone().add(perpendicular.clone().multiplyScalar(-radius));
+  
+  // Main diameter line
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([startPoint, endPoint]);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+  const line = new THREE.Line(lineGeom, lineMat);
+  group.add(line);
+  
+  // Center point marker
+  const modelSize = stepViewerInstance.modelSize;
+  const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+  const sphereRadius = maxDim * 0.008;
+  
+  const centerGeom = new THREE.SphereGeometry(sphereRadius, 16, 16);
+  const centerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const centerMarker = new THREE.Mesh(centerGeom, centerMat);
+  centerMarker.position.copy(center);
+  group.add(centerMarker);
+  
+  // Endpoint markers
+  const endGeom = new THREE.SphereGeometry(sphereRadius * 0.7, 12, 12);
+  const startMarker = new THREE.Mesh(endGeom, centerMat);
+  startMarker.position.copy(startPoint);
+  group.add(startMarker);
+  
+  const endMarker = new THREE.Mesh(endGeom.clone(), centerMat);
+  endMarker.position.copy(endPoint);
+  group.add(endMarker);
+  
+  // Add dimension text sprite
+  const textSprite = createTextSprite(`⌀${diameter.toFixed(2)}`, 0xff0000);
+  const textOffset = axis.clone().multiplyScalar(radius * 0.5);
+  textSprite.position.copy(center).add(textOffset);
+  textSprite.scale.set(radius * 0.8, radius * 0.3, 1);
+  group.add(textSprite);
+  
+  // Draw circle outline for visibility
+  const circleGeom = new THREE.BufferGeometry();
+  const circlePoints = [];
+  const segments = 48;
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const p = center.clone();
+    const perp1 = getPerpendicular(axis);
+    const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
+    p.add(perp1.clone().multiplyScalar(Math.cos(angle) * radius));
+    p.add(perp2.clone().multiplyScalar(Math.sin(angle) * radius));
+    circlePoints.push(p);
+  }
+  circleGeom.setFromPoints(circlePoints);
+  const circleMat = new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 1, transparent: true, opacity: 0.7 });
+  const circle = new THREE.Line(circleGeom, circleMat);
+  group.add(circle);
+  
+  return group;
+}
+
+// Create radius visualization
+function createRadiusVisualization(center, radius, axis, clickPoint) {
+  const group = new THREE.Group();
+  
+  // Direction from center to click point
+  const direction = clickPoint.clone().sub(center);
+  direction.sub(axis.clone().multiplyScalar(direction.dot(axis))); // Project onto plane
+  direction.normalize();
+  
+  // Calculate endpoint
+  const endPoint = center.clone().add(direction.clone().multiplyScalar(radius));
+  
+  // Main radius line
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([center, endPoint]);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x00cc00, linewidth: 2 });
+  const line = new THREE.Line(lineGeom, lineMat);
+  group.add(line);
+  
+  // Center point marker
+  const modelSize = stepViewerInstance.modelSize;
+  const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+  const sphereRadius = maxDim * 0.008;
+  
+  const centerGeom = new THREE.SphereGeometry(sphereRadius, 16, 16);
+  const centerMat = new THREE.MeshBasicMaterial({ color: 0x00cc00 });
+  const centerMarker = new THREE.Mesh(centerGeom, centerMat);
+  centerMarker.position.copy(center);
+  group.add(centerMarker);
+  
+  // Endpoint marker
+  const endGeom = new THREE.SphereGeometry(sphereRadius * 0.7, 12, 12);
+  const endMarker = new THREE.Mesh(endGeom, centerMat);
+  endMarker.position.copy(endPoint);
+  group.add(endMarker);
+  
+  // Add dimension text sprite
+  const textSprite = createTextSprite(`R${radius.toFixed(2)}`, 0x00cc00);
+  const midPoint = center.clone().add(endPoint).divideScalar(2);
+  const textOffset = axis.clone().multiplyScalar(radius * 0.3);
+  textSprite.position.copy(midPoint).add(textOffset);
+  textSprite.scale.set(radius * 0.6, radius * 0.25, 1);
+  group.add(textSprite);
+  
+  return group;
+}
+
+// Get a vector perpendicular to the input
+function getPerpendicular(vector) {
+  if (Math.abs(vector.x) < 0.9) {
+    return new THREE.Vector3(1, 0, 0).cross(vector).normalize();
+  } else {
+    return new THREE.Vector3(0, 1, 0).cross(vector).normalize();
+  }
+}
+
+// Create text sprite for dimension labels
+function createTextSprite(text, color) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 256;
+  canvas.height = 96;
+  
+  // Background
+  context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Border
+  context.strokeStyle = '#' + color.toString(16).padStart(6, '0');
+  context.lineWidth = 4;
+  context.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  
+  // Text
+  context.fillStyle = '#' + color.toString(16).padStart(6, '0');
+  context.font = 'bold 36px Arial';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  
+  const spriteMaterial = new THREE.SpriteMaterial({ 
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false
+  });
+  
+  return new THREE.Sprite(spriteMaterial);
+}
+
+// Measurement list management
+let measurementList = [];
+
+function addMeasurementToList(measurement) {
+  measurementList.push(measurement);
+  updateMeasurementListUI();
+}
+
+function removeMeasurementFromList(id) {
+  const index = measurementList.findIndex(m => m.id === id);
+  if (index >= 0) {
+    const measurement = measurementList[index];
+    // Remove 3D objects
+    measurement.objects.forEach(obj => {
+      stepViewerInstance.scene.remove(obj);
+      if (obj.traverse) {
+        obj.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+        });
+      }
+    });
+    measurementList.splice(index, 1);
+    updateMeasurementListUI();
+  }
+}
+
+function updateMeasurementListUI() {
+  const listEl = document.getElementById('stepMeasurementList');
+  const countEl = document.getElementById('measurementCount');
+  
+  if (!listEl) return;
+  
+  countEl.textContent = measurementList.length;
+  
+  if (measurementList.length === 0) {
+    listEl.innerHTML = '<div class="step-measurement-empty">No measurements yet</div>';
+    return;
+  }
+  
+  listEl.innerHTML = measurementList.map(m => `
+    <div class="step-measurement-item" data-id="${m.id}">
+      <div class="step-measurement-value">
+        <span class="step-measurement-symbol">${m.symbol}</span>
+        <span class="step-measurement-num">${m.value.toFixed(3)} mm</span>
+      </div>
+      <div class="step-measurement-type">${m.type}</div>
+      <button onclick="removeMeasurementFromList(${m.id})" class="step-measurement-delete" title="Delete">🗑</button>
+    </div>
+  `).join('');
+}
+
+function toggleMeasurementPanel() {
+  const panel = document.getElementById('stepMeasurementPanel');
+  panel.classList.toggle('active');
+  document.getElementById('stepMeasureMenu').classList.remove('active');
+}
+
+function exportMeasurements() {
+  if (measurementList.length === 0) {
+    alert('No measurements to export');
+    return;
+  }
+  
+  const headers = ['Type', 'Symbol', 'Value (mm)', 'Timestamp'];
+  const rows = measurementList.map(m => [
+    m.type,
+    m.symbol,
+    m.value.toFixed(4),
+    new Date(m.id).toISOString()
+  ]);
+  
+  const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'measurements.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // Show bounding box dimensions
 function showBoundingBox() {
   if (!stepViewerInstance) return;
@@ -685,7 +1154,9 @@ function setMeasureMode(mode) {
   const modeLabels = {
     'distance': '📏 Distance Mode',
     'axis': '📐 Axis Mode',
-    'surface': '🎯 Surface Mode'
+    'surface': '🎯 Surface Mode',
+    'diameter': '⌀ Diameter Mode',
+    'radius': 'R Radius Mode'
   };
   
   modeDisplay.textContent = modeLabels[mode] || '';
@@ -693,7 +1164,9 @@ function setMeasureMode(mode) {
   const hints = {
     'distance': 'Click two points to measure distance with X/Y/Z breakdown',
     'axis': 'Click two points to see axis-aligned dimensions only',
-    'surface': 'Click a surface to see point coordinates and normal'
+    'surface': 'Click a surface to see point coordinates and normal',
+    'diameter': 'Click on the edge of a circular feature (hole, cylinder) to measure diameter',
+    'radius': 'Click on the edge of a circular feature to measure radius'
   };
   
   updateMeasureInfo(hints[mode] || '');
@@ -711,12 +1184,23 @@ function clearMeasurements() {
   // Remove all measurement objects
   stepViewerInstance.measureObjects.forEach(obj => {
     stepViewerInstance.scene.remove(obj);
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) obj.material.dispose();
+    if (obj.traverse) {
+      obj.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+    } else {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    }
   });
   stepViewerInstance.measureObjects = [];
   stepViewerInstance.measurePoints = [];
   stepViewerInstance.measureLines = [];
+  
+  // Clear measurement list
+  measurementList = [];
+  updateMeasurementListUI();
   
   document.getElementById('stepMeasureInfo').innerHTML = '';
   document.getElementById('stepMeasureMode').textContent = '';
@@ -794,3 +1278,6 @@ window.clearMeasurements = clearMeasurements;
 window.setMeasureMode = setMeasureMode;
 window.toggleSnapMode = toggleSnapMode;
 window.showBoundingBox = showBoundingBox;
+window.toggleMeasurementPanel = toggleMeasurementPanel;
+window.removeMeasurementFromList = removeMeasurementFromList;
+window.exportMeasurements = exportMeasurements;
