@@ -170,13 +170,14 @@ const schemas = {
   }),
 
   createMachine: Joi.object({
-    machine_type: Joi.string().valid('mill', 'lathe').required(),
-    machine_number: Joi.number().integer().min(1).required(),
-    machine_name: Joi.string().allow('', null),
+    machine_type: Joi.string().allow('', null),
+    machine_number: Joi.number().integer().min(1).allow(null),
+    machine_name: Joi.string().required(),
     machine_model: Joi.string().allow('', null),
     status: Joi.string().allow('', null),
     is_available: Joi.boolean(),
-    notes: Joi.string().allow('', null)
+    notes: Joi.string().allow('', null),
+    location: Joi.string().allow('', null)
   })
 };
 

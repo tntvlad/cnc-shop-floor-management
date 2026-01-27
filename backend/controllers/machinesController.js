@@ -3,13 +3,13 @@ const pool = require('../config/database');
 // Create machine
 exports.createMachine = async (req, res) => {
   try {
-    const { machine_type, machine_number, machine_name, machine_model, status, is_available, notes } = req.body;
+    const { machine_type, machine_number, machine_name, machine_model, status, is_available, notes, location } = req.body;
 
     const result = await pool.query(
-      `INSERT INTO machines (machine_type, machine_number, machine_name, machine_model, status, is_available, notes)
-       VALUES ($1, $2, $3, $4, $5, COALESCE($6, true), $7)
+      `INSERT INTO machines (machine_type, machine_number, machine_name, machine_model, status, is_available, notes, location)
+       VALUES ($1, $2, $3, $4, $5, COALESCE($6, true), $7, $8)
        RETURNING *`,
-      [machine_type, machine_number, machine_name || null, machine_model || null, status || 'available', is_available, notes || null]
+      [machine_type || null, machine_number || null, machine_name, machine_model || null, status || 'available', is_available, notes || null, location || null]
     );
 
     res.status(201).json({ success: true, machine: result.rows[0] });
@@ -40,10 +40,10 @@ exports.getMachines = async (req, res) => {
       `SELECT id, machine_type, machine_number, machine_name, machine_model, status, is_available,
               current_job, current_operator, last_maintenance, next_maintenance_due,
               maintenance_scheduled_start, maintenance_scheduled_end, maintenance_notes,
-              total_runtime_hours, utilization_percentage, notes, created_at, updated_at
+              total_runtime_hours, utilization_percentage, notes, location, created_at, updated_at
        FROM machines
        ${where}
-       ORDER BY machine_type, machine_number`,
+       ORDER BY machine_name, machine_type, machine_number`,
       params
     );
 
@@ -62,7 +62,7 @@ exports.getMachine = async (req, res) => {
       `SELECT id, machine_type, machine_number, machine_name, machine_model, status, is_available,
               current_job, current_operator, last_maintenance, next_maintenance_due,
               maintenance_scheduled_start, maintenance_scheduled_end, maintenance_notes,
-              total_runtime_hours, utilization_percentage, notes, created_at, updated_at
+              total_runtime_hours, utilization_percentage, notes, location, created_at, updated_at
        FROM machines WHERE id = $1`,
       [id]
     );

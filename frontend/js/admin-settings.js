@@ -980,8 +980,8 @@ async function saveNewMachine(event) {
   event.preventDefault();
   
   const machineData = {
-    name: document.getElementById('new-machine-name').value,
-    type: document.getElementById('new-machine-type').value || null,
+    machine_name: document.getElementById('new-machine-name').value,
+    machine_type: document.getElementById('new-machine-type').value || null,
     status: document.getElementById('new-machine-status').value || 'available',
     location: document.getElementById('new-machine-location').value || null
   };
