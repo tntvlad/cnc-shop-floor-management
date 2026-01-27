@@ -473,12 +473,13 @@ CREATE TABLE material_orders (
 
 CREATE TABLE machines (
     id SERIAL PRIMARY KEY,
-    machine_type VARCHAR(20) NOT NULL,
-    machine_number INTEGER NOT NULL,
+    machine_type VARCHAR(20),
+    machine_number INTEGER,
     machine_name VARCHAR(100),
     machine_model VARCHAR(100),
     status VARCHAR(50) DEFAULT 'available',
     is_available BOOLEAN DEFAULT true,
+    location VARCHAR(100),
     
     -- Current job tracking
     current_job INTEGER REFERENCES parts(id),
@@ -497,8 +498,7 @@ CREATE TABLE machines (
     
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(machine_type, machine_number)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
