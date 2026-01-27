@@ -1201,14 +1201,31 @@ function autoFillCustomerFromImport(customerName) {
   // Set the search value
   searchInput.value = customerName;
   
+  // Normalize company name for comparison (handle S.R.L. vs SRL, S.A. vs SA, etc.)
+  const normalizeCompanyName = (name) => {
+    return (name || '')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ')           // Multiple spaces to single space
+      .replace(/s\.r\.l\.?/gi, 'srl') // S.R.L. -> srl
+      .replace(/s\.a\.?/gi, 'sa')     // S.A. -> sa
+      .replace(/s\.c\.?/gi, 'sc')     // S.C. -> sc
+      .replace(/\./g, '')             // Remove remaining dots
+      .replace(/,/g, '')              // Remove commas
+      .replace(/\s+/g, ' ')           // Clean up spaces again
+      .trim();
+  };
+  
   // Try to find a matching customer from the loaded customers
-  const normalizedImport = customerName.toLowerCase().trim();
+  const normalizedImport = normalizeCompanyName(customerName);
+  console.log('Normalized import name:', normalizedImport);
+  
   const matchingCustomer = allCustomers.find(c => {
-    const companyName = (c.company_name || '').toLowerCase().trim();
-    // Exact match or contains the imported name
-    return companyName === normalizedImport || 
-           companyName.includes(normalizedImport) || 
-           normalizedImport.includes(companyName);
+    const normalizedDb = normalizeCompanyName(c.company_name);
+    // Exact match after normalization, or one contains the other
+    return normalizedDb === normalizedImport || 
+           normalizedDb.includes(normalizedImport) || 
+           normalizedImport.includes(normalizedDb);
   });
   
   if (matchingCustomer) {
