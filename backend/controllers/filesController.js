@@ -356,3 +356,127 @@ exports.syncAllPartsFromFolders = async () => {
     console.log(`✓ Auto-sync: ${totalAdded} new file(s) indexed`);
   }
 };
+
+// Copy drawing file from source path (P: drive mapped) to target folder
+exports.copyDrawingFile = async (req, res) => {
+  try {
+    const { sourcePath, targetFolder, filename } = req.body;
+    
+    if (!sourcePath || !targetFolder) {
+      return res.status(400).json({ success: false, error: 'Source path and target folder are required' });
+    }
+    
+    // Convert P:/1-Clienti/... path to /data/clients/...
+    // Also handle file:/// prefix
+    let cleanSource = sourcePath
+      .replace(/^file:\/\/\//, '')  // Remove file:/// prefix
+      .replace(/^P:\/1-Clienti\//i, '')  // Remove P:/1-Clienti/ prefix
+      .replace(/^P:\\1-Clienti\\/i, '')  // Handle backslash version
+      .replace(/%20/g, ' ');  // Decode URL spaces
+    
+    const sourceResolved = path.resolve(CLIENTS_ROOT, cleanSource);
+    const targetResolved = path.resolve(CLIENTS_ROOT, targetFolder);
+    
+    // Security check - both paths must be within CLIENTS_ROOT
+    ensureWithinRoot(sourceResolved, CLIENTS_ROOT);
+    ensureWithinRoot(targetResolved, CLIENTS_ROOT);
+    
+    // Check if source file exists
+    if (!fs.existsSync(sourceResolved)) {
+      console.warn(`Source file not found: ${sourceResolved}`);
+      return res.json({ 
+        success: false, 
+        error: 'Source file not found',
+        sourcePath: sourceResolved
+      });
+    }
+    
+    // Create target directory if it doesn't exist
+    if (!fs.existsSync(targetResolved)) {
+      fs.mkdirSync(targetResolved, { recursive: true, mode: 0o777 });
+    }
+    
+    // Determine filename
+    const finalFilename = filename || path.basename(sourceResolved);
+    const targetFile = path.join(targetResolved, finalFilename);
+    
+    // Copy the file
+    fs.copyFileSync(sourceResolved, targetFile);
+    
+    console.log(`Copied drawing: ${sourceResolved} -> ${targetFile}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'File copied successfully',
+      source: sourceResolved,
+      target: targetFile,
+      filename: finalFilename
+    });
+  } catch (err) {
+    console.error('Copy drawing file error:', err);
+    res.status(400).json({ success: false, error: err.message || 'Failed to copy file' });
+  }
+};
+
+// Create folder and copy drawing file in one operation
+exports.createFolderAndCopyDrawing = async (req, res) => {
+  try {
+    const { folderPath, drawingSourcePath } = req.body;
+    
+    if (!folderPath) {
+      return res.status(400).json({ success: false, error: 'Folder path is required' });
+    }
+    
+    // Create folder
+    const resolved = path.resolve(CLIENTS_ROOT, folderPath);
+    ensureWithinRoot(resolved, CLIENTS_ROOT);
+    
+    if (!fs.existsSync(resolved)) {
+      fs.mkdirSync(resolved, { recursive: true, mode: 0o777 });
+    }
+    
+    const relPath = path.relative(CLIENTS_ROOT, resolved).split(path.sep).join('/');
+    let copyResult = null;
+    
+    // Copy drawing if provided
+    if (drawingSourcePath) {
+      // Convert P:/1-Clienti/... path to /data/clients/...
+      let cleanSource = drawingSourcePath
+        .replace(/^file:\/\/\//, '')
+        .replace(/^P:\/1-Clienti\//i, '')
+        .replace(/^P:\\1-Clienti\\/i, '')
+        .replace(/%20/g, ' ');
+      
+      const sourceResolved = path.resolve(CLIENTS_ROOT, cleanSource);
+      
+      try {
+        ensureWithinRoot(sourceResolved, CLIENTS_ROOT);
+        
+        if (fs.existsSync(sourceResolved)) {
+          const filename = path.basename(sourceResolved);
+          const targetFile = path.join(resolved, filename);
+          fs.copyFileSync(sourceResolved, targetFile);
+          copyResult = { success: true, filename, targetFile };
+          console.log(`Created folder and copied drawing: ${sourceResolved} -> ${targetFile}`);
+        } else {
+          copyResult = { success: false, error: 'Source file not found', path: sourceResolved };
+          console.warn(`Drawing source not found: ${sourceResolved}`);
+        }
+      } catch (copyErr) {
+        copyResult = { success: false, error: copyErr.message };
+        console.error('Error copying drawing:', copyErr);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Folder created successfully',
+      path: relPath,
+      fullPath: resolved,
+      drawingCopy: copyResult
+    });
+  } catch (err) {
+    console.error('Create folder and copy error:', err);
+    res.status(400).json({ success: false, error: err.message || 'Failed to create folder' });
+  }
+};

@@ -212,6 +212,10 @@ app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.comp
 app.get('/api/folders/browse', authMiddleware, requireSupervisor(), filesController.browseFolders);
 // Create folder (Supervisor+)
 app.post('/api/folders/create', authMiddleware, requireSupervisor(), filesController.createFolder);
+// Create folder and copy drawing (Supervisor+)
+app.post('/api/folders/create-with-drawing', authMiddleware, requireSupervisor(), filesController.createFolderAndCopyDrawing);
+// Copy drawing file (Supervisor+)
+app.post('/api/files/copy-drawing', authMiddleware, requireSupervisor(), filesController.copyDrawingFile);
 
 // Sync files from assigned folder into DB (Supervisor+)
 app.post('/api/parts/:id/files/sync', authMiddleware, requireSupervisor(), filesController.syncFromFolder);

@@ -653,7 +653,7 @@ function handleSpreadsheetFile(event) {
   reader.onload = (e) => {
     try {
       const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, { type: 'array', cellStyles: true });
       
       // Get the first sheet (or "CerereOferta" if it exists)
       let sheetName = workbook.SheetNames[0];
@@ -662,6 +662,26 @@ function handleSpreadsheetFile(event) {
       }
       
       const worksheet = workbook.Sheets[sheetName];
+      
+      // Extract hyperlinks from worksheet
+      const hyperlinks = {};
+      if (worksheet['!links']) {
+        worksheet['!links'].forEach(link => {
+          if (link.Target) {
+            hyperlinks[link.ref] = link.Target;
+          }
+        });
+      }
+      // Also check individual cells for hyperlinks (l property)
+      Object.keys(worksheet).forEach(cellRef => {
+        if (cellRef[0] !== '!') {
+          const cell = worksheet[cellRef];
+          if (cell && cell.l && cell.l.Target) {
+            hyperlinks[cellRef] = cell.l.Target;
+          }
+        }
+      });
+      console.log('Found hyperlinks:', hyperlinks);
       
       // Convert to JSON with raw headers
       const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
@@ -703,6 +723,20 @@ function handleSpreadsheetFile(event) {
       
       console.log('Normalized headers:', headers);
       
+      // Find the index of the description/part_name column for hyperlink extraction
+      const descColIdx = headers.findIndex(h => h === 'description' || h === 'part_name');
+      console.log('Description column index:', descColIdx);
+      
+      // Helper to convert column index to Excel letter (0=A, 1=B, etc.)
+      const colToLetter = (col) => {
+        let letter = '';
+        while (col >= 0) {
+          letter = String.fromCharCode((col % 26) + 65) + letter;
+          col = Math.floor(col / 26) - 1;
+        }
+        return letter;
+      };
+      
       // Parse data rows
       partsCsvData = [];
       for (let i = headerRowIdx + 1; i < rawData.length; i++) {
@@ -713,6 +747,15 @@ function handleSpreadsheetFile(event) {
         headers.forEach((header, idx) => {
           row[header] = values[idx] !== undefined ? String(values[idx]).trim() : '';
         });
+        
+        // Extract hyperlink for this row's description/part_name cell
+        if (descColIdx >= 0) {
+          const cellRef = colToLetter(descColIdx) + (i + 1); // Excel is 1-indexed
+          if (hyperlinks[cellRef]) {
+            row.drawing_source_path = hyperlinks[cellRef];
+            console.log(`Row ${i}: Found drawing hyperlink at ${cellRef}:`, row.drawing_source_path);
+          }
+        }
         
         // Extract customer name from first row with "Client" column
         if (row.customer && !importedCustomerName) {
@@ -1080,13 +1123,15 @@ function handleImportParts() {
     const folderDisplay = document.getElementById(`folder-display-${currentIndex}`);
     const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][description]"]`);
     const materialSearchInput = partItem.querySelector('.material-search');
+    const drawingSourceInput = partItem.querySelector(`input[name="parts[${currentIndex}][drawing_source_path]"]`);
     
     console.log('Found inputs:', { 
       nameInput: !!nameInput, 
       qtyInput: !!qtyInput, 
       timeInput: !!timeInput,
       descInput: !!descInput,
-      materialSearchInput: !!materialSearchInput
+      materialSearchInput: !!materialSearchInput,
+      drawingSourceInput: !!drawingSourceInput
     });
     
     if (nameInput) nameInput.value = row.part_name || '';
@@ -1095,6 +1140,12 @@ function handleImportParts() {
     if (folderInput && row.folder_path) folderInput.value = row.folder_path;
     if (folderDisplay && row.folder_path) folderDisplay.textContent = row.folder_path;
     if (descInput) descInput.value = row.description || '';
+    
+    // Store drawing source path from ODS hyperlink
+    if (drawingSourceInput && row.drawing_source_path) {
+      drawingSourceInput.value = row.drawing_source_path;
+      console.log(`Part ${currentIndex}: Drawing source path set to:`, row.drawing_source_path);
+    }
     
     // Auto-detect and select shape based on description
     const shapeSelect = partItem.querySelector('.shape-select');
@@ -1319,6 +1370,7 @@ function addPartField() {
         <button type="button" class="folder-select-btn" onclick="selectFolder(${partIndex})">📁 Select Folder</button>
         <span class="folder-display" id="folder-display-${partIndex}">No folder selected</span>
         <input type="hidden" name="parts[${partIndex}][file_folder]">
+        <input type="hidden" name="parts[${partIndex}][drawing_source_path]">
       </div>
       <textarea placeholder="Description / Notes" name="parts[${partIndex}][description]" style="resize: none; min-height: 40px;"></textarea>
     </div>
@@ -1812,6 +1864,7 @@ async function handleCreateOrder(event) {
         material_dimensions: dimensions || null,
         estimated_time: parseInt(item.querySelector('input[name*="estimated_time"]')?.value) || null,
         file_folder: item.querySelector('input[name*="file_folder"]')?.value || null,
+        drawing_source_path: item.querySelector('input[name*="drawing_source_path"]')?.value || null,
         priority: item.querySelector('select[name*="priority"]')?.value || 'normal'
       });
     }
@@ -1834,18 +1887,37 @@ async function handleCreateOrder(event) {
         const folderPath = `${selectedCustomer.folder_path}/Orders/${sanitizedOrderId}/${sanitizedPartName}`;
         
         try {
-          const response = await fetch(`${API_URL}/folders/create`, {
+          // Use the new endpoint that can also copy drawing files
+          const endpoint = part.drawing_source_path 
+            ? `${API_URL}/folders/create-with-drawing`
+            : `${API_URL}/folders/create`;
+          
+          const body = { folderPath };
+          if (part.drawing_source_path) {
+            body.drawingSourcePath = part.drawing_source_path;
+          }
+          
+          const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${getToken()}`
             },
-            body: JSON.stringify({ folderPath })
+            body: JSON.stringify(body)
           });
           
           const folderData = await response.json();
           if (folderData.success) {
             order.parts[i].file_folder = folderData.path;
+            
+            // Log if drawing was copied
+            if (folderData.drawingCopy) {
+              if (folderData.drawingCopy.success) {
+                console.log(`Drawing copied for part ${part.part_name}:`, folderData.drawingCopy.filename);
+              } else {
+                console.warn(`Failed to copy drawing for part ${part.part_name}:`, folderData.drawingCopy.error);
+              }
+            }
           }
         } catch (error) {
           console.error(`Error creating folder for part ${part.part_name}:`, error);
