@@ -4,6 +4,83 @@ const pool = require('../config/database');
 
 const BROWSE_ROOT = path.resolve(process.env.FILE_BROWSE_ROOT || process.env.UPLOAD_DIR || './uploads');
 
+// Helper function to move order folder to Archive when order is completed
+async function moveOrderToArchive(orderId) {
+  try {
+    // Get order details with customer folder path
+    const orderResult = await pool.query(
+      `SELECT o.internal_order_id, c.folder_path 
+       FROM orders o
+       LEFT JOIN customers c ON o.customer_id = c.id
+       WHERE o.id = $1`,
+      [orderId]
+    );
+    
+    if (orderResult.rows.length === 0) {
+      console.log(`Order ${orderId} not found for archive move`);
+      return false;
+    }
+    
+    const { internal_order_id, folder_path } = orderResult.rows[0];
+    
+    // Can't move if no customer folder or internal order ID
+    if (!folder_path || !internal_order_id) {
+      console.log(`Order ${orderId} missing folder_path or internal_order_id, skipping archive move`);
+      return false;
+    }
+    
+    // Sanitize the order ID for folder name (same logic as frontend)
+    const sanitizedOrderId = internal_order_id.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+    
+    // Build source path: {customer_folder}/Orders/{internal_order_id}
+    const sourcePath = path.join(BROWSE_ROOT, folder_path, 'Orders', sanitizedOrderId);
+    
+    // Build destination path: {customer_folder}/Archive/{internal_order_id}
+    const archiveDir = path.join(BROWSE_ROOT, folder_path, 'Archive');
+    const destPath = path.join(archiveDir, sanitizedOrderId);
+    
+    // Check if source folder exists
+    if (!fs.existsSync(sourcePath)) {
+      console.log(`Order ${orderId} source folder does not exist: ${sourcePath}`);
+      return false;
+    }
+    
+    // Create Archive directory if it doesn't exist
+    if (!fs.existsSync(archiveDir)) {
+      fs.mkdirSync(archiveDir, { recursive: true });
+      console.log(`Created Archive directory: ${archiveDir}`);
+    }
+    
+    // Check if destination already exists
+    if (fs.existsSync(destPath)) {
+      console.log(`Order ${orderId} archive folder already exists: ${destPath}`);
+      return false;
+    }
+    
+    // Move the folder
+    fs.renameSync(sourcePath, destPath);
+    console.log(`Order ${orderId} moved to archive: ${sourcePath} -> ${destPath}`);
+    
+    // Update file_folder paths in parts table
+    await pool.query(
+      `UPDATE parts 
+       SET file_folder = REPLACE(file_folder, $1, $2)
+       WHERE order_id = $3 AND file_folder LIKE $4`,
+      [
+        path.join(folder_path, 'Orders', sanitizedOrderId),
+        path.join(folder_path, 'Archive', sanitizedOrderId),
+        orderId,
+        '%' + path.join(folder_path, 'Orders', sanitizedOrderId) + '%'
+      ]
+    );
+    
+    return true;
+  } catch (error) {
+    console.error(`Error moving order ${orderId} to archive:`, error);
+    return false;
+  }
+}
+
 // Helper function to check if all parts are completed and auto-update order status
 async function checkAndAutoCompleteOrder(orderId) {
   try {
@@ -21,11 +98,21 @@ async function checkAndAutoCompleteOrder(orderId) {
     
     // If all parts are completed (and there are parts), update order to completed
     if (parseInt(total_count) > 0 && parseInt(incomplete_count) === 0) {
+      // Check if order is already completed
+      const existingOrder = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+      const wasAlreadyCompleted = existingOrder.rows.length > 0 && existingOrder.rows[0].status === 'completed';
+      
       await pool.query(
         `UPDATE orders SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1 AND status != 'completed'`,
         [orderId]
       );
       console.log(`Order ${orderId} auto-completed: all ${total_count} parts finished`);
+      
+      // Move order folder to archive (only if it wasn't already completed)
+      if (!wasAlreadyCompleted) {
+        await moveOrderToArchive(orderId);
+      }
+      
       return true;
     }
     
