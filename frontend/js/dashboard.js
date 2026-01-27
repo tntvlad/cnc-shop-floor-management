@@ -166,6 +166,20 @@ async function loadParts() {
       parts = await API.parts.getAll();
     }
 
+    // Filter out completed parts - they should not appear on dashboard
+    parts = parts.filter(part => {
+      // Check part's own status
+      if (part.status === 'completed') return false;
+      
+      // Check assignment status for operators
+      if (isOperator && part.assignment && part.assignment.status === 'completed') return false;
+      
+      // Check workflow current_phase
+      if (part.current_phase === 'completed' || part.current_phase === 'done') return false;
+      
+      return true;
+    });
+
     parts = [...parts].sort((a, b) => {
       const pa = getPriorityMeta(a).weight;
       const pb = getPriorityMeta(b).weight;
