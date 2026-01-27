@@ -675,6 +675,10 @@
         <div class="search-bar">
           <input type="text" id="search-input" placeholder="Search by customer name or email...">
         </div>
+        <label class="show-completed-toggle" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; white-space: nowrap;">
+          <input type="checkbox" id="show-completed-checkbox" onchange="applyFilters()">
+          <span style="font-size: 0.9rem; color: #374151;">Show Completed</span>
+        </label>
         <div class="filter-buttons">
           <button class="filter-btn active" data-status="all">All</button>
           <button class="filter-btn" data-status="pending">Pending</button>

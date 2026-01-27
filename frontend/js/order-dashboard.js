@@ -1,5 +1,6 @@
 let currentFilter = 'all';
 let currentUser = null;
+let allOrdersCache = []; // Cache all orders for filtering
 const PRIORITY_WEIGHT = {
   urgent: 3,
   high: 3,
@@ -65,8 +66,7 @@ function canEditOrders() {
 function setupEventListeners() {
   // Search
   document.getElementById('search-input').addEventListener('keyup', (e) => {
-    const query = e.target.value;
-    loadOrders(currentFilter, query);
+    applyFilters();
   });
 
   // Filter buttons
@@ -75,8 +75,14 @@ function setupEventListeners() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentFilter = e.target.dataset.status;
-      const query = document.getElementById('search-input').value;
-      loadOrders(currentFilter, query);
+      
+      // When clicking "Completed" button, auto-check the show completed checkbox
+      const showCompletedCheckbox = document.getElementById('show-completed-checkbox');
+      if (currentFilter === 'completed' && showCompletedCheckbox) {
+        showCompletedCheckbox.checked = true;
+      }
+      
+      applyFilters();
     });
   });
 }
@@ -108,11 +114,43 @@ async function loadOrders(status = 'all', customer = '') {
       return;
     }
 
-    renderOrders(data.orders || []);
+    // Cache all orders and apply filters
+    allOrdersCache = data.orders || [];
+    applyFilters();
   } catch (error) {
     console.error('Error loading orders:', error);
     showError('Error loading orders: ' + error.message);
   }
+}
+
+// Apply filters (status, search, show completed checkbox)
+function applyFilters() {
+  const showCompleted = document.getElementById('show-completed-checkbox')?.checked || false;
+  const searchQuery = document.getElementById('search-input')?.value?.toLowerCase() || '';
+  
+  let filtered = [...allOrdersCache];
+  
+  // Filter by status button (unless "all" is selected)
+  if (currentFilter && currentFilter !== 'all') {
+    filtered = filtered.filter(order => order.status === currentFilter);
+  } else {
+    // When "all" is selected, hide completed unless checkbox is checked
+    if (!showCompleted) {
+      filtered = filtered.filter(order => order.status !== 'completed');
+    }
+  }
+  
+  // Filter by search query
+  if (searchQuery) {
+    filtered = filtered.filter(order => 
+      (order.customer_name && order.customer_name.toLowerCase().includes(searchQuery)) ||
+      (order.customer_email && order.customer_email.toLowerCase().includes(searchQuery)) ||
+      (order.internal_order_id && order.internal_order_id.toLowerCase().includes(searchQuery)) ||
+      (order.external_order_id && order.external_order_id.toLowerCase().includes(searchQuery))
+    );
+  }
+  
+  renderOrders(filtered);
 }
 
 function renderOrders(orders) {
