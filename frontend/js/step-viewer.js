@@ -724,23 +724,255 @@ function detectCircularFeature(clickPoint, intersection) {
   const geometry = mesh.geometry;
   const positionAttr = geometry.getAttribute('position');
   const normalAttr = geometry.getAttribute('normal');
+  const face = intersection.face;
   
   if (!positionAttr) return null;
+  
+  // Get the face normal at click point - this tells us the surface orientation
+  const faceNormal = face ? face.normal.clone().transformDirection(mesh.matrixWorld) : null;
   
   // Get model scale for adaptive search
   const box = new THREE.Box3().setFromObject(stepViewerInstance.group);
   const modelSize = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
   
-  // Search radius is adaptive to model size
-  const searchRadius = maxDim * 0.15;
+  // Try multiple detection methods
+  let result = null;
   
-  // Transform click point to local space
-  const localClickPoint = clickPoint.clone();
+  // Method 1: Use face normal to detect cylindrical surface
+  if (faceNormal) {
+    result = detectCylinderFromNormal(clickPoint, mesh, faceNormal, maxDim);
+    if (result) return result;
+  }
+  
+  // Method 2: Sample points in rings around click point
+  result = detectCircleByRingSampling(clickPoint, mesh, maxDim);
+  if (result) return result;
+  
+  // Method 3: Fallback - collect nearby vertices and try circle fit
+  result = detectCircleFromNearbyVertices(clickPoint, mesh, maxDim);
+  
+  return result;
+}
+
+// Detect cylinder by analyzing points along the face normal direction
+function detectCylinderFromNormal(clickPoint, mesh, faceNormal, maxDim) {
+  const geometry = mesh.geometry;
+  const positionAttr = geometry.getAttribute('position');
+  
+  // For a cylindrical surface, the face normal points radially outward
+  // The cylinder axis is perpendicular to the radial direction
+  // Sample points on the surface near the click point
+  
+  const searchRadius = maxDim * 0.3;
   const inverseMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
-  localClickPoint.applyMatrix4(inverseMatrix);
+  const localClickPoint = clickPoint.clone().applyMatrix4(inverseMatrix);
   
-  // Find nearby vertices
+  // Collect nearby vertices
+  const nearbyVertices = [];
+  for (let i = 0; i < positionAttr.count; i++) {
+    const vertex = new THREE.Vector3(
+      positionAttr.getX(i),
+      positionAttr.getY(i),
+      positionAttr.getZ(i)
+    );
+    
+    const dist = vertex.distanceTo(localClickPoint);
+    if (dist < searchRadius) {
+      const worldVertex = vertex.clone().applyMatrix4(mesh.matrixWorld);
+      nearbyVertices.push(worldVertex);
+    }
+  }
+  
+  if (nearbyVertices.length < 10) return null;
+  
+  // Try each major axis as potential cylinder axis
+  const axes = [
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, 1)
+  ];
+  
+  let bestResult = null;
+  let bestScore = Infinity;
+  
+  for (const axis of axes) {
+    // Skip if axis is too parallel to face normal (would be end cap, not cylinder wall)
+    const axisDotNormal = Math.abs(axis.dot(faceNormal));
+    if (axisDotNormal > 0.8) continue;
+    
+    const result = fitCircleOnAxis(nearbyVertices, axis, clickPoint);
+    if (result && result.variance < bestScore) {
+      bestScore = result.variance;
+      bestResult = result;
+    }
+  }
+  
+  // Accept if variance is reasonable
+  if (bestResult && bestResult.variance < bestResult.radius * 0.15) {
+    return bestResult;
+  }
+  
+  return null;
+}
+
+// Fit a circle to vertices projected onto a plane perpendicular to given axis
+function fitCircleOnAxis(vertices, axis, clickPoint) {
+  if (vertices.length < 8) return null;
+  
+  // Project all vertices onto the plane perpendicular to axis
+  const projected2D = vertices.map(v => {
+    const d = v.clone();
+    // Remove the component along axis
+    const alongAxis = axis.clone().multiplyScalar(v.dot(axis));
+    return d.sub(alongAxis);
+  });
+  
+  // Find centroid of projected points
+  const centroid = new THREE.Vector3();
+  projected2D.forEach(p => centroid.add(p));
+  centroid.divideScalar(projected2D.length);
+  
+  // Calculate distances from centroid (radii)
+  const radii = projected2D.map(p => p.distanceTo(centroid));
+  
+  // Group radii into clusters to find the dominant radius
+  radii.sort((a, b) => a - b);
+  
+  // Use median radius (more robust than mean)
+  const medianRadius = radii[Math.floor(radii.length / 2)];
+  
+  // Filter points that are close to the median radius (within 20%)
+  const tolerance = medianRadius * 0.25;
+  const filteredIndices = [];
+  radii.forEach((r, i) => {
+    if (Math.abs(r - medianRadius) < tolerance) {
+      filteredIndices.push(i);
+    }
+  });
+  
+  if (filteredIndices.length < 6) return null;
+  
+  // Recalculate with filtered points
+  const filteredVertices = filteredIndices.map(i => vertices[i]);
+  const filteredProjected = filteredIndices.map(i => projected2D[i]);
+  
+  // Recalculate centroid
+  const newCentroid = new THREE.Vector3();
+  filteredProjected.forEach(p => newCentroid.add(p));
+  newCentroid.divideScalar(filteredProjected.length);
+  
+  // Get the axis-aligned component of the center (average z along axis)
+  let axisComponent = 0;
+  filteredVertices.forEach(v => {
+    axisComponent += v.dot(axis);
+  });
+  axisComponent /= filteredVertices.length;
+  
+  // Full 3D center
+  const center = newCentroid.clone().add(axis.clone().multiplyScalar(axisComponent));
+  
+  // Calculate final radius and variance
+  const finalRadii = filteredProjected.map(p => p.distanceTo(newCentroid));
+  const avgRadius = finalRadii.reduce((a, b) => a + b, 0) / finalRadii.length;
+  
+  let variance = 0;
+  finalRadii.forEach(r => {
+    variance += Math.pow(r - avgRadius, 2);
+  });
+  variance = Math.sqrt(variance / finalRadii.length);
+  
+  return {
+    center: center,
+    radius: avgRadius,
+    diameter: avgRadius * 2,
+    axis: axis.clone(),
+    variance: variance,
+    confidence: 1 - (variance / avgRadius)
+  };
+}
+
+// Detect circle by sampling points in rings around click point
+function detectCircleByRingSampling(clickPoint, mesh, maxDim) {
+  // Cast rays in a circle pattern around the click point to find edge
+  const raycaster = new THREE.Raycaster();
+  const camera = stepViewerInstance.camera;
+  
+  // Get view direction
+  const viewDir = new THREE.Vector3();
+  camera.getWorldDirection(viewDir);
+  
+  // Create perpendicular directions in screen space
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  
+  // Sample points in rings
+  const samples = [];
+  const numRays = 24;
+  
+  for (let ring = 1; ring <= 5; ring++) {
+    const ringRadius = maxDim * 0.02 * ring;
+    
+    for (let i = 0; i < numRays; i++) {
+      const angle = (i / numRays) * Math.PI * 2;
+      const offset = right.clone().multiplyScalar(Math.cos(angle) * ringRadius)
+        .add(up.clone().multiplyScalar(Math.sin(angle) * ringRadius));
+      
+      const rayOrigin = clickPoint.clone().add(offset).sub(viewDir.clone().multiplyScalar(maxDim));
+      raycaster.set(rayOrigin, viewDir);
+      
+      const intersects = raycaster.intersectObject(mesh, false);
+      if (intersects.length > 0) {
+        samples.push(intersects[0].point.clone());
+      }
+    }
+  }
+  
+  if (samples.length < 20) return null;
+  
+  // Try to fit circle to samples
+  return detectCircleFromVerticesImproved(samples, maxDim);
+}
+
+// Improved circle detection from vertices
+function detectCircleFromVerticesImproved(vertices, maxDim) {
+  if (vertices.length < 8) return null;
+  
+  // Try each major axis
+  const axes = [
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, 1)
+  ];
+  
+  let bestResult = null;
+  let bestVariance = Infinity;
+  
+  for (const axis of axes) {
+    const result = fitCircleOnAxis(vertices, axis, vertices[0]);
+    if (result && result.variance < bestVariance) {
+      bestVariance = result.variance;
+      bestResult = result;
+    }
+  }
+  
+  // Accept if variance is reasonable (within 20% of radius)
+  if (bestResult && bestResult.variance < bestResult.radius * 0.2) {
+    return bestResult;
+  }
+  
+  return null;
+}
+
+// Fallback: collect nearby vertices and try circle fit
+function detectCircleFromNearbyVertices(clickPoint, mesh, maxDim) {
+  const geometry = mesh.geometry;
+  const positionAttr = geometry.getAttribute('position');
+  
+  const searchRadius = maxDim * 0.25;
+  const inverseMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+  const localClickPoint = clickPoint.clone().applyMatrix4(inverseMatrix);
+  
   const nearbyVertices = [];
   for (let i = 0; i < positionAttr.count; i++) {
     const vertex = new THREE.Vector3(
@@ -755,15 +987,12 @@ function detectCircularFeature(clickPoint, intersection) {
     }
   }
   
-  if (nearbyVertices.length < 8) {
-    // Try with larger search radius
-    return detectCircleFromVertices(clickPoint, nearbyVertices, maxDim * 0.25);
-  }
+  if (nearbyVertices.length < 10) return null;
   
-  return detectCircleFromVertices(clickPoint, nearbyVertices, searchRadius);
+  return detectCircleFromVerticesImproved(nearbyVertices, maxDim);
 }
 
-// Detect circle from a set of vertices
+// Detect circle from a set of vertices (legacy - kept for compatibility)
 function detectCircleFromVertices(clickPoint, vertices, searchRadius) {
   if (vertices.length < 6) return null;
   
