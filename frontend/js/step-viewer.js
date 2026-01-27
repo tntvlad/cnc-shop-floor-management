@@ -165,14 +165,14 @@ async function initThreeJsViewer(container, file) {
       throw new Error('OrbitControls not loaded');
     }
     
-    // Load occt-import-js for STEP parsing
+    // Load occt-import-js for STEP/IGES parsing
     if (!window.occtimportjs) {
-      updateStatus('Loading STEP parser (first load may take a moment)...');
+      updateStatus('Loading 3D parser (first load may take a moment)...');
       await loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.12/dist/occt-import-js.js');
     }
     
     // Wait for WASM to initialize
-    updateStatus('Initializing STEP parser...');
+    updateStatus('Initializing 3D parser...');
     const occt = await window.occtimportjs();
     
     // Read file
@@ -180,16 +180,20 @@ async function initThreeJsViewer(container, file) {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = new Uint8Array(arrayBuffer);
     
-    // Parse STEP file (v0.0.12 API takes only 1 argument)
-    updateStatus('Parsing STEP file...');
-    const result = occt.ReadStepFile(fileBuffer);
+    // Determine file type
+    const fileName = file.name.toLowerCase();
+    const isIges = fileName.endsWith('.igs') || fileName.endsWith('.iges');
+    
+    // Parse file based on type
+    updateStatus(isIges ? 'Parsing IGES file...' : 'Parsing STEP file...');
+    const result = isIges ? occt.ReadIgesFile(fileBuffer) : occt.ReadStepFile(fileBuffer);
     
     if (!result.success) {
-      throw new Error('Failed to parse STEP file - file may be corrupted or unsupported format');
+      throw new Error(`Failed to parse ${isIges ? 'IGES' : 'STEP'} file - file may be corrupted or unsupported format`);
     }
     
     if (!result.meshes || result.meshes.length === 0) {
-      throw new Error('No geometry found in STEP file');
+      throw new Error(`No geometry found in ${isIges ? 'IGES' : 'STEP'} file`);
     }
     
     updateStatus('Building 3D scene...');
