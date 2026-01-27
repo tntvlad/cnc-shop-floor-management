@@ -4,6 +4,9 @@ let selectedCustomer = null;
 
 let allMaterials = [];
 
+// Customer extracted from spreadsheet import
+let importedCustomerName = null;
+
 // Category color system (shared with materials-admin)
 const categoryColorsOrder = JSON.parse(localStorage.getItem('materialCategoryColors') || '{}');
 const defaultCategoriesOrder = [
@@ -668,6 +671,9 @@ function handleSpreadsheetFile(event) {
         return;
       }
       
+      // Reset imported customer name
+      importedCustomerName = null;
+      
       // Find the header row (look for row containing "Descriere" or similar keywords)
       let headerRowIdx = 0;
       for (let i = 0; i < Math.min(rawData.length, 20); i++) {
@@ -707,6 +713,12 @@ function handleSpreadsheetFile(event) {
         headers.forEach((header, idx) => {
           row[header] = values[idx] !== undefined ? String(values[idx]).trim() : '';
         });
+        
+        // Extract customer name from first row with "Client" column
+        if (row.customer && !importedCustomerName) {
+          importedCustomerName = row.customer;
+          console.log('Extracted customer from spreadsheet:', importedCustomerName);
+        }
         
         // Get part name from descriere or first column
         if (!row.part_name && row.description) {
@@ -1170,7 +1182,59 @@ function handleImportParts() {
   });
 
   closeImportPartsModal();
-  alert(`Imported ${importedCount} parts successfully!`);
+  
+  // Auto-fill customer from spreadsheet import
+  if (importedCustomerName) {
+    autoFillCustomerFromImport(importedCustomerName);
+  }
+  
+  alert(`Imported ${importedCount} parts successfully!${importedCustomerName ? '\nCustomer: ' + importedCustomerName : ''}`);
+}
+
+// Auto-fill customer search field and try to match existing customer
+function autoFillCustomerFromImport(customerName) {
+  if (!customerName) return;
+  
+  const searchInput = document.getElementById('customer-search');
+  if (!searchInput) return;
+  
+  // Set the search value
+  searchInput.value = customerName;
+  
+  // Try to find a matching customer from the loaded customers
+  const normalizedImport = customerName.toLowerCase().trim();
+  const matchingCustomer = allCustomers.find(c => {
+    const companyName = (c.company_name || '').toLowerCase().trim();
+    // Exact match or contains the imported name
+    return companyName === normalizedImport || 
+           companyName.includes(normalizedImport) || 
+           normalizedImport.includes(companyName);
+  });
+  
+  if (matchingCustomer) {
+    // Auto-select the matching customer
+    selectCustomer(matchingCustomer.id, matchingCustomer.company_name, matchingCustomer.email, matchingCustomer.phone || '');
+    console.log('Auto-selected matching customer:', matchingCustomer.company_name);
+  } else {
+    // No match found - show a message and open the dropdown
+    console.log('No matching customer found for:', customerName);
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    
+    // Show the dropdown with suggestion to create customer
+    const dropdown = document.getElementById('customer-dropdown');
+    if (dropdown) {
+      dropdown.innerHTML = `
+        <div class="customer-option" style="color: #666; background: #fff3cd; padding: 1rem;">
+          <div style="font-weight: 600;">No matching customer found for:</div>
+          <div style="color: #333; margin: 0.5rem 0;">"${escapeHtml(customerName)}"</div>
+          <div style="font-size: 0.85em; color: #856404;">
+            Create a new customer with this name or search for an existing one.
+          </div>
+        </div>
+      `;
+      dropdown.classList.add('active');
+    }
+  }
 }
 
 function addPartField() {
