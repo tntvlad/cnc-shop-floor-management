@@ -122,7 +122,10 @@ async function openStepViewer(fileId, filename) {
     if (!response.ok) throw new Error('Failed to load file');
     
     const blob = await response.blob();
-    const file = new File([blob], filename || 'model.step', { type: 'application/step' });
+    const isIges = filename && (filename.toLowerCase().endsWith('.igs') || filename.toLowerCase().endsWith('.iges'));
+    const mimeType = isIges ? 'application/iges' : 'application/step';
+    const defaultName = isIges ? 'model.igs' : 'model.step';
+    const file = new File([blob], filename || defaultName, { type: mimeType });
     
     // Initialize Three.js viewer
     await initThreeJsViewer(content, file);
@@ -772,11 +775,11 @@ function loadScript(src) {
   });
 }
 
-// Check if file is a STEP file
+// Check if file is a STEP or IGES file (supported CAD formats)
 function isStepFile(filename) {
   if (!filename) return false;
   const ext = filename.toLowerCase();
-  return ext.endsWith('.step') || ext.endsWith('.stp');
+  return ext.endsWith('.step') || ext.endsWith('.stp') || ext.endsWith('.igs') || ext.endsWith('.iges');
 }
 
 // Make functions globally available

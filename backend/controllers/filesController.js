@@ -145,13 +145,13 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['.pdf', '.dxf', '.nc', '.txt'];
+  const allowedTypes = ['.pdf', '.dxf', '.nc', '.txt', '.step', '.stp', '.igs', '.iges', '.stl', '.3mf'];
   const ext = path.extname(file.originalname).toLowerCase();
   
   if (allowedTypes.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF, DXF, and NC files are allowed'));
+    cb(new Error('File type not allowed. Supported: PDF, DXF, NC, TXT, STEP, STP, IGS, IGES, STL, 3MF'));
   }
 };
 
