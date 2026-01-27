@@ -932,8 +932,8 @@ function renderAdminMachines(filter = '') {
   if (filter) {
     const lowerFilter = filter.toLowerCase();
     filtered = machinesData.filter(m => 
-      (m.name || '').toLowerCase().includes(lowerFilter) ||
-      (m.type || '').toLowerCase().includes(lowerFilter)
+      (m.machine_name || '').toLowerCase().includes(lowerFilter) ||
+      (m.machine_type || '').toLowerCase().includes(lowerFilter)
     );
   }
   
@@ -951,8 +951,8 @@ function renderAdminMachines(filter = '') {
   
   tbody.innerHTML = filtered.map(m => `
     <tr>
-      <td><strong>${escapeHtml(m.name || '')}</strong></td>
-      <td>${escapeHtml((m.type || '-').replace(/_/g, ' '))}</td>
+      <td><strong>${escapeHtml(m.machine_name || '')}</strong></td>
+      <td>${escapeHtml((m.machine_type || '-').replace(/_/g, ' '))}</td>
       <td><span class="status-badge ${statusColors[m.status] || ''}">${(m.status || 'unknown').replace(/_/g, ' ').toUpperCase()}</span></td>
       <td>${escapeHtml(m.location || '-')}</td>
       <td class="table-actions">
