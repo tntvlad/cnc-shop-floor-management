@@ -124,24 +124,24 @@ async function checkAndAutoCompleteOrder(orderId) {
       return true;
     }
     
-    // If some parts have moved out of pending, set order to in_progress
+    // If some parts have moved out of pending, set order to in-progress
     if (totalInt > 0 && pendingInt < totalInt && completedInt < totalInt) {
       if (currentStatus === 'pending' || currentStatus === 'new') {
         await pool.query(
-          `UPDATE orders SET status = 'in_progress', updated_at = NOW() WHERE id = $1`,
+          `UPDATE orders SET status = 'in-progress', updated_at = NOW() WHERE id = $1`,
           [orderId]
         );
-        console.log(`Order ${orderId} auto-set to in_progress: ${totalInt - pendingInt} parts in progress`);
+        console.log(`Order ${orderId} auto-set to in-progress: ${totalInt - pendingInt} parts in progress`);
       }
     }
     
-    // If order is marked completed but has incomplete parts, set to in_progress
+    // If order is marked completed but has incomplete parts, set to in-progress
     if (currentStatus === 'completed' && completedInt < totalInt) {
       await pool.query(
-        `UPDATE orders SET status = 'in_progress', completed_at = NULL, updated_at = NOW() WHERE id = $1`,
+        `UPDATE orders SET status = 'in-progress', completed_at = NULL, updated_at = NOW() WHERE id = $1`,
         [orderId]
       );
-      console.log(`Order ${orderId} set to in_progress: ${incomplete_count} parts still incomplete`);
+      console.log(`Order ${orderId} set to in-progress: ${completedInt} of ${totalInt} parts completed`);
     }
     
     return false;
