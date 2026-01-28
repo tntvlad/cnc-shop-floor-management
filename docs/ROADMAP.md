@@ -1,7 +1,7 @@
 # CNC Shop Floor Management - Implementation Roadmap
 
-**Date:** December 30, 2025  
-**Status:** Phase 1A, 1B & Customer Management Phase 1 Implemented
+**Date:** January 28, 2026  
+**Status:** Phase 1A, 1B, Customer Management Phase 1, Workflow Monitor & Admin Settings Implemented
 
 ---
 
@@ -28,186 +28,181 @@ Status: ✅ Implemented & Tested | ⌛ In Progress | ⏸️ On Hold | ❌ Abando
 **Actions:**
 - ✅ Create new order (customer info, due date, priority)
 - ✅ Add multiple parts to order
-- ⌛ Each part: name, quantity, material, dimensions, drawings
-- ⌛ Set part priority (urgent, normal, low)
+- ✅ Each part: name, quantity, material selection
+- ✅ Set part priority (urgent, high, normal, low)
+- ✅ Internal Order ID and External Order ID support
+- ✅ Customer selection with folder management
 
 ### Stage 2: MATERIAL PLANNING
 **Who:** Supervisor  
 **Actions:**
-- Review material requirements
-- Check stock levels
-- Mark materials: ✅ Available | 🛒 Need to order | ⏳ Ordered
-- Mark as "Ready for Cutting" when arrived
+- ✅ Material types management with categories
+- ✅ Material stock inventory tracking
+- ✅ Stock in/out transactions with history
+- ✅ Supplier management
+- ✅ Storage location tracking
+- ⌛ Low stock alerts and reorder points
 
 ### Stage 3: MATERIAL CUTTING
 **Who:** Material Cutting Operator  
 **Actions:**
-- View parts needing cutting
-- Start cutting job (timer starts)
-- Mark pieces as cut with notes
-- Complete cutting → moves to "Ready for Programming"
+- ✅ View parts in cutting stage (Workflow Monitor)
+- ✅ Move parts through workflow stages
+- ⌛ Start cutting job (timer starts)
+- ⌛ Mark pieces as cut with notes
 
 ### Stage 4: CAM PROGRAMMING
 **Who:** Supervisor  
 **Actions:**
-- Upload files: 3D model, drawings, CAM files, G-Code
-- Add programming notes
-- Set machine type (Mill/Lathe)
-- Mark as "Ready for Machining"
+- ✅ Parts visible in programming stage
+- ✅ Move parts to next stage when ready
+- ⌛ Upload files: 3D model, drawings, CAM files, G-Code
+- ⌛ Add programming notes
 
 ### Stage 5: JOB ASSIGNMENT
 **Who:** Supervisor  
 **Actions:**
-- View operator workload dashboard
-- Assign job to specific operator
-- Select machine number
-- Set estimated time
-- Add setup instructions
+- ✅ View parts in machining stage
+- ⌛ Assign job to specific operator
+- ⌛ Select machine number
+- ⌛ Set estimated time
+- ⌛ Add setup instructions
 
 ### Stage 6: MACHINING
 **Who:** CNC Operators  
 **Actions:**
-- View assigned jobs queue
-- Start/Pause/Skip job with reasons
-- Upload photos
-- Complete job → goes to QC
+- ✅ View parts in machining stage
+- ✅ Complete stage to move to QC
+- ⌛ Start/Pause/Skip job with reasons
+- ⌛ Upload photos
 
 ### Stage 7: QUALITY CONTROL
 **Who:** QC Inspector  
 **Actions:**
-- Inspect completed jobs
-- ✅ Approve → Completed
-- ❌ Reject → Back to operator
-- 🔄 Rework needed
-- Upload inspection photos
+- ✅ View parts in QC stage
+- ✅ Complete to mark as finished
+- ⌛ Approve/Reject workflow
+- ⌛ Upload inspection photos
 
 ### Stage 8: ORDER COMPLETION
 **Who:** Supervisor  
 **Actions:**
-- View order progress
-- Mark as "Ready to Ship"
-- Add tracking info
-- Mark as "Shipped"
+- ✅ View order progress percentage
+- ✅ Auto-complete order when all parts done
+- ✅ Order folder moved to Archive on completion
+- ⌛ Mark as "Ready to Ship"
+- ⌛ Add tracking info
 
 ---
 
-## ✅ PHASE 1A: CORE FOUNDATION (IMPLEMENTED - TESTING)
+## ✅ PHASE 1A: CORE FOUNDATION (IMPLEMENTED)
 
 ### Database Tables
-- ✅ **orders** - Order management with hold functionality
-- ✅ **parts** - Enhanced with workflow stages, batch support, revision control
-- ✅ **material_stock** - Inventory tracking with min stock alerts
-- ✅ **material_orders** - Material ordering system
-- ✅ **machines** - Machine tracking with availability
-- ✅ **scrap_records** - Scrap tracking by stage
-- ✅ **users** - User management with roles
-- ✅ **time_logs** - Time tracking per stage
+- ✅ **orders** - Order management with customer linking, priority, status tracking
+- ✅ **parts** - Enhanced with workflow stages (pending → cutting → programming → machining → qc → completed)
+- ✅ **material_types** - Material type definitions with categories and aliases
+- ✅ **material_stock** - Inventory tracking with dimensions and locations
+- ✅ **machines** - Machine tracking with name, type, status, location
+- ✅ **users** - User management with permission levels (100-500)
+- ✅ **customers** - Full customer management with contacts
+- ✅ **contact_persons** - Multi-contact system per customer
 
-### Key Features to Test
-1. **Order Creation**
-   - Create order with customer info
-   - Set due date and priority
-   - Add multiple parts to order
+### Implemented Features
+1. **Order Creation & Management**
+   - ✅ Create order with customer selection
+   - ✅ Internal/External order ID support
+   - ✅ Set due date and priority (urgent, high, normal, low)
+   - ✅ Add multiple parts to order
+   - ✅ Customer folder creation on NAS
+   - ✅ Order editing (customer, dates, priority)
+   - ✅ Per-part priority settings
 
-2. **Material Management**
-   - View material stock
-   - Check low stock alerts
-   - Create material orders
-   - Track material status
+2. **Workflow Monitor (Kanban Board)**
+   - ✅ Visual kanban board with 6 stages
+   - ✅ Drag-and-drop part movement
+   - ✅ Complete button to advance stages
+   - ✅ Hold/Resume functionality
+   - ✅ Part details popup
 
-3. **Part Workflow**
-   - Stage transitions (material_planning → cutting → programming → machining)
-   - Hold/pause functionality
-   - Drawing revision control
-   - Scrap recording
+3. **Auto-Status Updates**
+   - ✅ Order auto-sets to "in-progress" when parts move from pending
+   - ✅ Order auto-completes when all parts reach completed
+   - ✅ Workflow-based progress percentage (weighted by stage)
 
 4. **Machine Tracking**
-   - View machine status
-   - Track current jobs
-   - Machine availability
+   - ✅ Add/Edit/Delete machines
+   - ✅ Machine type, status, location fields
+   - ✅ Machine list in Admin Settings
 
 ---
 
-## ✅ PHASE 1B: CRITICAL OPERATIONS (IMPLEMENTED - TESTING)
+## ✅ PHASE 1B: ADMIN SETTINGS (IMPLEMENTED)
 
-### Enhanced Features
-- ✅ **Batch splitting** - Split large orders across operators
-- ✅ **Setup vs Run time** - Separate time estimates
-- ✅ **Priority scoring** - Auto-calculate job priority
-- ✅ **Part dependencies** - Track assembly requirements
-- ✅ **Hold functionality** - Pause orders/parts with reasons
+### Admin Settings Dashboard
+- ✅ **Users Tab** - Create, view, delete users with permission levels
+- ✅ **Customers Tab** - Full customer management (link to customers page)
+- ✅ **Materials Tab** - Material types with categories, aliases, density
+- ✅ **Machines Tab** - Machine management with type, status, location
+- ✅ **Tools Tab** - Placeholder for future tool management
 
-### Key Features to Test
-1. **Batch Management**
-   - Split part into multiple batches
-   - Track quantity per batch
-   - Link batches together
+### Git/Version Control Integration
+- ✅ Git status checking
+- ✅ Pull updates from repository
+- ✅ Restart services
+- ✅ Check for new releases
 
-2. **Time Estimation**
-   - Set setup time and run time per piece
-   - Track actual vs estimated
-   - Calculate total time
-
-3. **Priority System**
-   - Auto-calculate priority scores
-   - Factor in due dates and material status
-   - Display priority order
-
-4. **Dependencies**
-   - Create part dependencies
-   - Enforce completion order
-   - Visual dependency chain
+### Database Management
+- ✅ Backup database to SQL file
+- ✅ Restore database from backup
 
 ---
 
-## 🧪 TESTING CHECKLIST - PHASE 1A
+## ✅ MATERIALS MANAGEMENT (IMPLEMENTED)
 
-### Test 1: Order & Parts Management
-- [ ] Create new order with customer details
-- [ ] Add 3 parts to the order
-- [ ] View order progress
-- [ ] Edit part details
-- [ ] Delete a part
-- [ ] Put order on hold
-- [ ] Resume order
+### Material Types
+- ✅ Create material types with name, category, density
+- ✅ Alias support for equivalent material names
+- ✅ Category organization (steel, aluminum, plastic, etc.)
+- ✅ Search and filter materials
 
-### Test 2: Material Stock & Orders
-- [ ] View current material stock
-- [ ] Add new material type
-- [ ] Update stock quantity
-- [ ] Check low stock alerts
-- [ ] Create material order
-- [ ] Mark material as delivered
-- [ ] View material order history
+### Material Inventory
+- ✅ Track stock with dimensions (diameter, width, height, length)
+- ✅ Shape types (round bar, square bar, plate, tube, etc.)
+- ✅ Supplier tracking
+- ✅ Storage location management
+- ✅ Stock In/Out transactions with history
+- ✅ Unit cost tracking
 
-### Test 3: Workflow Stage Transitions
-- [ ] Move part from planning → cutting
-- [ ] Assign cutting operator
-- [ ] Start cutting (timer)
-- [ ] Complete cutting
-- [ ] Move to programming
-- [ ] Upload files
-- [ ] Mark ready for machining
+---
 
-### Test 4: Machine Management
-- [ ] View all machines
-- [ ] Check machine availability
-- [ ] Assign job to machine
-- [ ] Update machine status
-- [ ] Track current operator
+## 🧪 CURRENT TESTING CHECKLIST
 
-### Test 5: Scrap & Hold Features
-- [ ] Record scrap at cutting stage
-- [ ] Update part quantity
-- [ ] Put part on hold
-- [ ] Resume part
-- [ ] View scrap history
+### ✅ Completed Tests
+- [x] Create new order with customer selection
+- [x] Add parts to order
+- [x] View order list with progress percentage
+- [x] Edit order details (customer, dates, priority)
+- [x] Delete orders
+- [x] Workflow Monitor - move parts through stages
+- [x] Auto-update order status to in-progress
+- [x] Auto-complete order when all parts done
+- [x] Machine management (add, edit, delete)
+- [x] Material types management
+- [x] User management
+- [x] Customer management
 
-### Test 6: Time Tracking
-- [ ] Start time log for cutting
-- [ ] Stop time log
-- [ ] View time log history
-- [ ] Calculate actual vs estimated
+### ⌛ Tests In Progress
+- [ ] Material stock tracking (full workflow)
+- [ ] Stock in/out transactions
+- [ ] Hold/Resume parts
+- [ ] Part details view
+
+### 📋 Pending Tests
+- [ ] Time tracking for parts
+- [ ] File uploads for parts
+- [ ] Operator assignment
+- [ ] Scrap recording
+- [ ] Batch splitting
 
 ---
 
@@ -308,73 +303,110 @@ draft → pending_payment → pending_approval → approved → in_production �
 
 ---
 
-## 📅 PHASE 2: ENHANCED OPERATIONS (PLANNED)
+## 📅 PHASE 2: ENHANCED WORKFLOW (PLANNED - NEXT)
 
-### Features
-- Operator skills/qualifications matching
-- First article inspection workflow
-- Real-time notifications system
-- Advanced part dependencies
-- Tool management
+### Operator Features
+- [ ] Operator assignment to parts/machines
+- [ ] Operator workload dashboard
+- [ ] Skills/qualifications matching
+- [ ] Personal job queue view
+
+### Time Tracking
+- [ ] Start/Stop timer for each workflow stage
+- [ ] Setup time vs Run time separation
+- [ ] Actual vs Estimated time comparison
+- [ ] Time log history per part
+
+### File Management
+- [ ] Upload files to parts (3D models, drawings, G-code)
+- [ ] File viewer integration (STEP files)
+- [ ] Revision control for drawings
+- [ ] Link files to specific workflow stages
+
+### Quality Control
+- [ ] Approve/Reject workflow with notes
+- [ ] Inspection photos upload
+- [ ] Rework tracking
+- [ ] First article inspection checklist
 
 ---
 
 ## 📅 PHASE 3: ADVANCED FEATURES (PLANNED)
 
-### Features
-- Cost tracking and profit margins
-- Partial shipments
-- Performance analytics
-- Utilization reports
-- Customer portal (read-only)
+### Scrap & Rework
+- [ ] Record scrap at any stage
+- [ ] Scrap reason tracking
+- [ ] Quantity adjustments
+- [ ] Scrap cost calculation
+
+### Reporting & Analytics
+- [ ] Order completion reports
+- [ ] Machine utilization reports
+- [ ] Operator performance metrics
+- [ ] On-time delivery tracking
+- [ ] Customer revenue analysis
+
+### Shipping & Completion
+- [ ] Mark orders ready to ship
+- [ ] Tracking number entry
+- [ ] Shipping label generation
+- [ ] Delivery confirmation
 
 ---
 
 ## 📅 PHASE 4: INTEGRATION & MOBILE (PLANNED)
 
-### Features
-- Mobile-optimized operator interface
-- Barcode/QR scanning
-- Voice notes for operators
-- External system integrations
-- Real-time dashboard updates
+### Mobile Interface
+- [ ] Mobile-optimized operator interface
+- [ ] Barcode/QR scanning for parts
+- [ ] Voice notes for operators
+- [ ] Photo upload from mobile
+
+### External Integrations
+- [ ] Invoice system integration
+- [ ] Email notifications
+- [ ] Customer portal (read-only)
+- [ ] ERP system connector
 
 ---
 
-## 🎯 CURRENT FOCUS: TEST PHASE 1A
+## 🎯 CURRENT FOCUS
 
-**Next Steps:**
-1. **Start backend and frontend** ✅ DONE
-2. **Load test data** ✅ DONE
-3. **Login with test user** → NEXT
-4. **Run through Test 1: Order & Parts Management**
-5. **Document any bugs or issues**
-6. **Fix critical issues**
-7. **Move to Test 2: Material Stock**
+**Active Work:**
+- Workflow Monitor refinement
+- Order progress tracking
+- Machine management in Admin Settings
 
-**Default Test User:**
-- Employee ID: `ADMIN001`
-- Password: Check test-data.sql or create new user
+**Next Priority:**
+1. Time tracking implementation
+2. File upload for parts
+3. Operator assignment workflow
+4. QC approve/reject flow
+
+**Recent Fixes (January 2026):**
+- ✅ Fixed order auto-status update (pending → in-progress)
+- ✅ Fixed progress percentage calculation (workflow-weighted)
+- ✅ Fixed machine creation/deletion
+- ✅ Fixed status consistency (in-progress vs in_progress)
+- ✅ Removed Manage Machines from Supervisor page (moved to Admin)
 
 ---
 
-## 📝 TESTING NOTES
+## 📝 KNOWN ISSUES
 
-### Bugs Found
-- [ ] List bugs here as discovered
+### To Fix
+- [ ] Edit machine functionality not implemented
+- [ ] Material stock low alerts not shown
+- [ ] Part details modal needs more info
 
-### Features Working
-- [ ] List confirmed working features
-
-### Issues/Improvements
-- [ ] List improvements needed
+### Improvements Needed
+- [ ] Add bulk part operations
+- [ ] Improve CSV import for parts
+- [ ] Add search to Workflow Monitor
 
 ---
 
 ## 🔗 RELATED DOCUMENTS
 
-- [START_HERE.md](../START_HERE.md) - Quick start guide
-- [SETUP_GUIDE.md](../SETUP_GUIDE.md) - Installation instructions
-- [ROLE_SYSTEM.md](../ROLE_SYSTEM.md) - User permissions
-- [roadmap.txt](roadmap.txt) - Original detailed roadmap
-- [roadmap2_sugestion.txt](roadmap2_sugestion.txt) - Enhancement suggestions
+- [SETUP_GUIDE.md](SETUP_GUIDE.md) - Installation instructions
+- [ROLE_SYSTEM.md](ROLE_SYSTEM.md) - User permissions and levels
