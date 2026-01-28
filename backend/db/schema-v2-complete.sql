@@ -134,8 +134,8 @@ CREATE TABLE orders (
     external_order_id VARCHAR(100), -- Customer's reference/PO number
     due_date TIMESTAMP,
     priority VARCHAR(20) DEFAULT 'normal', -- urgent, normal, low
-    status VARCHAR(50) DEFAULT 'material_planning',
-    -- Status flow: material_planning → cutting → programming → machining → qc → completed → shipped
+    status VARCHAR(50) DEFAULT 'pending',
+    -- Status flow: pending → in-progress → paused → completed → cancelled
     total_parts INTEGER DEFAULT 0,
     completed_parts INTEGER DEFAULT 0,
     
