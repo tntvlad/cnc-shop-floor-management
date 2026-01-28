@@ -177,7 +177,10 @@ function renderOrders(orders) {
     const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '—';
     // For completed orders, calculate late based on completed_at, not today
     const dueInfo = getDueInfo(order.due_date, order.status === 'completed' ? order.completed_at : null);
-    const progress = order.part_count > 0 ? Math.round((order.completed_parts / order.part_count) * 100) : 0;
+    // Calculate progress based on workflow stages (weighted) or fall back to completed parts
+    const progress = order.part_count > 0 
+      ? Math.round((order.workflow_progress_sum || 0) / (order.part_count * 100) * 100) 
+      : 0;
     const priority = getPriorityMeta(order);
     const isOverdue = dueInfo.isOverdue;
     const overdueClass = isOverdue ? 'order-overdue' : '';

@@ -84,23 +84,31 @@ async function moveOrderToArchive(orderId) {
 // Helper function to check if all parts are completed and auto-update order status
 async function checkAndAutoCompleteOrder(orderId) {
   try {
-    // Get count of incomplete parts for this order
+    // Get count of parts in each category for this order
     const result = await pool.query(
       `SELECT 
-        COUNT(*) FILTER (WHERE status != 'completed' AND workflow_stage != 'completed') as incomplete_count,
+        COUNT(*) FILTER (WHERE workflow_stage = 'completed' OR status = 'completed') as completed_count,
+        COUNT(*) FILTER (WHERE workflow_stage = 'pending' AND (status IS NULL OR status = 'pending')) as pending_count,
         COUNT(*) as total_count
        FROM parts 
        WHERE order_id = $1`,
       [orderId]
     );
     
-    const { incomplete_count, total_count } = result.rows[0];
+    const { completed_count, pending_count, total_count } = result.rows[0];
+    const completedInt = parseInt(completed_count);
+    const pendingInt = parseInt(pending_count);
+    const totalInt = parseInt(total_count);
+    
+    // Get current order status
+    const orderResult = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+    if (orderResult.rows.length === 0) return false;
+    
+    const currentStatus = orderResult.rows[0].status;
     
     // If all parts are completed (and there are parts), update order to completed
-    if (parseInt(total_count) > 0 && parseInt(incomplete_count) === 0) {
-      // Check if order is already completed
-      const existingOrder = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
-      const wasAlreadyCompleted = existingOrder.rows.length > 0 && existingOrder.rows[0].status === 'completed';
+    if (totalInt > 0 && completedInt === totalInt) {
+      const wasAlreadyCompleted = currentStatus === 'completed';
       
       await pool.query(
         `UPDATE orders SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1 AND status != 'completed'`,
@@ -116,9 +124,19 @@ async function checkAndAutoCompleteOrder(orderId) {
       return true;
     }
     
+    // If some parts have moved out of pending, set order to in_progress
+    if (totalInt > 0 && pendingInt < totalInt && completedInt < totalInt) {
+      if (currentStatus === 'pending' || currentStatus === 'new') {
+        await pool.query(
+          `UPDATE orders SET status = 'in_progress', updated_at = NOW() WHERE id = $1`,
+          [orderId]
+        );
+        console.log(`Order ${orderId} auto-set to in_progress: ${totalInt - pendingInt} parts in progress`);
+      }
+    }
+    
     // If order is marked completed but has incomplete parts, set to in_progress
-    const orderResult = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
-    if (orderResult.rows.length > 0 && orderResult.rows[0].status === 'completed' && parseInt(incomplete_count) > 0) {
+    if (currentStatus === 'completed' && completedInt < totalInt) {
       await pool.query(
         `UPDATE orders SET status = 'in_progress', completed_at = NULL, updated_at = NOW() WHERE id = $1`,
         [orderId]
@@ -707,10 +725,8 @@ exports.setWorkflowStage = async (req, res) => {
       ['part', partId, 'workflow_stage_changed', `Moved from ${previousStage} to ${stage}. ${notes || ''}`]
     );
 
-    // Check if all parts are completed and auto-complete order
-    if (stage === 'completed') {
-      await checkAndAutoCompleteOrder(orderId);
-    }
+    // Check and auto-update order status (in_progress or completed)
+    await checkAndAutoCompleteOrder(orderId);
 
     res.status(200).json({
       success: true,
@@ -768,10 +784,8 @@ exports.completeWorkflowStage = async (req, res) => {
       ['part', partId, `completed_${currentStage}`, `${currentStage} stage completed. ${notes || ''}`]
     );
 
-    // Check if all parts are completed and auto-complete order
-    if (nextStage === 'completed') {
-      await checkAndAutoCompleteOrder(orderId);
-    }
+    // Check and auto-update order status (in_progress or completed)
+    await checkAndAutoCompleteOrder(orderId);
 
     res.status(200).json({
       success: true,

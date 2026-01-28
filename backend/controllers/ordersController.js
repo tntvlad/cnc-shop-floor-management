@@ -168,7 +168,15 @@ async function getOrders(req, res) {
         c.cif,
         c.trade_register_number,
         COUNT(p.id) as part_count,
-        SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed_parts
+        SUM(CASE WHEN p.workflow_stage = 'completed' OR p.status = 'completed' THEN 1 ELSE 0 END) as completed_parts,
+        SUM(CASE 
+          WHEN p.workflow_stage = 'completed' THEN 100
+          WHEN p.workflow_stage = 'qc' THEN 80
+          WHEN p.workflow_stage = 'machining' THEN 60
+          WHEN p.workflow_stage = 'programming' THEN 40
+          WHEN p.workflow_stage = 'cutting' THEN 20
+          ELSE 0 
+        END) as workflow_progress_sum
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
       LEFT JOIN parts p ON o.id = p.order_id
