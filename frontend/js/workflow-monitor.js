@@ -217,7 +217,6 @@ async function movePartToStage(partId, newStage) {
       return;
     }
 
-    showSuccess(`${part.part_name} moved to ${newStage}`);
     loadWorkflow();
   } catch (error) {
     console.error('Error moving part:', error);
@@ -254,7 +253,6 @@ async function completeStage(partId, stage) {
       return;
     }
 
-    showSuccess(`${part.part_name} moved to next stage`);
     loadWorkflow();
   } catch (error) {
     console.error('Error completing stage:', error);
