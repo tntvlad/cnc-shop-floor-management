@@ -225,6 +225,7 @@ app.get('/api/parts/statistics', authMiddleware, partsController.getStatistics);
 app.get('/api/parts/:id', authMiddleware, partsController.getPart);
 app.post('/api/parts', authMiddleware, requireSupervisor(), validateRequest(schemas.createPart), partsController.createPart);
 app.put('/api/parts/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updatePart), partsController.updatePart);
+app.patch('/api/parts/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updatePart), partsController.updatePart);
 app.put('/api/parts/:id/folder', authMiddleware, requireSupervisor(), validateRequest(schemas.updateFolder), partsController.updateFileFolder);
 app.delete('/api/parts/:id', authMiddleware, requireSupervisor(), partsController.deletePart);
 app.post('/api/parts/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignPart), partsController.assignPart);

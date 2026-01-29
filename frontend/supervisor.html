@@ -537,6 +537,107 @@
       float: right;
       margin-top: -40px;
     }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #eee;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: white;
+      opacity: 0.8;
+    }
+
+    .modal-close:hover {
+      opacity: 1;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .part-details-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: #555;
+    }
+
+    .detail-value {
+      color: #333;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -660,9 +761,68 @@
     </div>
   </main>
 
+  <!-- Part Details Modal -->
+  <div id="partDetailsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 id="partModalTitle">Part Details</h3>
+        <button class="modal-close" onclick="closePartModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="part-details-grid">
+          <div class="detail-row">
+            <span class="detail-label">Part Name:</span>
+            <span id="modalPartName" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Order:</span>
+            <span id="modalPartOrder" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Quantity:</span>
+            <span id="modalPartQty" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Material:</span>
+            <span id="modalPartMaterial" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Workflow Stage:</span>
+            <span id="modalPartStage" class="detail-value">-</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Machine:</span>
+            <span id="modalPartMachine" class="detail-value">-</span>
+          </div>
+        </div>
+        
+        <hr style="margin: 1rem 0;">
+        
+        <div class="form-group">
+          <label for="modalTargetTime">Target Time (minutes):</label>
+          <input type="number" id="modalTargetTime" class="form-control" min="0" placeholder="Enter estimated time">
+        </div>
+        
+        <div class="form-group">
+          <label for="modalPriority">Priority Order:</label>
+          <input type="number" id="modalPriority" class="form-control" min="1" placeholder="Queue position (1 = first)">
+        </div>
+        
+        <div class="form-group">
+          <label for="modalNotes">Notes:</label>
+          <textarea id="modalNotes" class="form-control" rows="3" placeholder="Add notes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closePartModal()">Cancel</button>
+        <button class="btn btn-primary" id="savePartBtn" onclick="savePartChanges()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config.js?v=20251226"></script>
   <script src="js/auth.js?v=20251226"></script>
   <script src="js/api.js?v=20251226"></script>
-  <script src="js/supervisor.js?v=20251226"></script>
+  <script src="js/supervisor.js?v=20260129"></script>
 </body>
 </html>

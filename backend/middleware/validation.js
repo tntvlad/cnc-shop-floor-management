@@ -42,8 +42,11 @@ const schemas = {
     material: Joi.string(),
     quantity: Joi.number().integer().min(1),
     treatment: Joi.string().allow('', null),
-    targetTime: Joi.number().integer().min(1),
+    targetTime: Joi.number().integer().min(0).allow(null),
+    target_time: Joi.number().integer().min(0).allow(null),
     orderPosition: Joi.number().integer().min(1),
+    priority: Joi.number().integer().min(0).allow(null),
+    operator_notes: Joi.string().max(2000).allow('', null),
     completed: Joi.boolean(),
     locked: Joi.boolean(),
     fileFolder: Joi.string().trim().max(500).allow('', null)

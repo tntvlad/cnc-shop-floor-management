@@ -5,6 +5,7 @@ let machines = [];
 let allParts = [];
 let draggedPartId = null;
 let viewMode = 'cards'; // 'cards' or 'gantt'
+let selectedPart = null; // Currently selected part for modal
 
 // Time scale constants (in minutes)
 const TIME_SCALE = {
@@ -12,8 +13,8 @@ const TIME_SCALE = {
   MEDIUM: 120,    // 30-120 min = medium
   // > 120 min = long
   PIXELS_PER_MINUTE: 1,  // Scale factor for vertical height
-  MIN_HEIGHT: 50,        // Minimum card height
-  MAX_HEIGHT: 300        // Max height in pixels
+  MIN_HEIGHT: 60,        // Minimum card height
+  MAX_HEIGHT: 250        // Max height in pixels
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -365,7 +366,7 @@ function getStageColor(stage) {
 }
 
 function setupMachineDragDrop() {
-  // Setup drag start for all part chips
+  // Setup drag start and click for all part chips
   document.querySelectorAll('.part-chip').forEach(chip => {
     chip.addEventListener('dragstart', (e) => {
       draggedPartId = parseInt(chip.getAttribute('data-part-id'));
@@ -376,6 +377,14 @@ function setupMachineDragDrop() {
     chip.addEventListener('dragend', (e) => {
       chip.classList.remove('dragging');
       draggedPartId = null;
+    });
+
+    // Click to open part details modal
+    chip.addEventListener('click', (e) => {
+      // Don't open modal if dragging
+      if (chip.classList.contains('dragging')) return;
+      const partId = parseInt(chip.getAttribute('data-part-id'));
+      openPartModal(partId);
     });
   });
 
@@ -409,6 +418,86 @@ function setupMachineDragDrop() {
     });
   });
 }
+
+// =====================================
+// PART DETAILS MODAL
+// =====================================
+
+function openPartModal(partId) {
+  const part = allParts.find(p => p.id === partId);
+  if (!part) return;
+
+  selectedPart = part;
+
+  // Populate modal
+  document.getElementById('partModalTitle').textContent = part.part_name || part.name;
+  document.getElementById('modalPartName').textContent = part.part_name || part.name;
+  document.getElementById('modalPartOrder').textContent = part.order_id ? `Order #${part.order_id}` : '-';
+  document.getElementById('modalPartQty').textContent = part.quantity || '-';
+  document.getElementById('modalPartMaterial').textContent = part.material_type || part.material || '-';
+  document.getElementById('modalPartStage').textContent = (part.workflow_stage || 'pending').toUpperCase();
+  
+  // Machine assignment
+  if (part.machine_type && part.machine_number) {
+    document.getElementById('modalPartMachine').textContent = `${part.machine_type} #${part.machine_number}`;
+  } else {
+    document.getElementById('modalPartMachine').textContent = 'Unassigned';
+  }
+
+  // Editable fields
+  document.getElementById('modalTargetTime').value = part.target_time || part.estimated_time || '';
+  document.getElementById('modalPriority').value = part.priority || part.order_position || '';
+  document.getElementById('modalNotes').value = part.operator_notes || part.notes || '';
+
+  // Show modal
+  document.getElementById('partDetailsModal').style.display = 'flex';
+}
+
+function closePartModal() {
+  document.getElementById('partDetailsModal').style.display = 'none';
+  selectedPart = null;
+}
+
+async function savePartChanges() {
+  if (!selectedPart) return;
+
+  const targetTime = document.getElementById('modalTargetTime').value;
+  const priority = document.getElementById('modalPriority').value;
+  const notes = document.getElementById('modalNotes').value;
+
+  try {
+    const response = await fetch(`${API_URL}/parts/${selectedPart.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify({
+        target_time: targetTime ? parseInt(targetTime) : null,
+        priority: priority ? parseInt(priority) : null,
+        operator_notes: notes
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update part');
+    }
+
+    closePartModal();
+    loadMachineBoard(); // Refresh the board
+  } catch (error) {
+    console.error('Error updating part:', error);
+    alert('Failed to update part: ' + error.message);
+  }
+}
+
+// Close modal on outside click
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('partDetailsModal');
+  if (modal && e.target === modal) {
+    closePartModal();
+  }
+});
 
 async function assignPartToMachine(partId, machineId, machineType, machineNumber) {
   try {
