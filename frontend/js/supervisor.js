@@ -4,6 +4,16 @@ let assignableUsers = [];
 let machines = [];
 let allParts = [];
 let draggedPartId = null;
+let viewMode = 'cards'; // 'cards' or 'gantt'
+
+// Time scale constants (in minutes)
+const TIME_SCALE = {
+  SHORT: 30,      // < 30 min = short
+  MEDIUM: 120,    // 30-120 min = medium
+  // > 120 min = long
+  PIXELS_PER_MINUTE: 2,  // Scale factor for gantt bars
+  MAX_BAR_WIDTH: 300     // Max width in pixels
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   if (!Auth.requireAuth()) return;
@@ -20,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup tab navigation
   setupTabs();
+  setupViewToggle();
 
   // Setup event listeners
   document.getElementById('refreshJobsBtn').addEventListener('click', loadJobs);
@@ -35,6 +46,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-refresh machine board every 15 seconds
   setInterval(loadMachineBoard, 15000);
 });
+
+function setupViewToggle() {
+  const cardBtn = document.getElementById('viewCards');
+  const ganttBtn = document.getElementById('viewGantt');
+  const legend = document.getElementById('timeLegend');
+
+  cardBtn.addEventListener('click', () => {
+    viewMode = 'cards';
+    cardBtn.classList.add('active');
+    ganttBtn.classList.remove('active');
+    legend.style.display = 'none';
+    renderMachineBoard();
+    setupMachineDragDrop();
+  });
+
+  ganttBtn.addEventListener('click', () => {
+    viewMode = 'gantt';
+    ganttBtn.classList.add('active');
+    cardBtn.classList.remove('active');
+    legend.style.display = 'flex';
+    renderMachineBoard();
+    setupMachineDragDrop();
+  });
+}
 
 function setupTabs() {
   const tabBtns = document.querySelectorAll('.tab-btn');
@@ -93,15 +128,24 @@ function renderMachineBoard() {
   // Group parts by machine assignment
   const unassignedParts = allParts.filter(p => !p.machine_type && p.workflow_stage !== 'completed');
   
+  // Calculate total time for each machine's queue
+  // Use target_time (which is estimated_time from DB)
+  const calculateTotalTime = (parts) => {
+    return parts.reduce((sum, p) => sum + (p.target_time || p.estimated_time || 0), 0);
+  };
+  
   // Create unassigned lane first
+  const unassignedTotal = calculateTotalTime(unassignedParts);
   let html = `
     <div class="machine-lane" id="machine-unassigned" data-machine-id="unassigned">
       <div class="machine-header unassigned">
         <h4>📥 Unassigned Parts</h4>
         <div class="machine-status">${unassignedParts.length} parts</div>
       </div>
-      <div class="machine-body">
+      ${viewMode === 'gantt' ? renderTimeScale() : ''}
+      <div class="machine-body ${viewMode === 'gantt' ? 'gantt-body' : ''}">
         ${renderPartsForMachine(unassignedParts)}
+        ${viewMode === 'gantt' && unassignedParts.length > 0 ? `<div class="total-time-indicator">📊 Total: ${formatTime(unassignedTotal)}</div>` : ''}
       </div>
     </div>
   `;
@@ -114,6 +158,7 @@ function renderMachineBoard() {
       p.workflow_stage !== 'completed'
     );
     
+    const totalTime = calculateTotalTime(machineParts);
     const headerClass = machine.machine_type === 'lathe' ? 'lathe' : 'mill';
     const statusClass = machine.status === 'available' ? 'available' : 
                         machine.status === 'maintenance' ? 'maintenance' : 'busy';
@@ -126,10 +171,13 @@ function renderMachineBoard() {
           <h4>${machine.machine_name || `${machine.machine_type} #${machine.machine_number}`}</h4>
           <div class="machine-status ${statusClass}">
             ${statusIcon} ${machine.status || 'available'} • ${machineParts.length} parts
+            ${viewMode === 'gantt' && totalTime > 0 ? `• ⏱️ ${formatTime(totalTime)}` : ''}
           </div>
         </div>
-        <div class="machine-body">
+        ${viewMode === 'gantt' ? renderTimeScale() : ''}
+        <div class="machine-body ${viewMode === 'gantt' ? 'gantt-body' : ''}">
           ${renderPartsForMachine(machineParts)}
+          ${viewMode === 'gantt' && machineParts.length > 0 ? `<div class="total-time-indicator">📊 Queue Total: ${formatTime(totalTime)}</div>` : ''}
         </div>
       </div>
     `;
@@ -138,13 +186,71 @@ function renderMachineBoard() {
   board.innerHTML = html;
 }
 
+function renderTimeScale() {
+  // Create time slots for 8 hours in 1-hour increments
+  let slots = '';
+  for (let i = 0; i < 8; i++) {
+    slots += `<div class="time-slot">${i}h</div>`;
+  }
+  return `<div class="time-scale-header">${slots}</div>`;
+}
+
+function formatTime(minutes) {
+  if (!minutes || minutes === 0) return '0 min';
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+function getTimeClass(minutes) {
+  if (!minutes || minutes === 0) return 'unknown';
+  if (minutes < TIME_SCALE.SHORT) return 'short';
+  if (minutes <= TIME_SCALE.MEDIUM) return 'medium';
+  return 'long';
+}
+
+function getBarWidth(minutes) {
+  if (!minutes || minutes === 0) return 40; // Minimum width
+  const width = minutes * TIME_SCALE.PIXELS_PER_MINUTE;
+  return Math.min(width, TIME_SCALE.MAX_BAR_WIDTH);
+}
+
 function renderPartsForMachine(parts) {
   if (!parts || parts.length === 0) {
     return '<div class="empty-lane">Drop parts here</div>';
   }
 
+  if (viewMode === 'gantt') {
+    return parts.map(part => {
+      const stage = part.workflow_stage || 'pending';
+      const estimatedTime = part.target_time || part.estimated_time || 0;
+      const timeClass = getTimeClass(estimatedTime);
+      const barWidth = getBarWidth(estimatedTime);
+      
+      return `
+        <div class="part-chip gantt" draggable="true" data-part-id="${part.id}">
+          <div class="part-info-section" style="border-color: ${getStageColor(stage)}">
+            <div class="part-chip-name">${part.part_name || part.name}</div>
+            <div class="part-chip-info">
+              <span>Qty: ${part.quantity}</span>
+              <span class="part-chip-stage ${stage}">${stage}</span>
+            </div>
+          </div>
+          <div class="part-time-bar">
+            <div class="time-bar-fill ${timeClass}" style="width: ${barWidth}px;">
+              ${estimatedTime > 0 ? formatTime(estimatedTime) : 'No time set'}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Default card view
   return parts.map(part => {
     const stage = part.workflow_stage || 'pending';
+    const estimatedTime = part.target_time || part.estimated_time || 0;
     return `
       <div class="part-chip" draggable="true" data-part-id="${part.id}">
         <div class="part-chip-name">${part.part_name || part.name}</div>
@@ -154,10 +260,23 @@ function renderPartsForMachine(parts) {
         </div>
         <div class="part-chip-info" style="margin-top: 4px;">
           <span style="color: #999; font-size: 0.75rem;">Order #${part.order_id || '-'}</span>
+          ${estimatedTime > 0 ? `<span style="color: #667eea; font-size: 0.75rem;">⏱️ ${formatTime(estimatedTime)}</span>` : ''}
         </div>
       </div>
     `;
   }).join('');
+}
+
+function getStageColor(stage) {
+  const colors = {
+    machining: '#667eea',
+    programming: '#ffc107',
+    cutting: '#17a2b8',
+    pending: '#6c757d',
+    qc: '#28a745',
+    completed: '#28a745'
+  };
+  return colors[stage] || '#667eea';
 }
 
 function setupMachineDragDrop() {

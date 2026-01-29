@@ -194,6 +194,147 @@
       font-size: 0.9rem;
     }
 
+    /* Time Scale Styles */
+    .time-scale-header {
+      display: flex;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ddd;
+      font-size: 0.7rem;
+      color: #666;
+    }
+
+    .time-slot {
+      flex: 1;
+      text-align: center;
+      padding: 4px 0;
+      border-right: 1px solid #ddd;
+      min-width: 30px;
+    }
+
+    .time-slot:last-child {
+      border-right: none;
+    }
+
+    .time-slot.current {
+      background: #fff3cd;
+    }
+
+    .gantt-body {
+      position: relative;
+      min-height: 200px;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 59px,
+        #eee 59px,
+        #eee 60px
+      );
+    }
+
+    .part-chip.gantt {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 6px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .part-chip.gantt .part-info-section {
+      flex: 0 0 140px;
+      padding: 8px 10px;
+      background: white;
+      border-right: 2px solid currentColor;
+    }
+
+    .part-chip.gantt .part-time-bar {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .time-bar-fill {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+      border-radius: 0 4px 4px 0;
+      min-width: 40px;
+    }
+
+    .time-bar-fill.short { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+    .time-bar-fill.medium { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
+    .time-bar-fill.long { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+    .time-bar-fill.unknown { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
+
+    .time-legend {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 1rem;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+    }
+
+    .legend-color.short { background: #28a745; }
+    .legend-color.medium { background: #ffc107; }
+    .legend-color.long { background: #dc3545; }
+    .legend-color.unknown { background: #6c757d; }
+
+    .view-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .view-toggle button {
+      padding: 6px 14px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .view-toggle button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .view-toggle button:hover:not(.active) {
+      background: #f0f0f0;
+    }
+
+    .total-time-indicator {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 4px;
+      text-align: center;
+    }
+
     .tab-container {
       display: flex;
       gap: 0;
@@ -270,7 +411,22 @@
             <h2>Machine Assignment Board</h2>
             <button class="btn btn-primary" id="refreshMachinesBtn">🔄 Refresh</button>
           </div>
-          <p style="color: #666; margin-bottom: 1rem;">Drag and drop parts to assign them to machines</p>
+          <p style="color: #666; margin-bottom: 0.5rem;">Drag and drop parts to assign them to machines</p>
+          
+          <!-- View Toggle -->
+          <div class="view-toggle">
+            <button id="viewCards" class="active">📋 Card View</button>
+            <button id="viewGantt">📊 Time Scale View</button>
+          </div>
+          
+          <!-- Time Legend -->
+          <div class="time-legend" id="timeLegend" style="display: none;">
+            <span style="font-weight: 600;">Estimated Time:</span>
+            <div class="legend-item"><span class="legend-color short"></span> Short (&lt;30 min)</div>
+            <div class="legend-item"><span class="legend-color medium"></span> Medium (30-120 min)</div>
+            <div class="legend-item"><span class="legend-color long"></span> Long (&gt;120 min)</div>
+            <div class="legend-item"><span class="legend-color unknown"></span> Not Set</div>
+          </div>
           
           <div id="machineBoard" class="machine-board">
             <!-- Machine lanes will be rendered here -->
