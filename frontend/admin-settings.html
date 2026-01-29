@@ -1674,6 +1674,156 @@
         </div>
     </div>
 
+    <!-- Edit Machine Modal -->
+    <div class="modal" id="edit-machine-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Edit Machine</h3>
+                <button class="modal-close" onclick="closeEditMachineModal()">✕</button>
+            </div>
+            
+            <!-- Tabs for Machine Details and Maintenance -->
+            <div class="modal-tabs" style="display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 1rem;">
+                <button type="button" class="tab-btn active" id="tab-machine-details" onclick="switchMachineTab('details')" style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; border-bottom: 2px solid #667eea; margin-bottom: -2px; font-weight: 600; color: #667eea;">Machine Details</button>
+                <button type="button" class="tab-btn" id="tab-machine-maintenance" onclick="switchMachineTab('maintenance')" style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; color: #64748b;">Maintenance History</button>
+            </div>
+
+            <!-- Machine Details Tab -->
+            <div id="machine-details-tab" class="tab-content">
+                <form id="editMachineForm" onsubmit="saveEditMachine(event)">
+                    <input type="hidden" id="edit-machine-id">
+                    <div class="form-group">
+                        <label for="edit-machine-name">Machine Name *</label>
+                        <input type="text" id="edit-machine-name" required>
+                    </div>
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="edit-machine-type">Type</label>
+                            <select id="edit-machine-type">
+                                <option value="">-- Select Type --</option>
+                                <option value="cnc_mill">CNC Mill</option>
+                                <option value="cnc_lathe">CNC Lathe</option>
+                                <option value="laser_cutter">Laser Cutter</option>
+                                <option value="plasma_cutter">Plasma Cutter</option>
+                                <option value="3d_printer">3D Printer</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-machine-model">Model</label>
+                            <input type="text" id="edit-machine-model" placeholder="e.g. Haas VF-2">
+                        </div>
+                    </div>
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="edit-machine-status">Status</label>
+                            <select id="edit-machine-status">
+                                <option value="available">Available</option>
+                                <option value="in_use">In Use</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="offline">Offline</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-machine-location">Location</label>
+                            <input type="text" id="edit-machine-location" placeholder="e.g. Hall A, Bay 3">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-machine-notes">Notes</label>
+                        <textarea id="edit-machine-notes" rows="2" placeholder="Additional notes..."></textarea>
+                    </div>
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="edit-machine-last-maintenance">Last Maintenance</label>
+                            <input type="date" id="edit-machine-last-maintenance">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-machine-next-maintenance">Next Maintenance Due</label>
+                            <input type="date" id="edit-machine-next-maintenance">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-cancel" onclick="closeEditMachineModal()">Cancel</button>
+                        <button type="submit" class="btn-submit">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Maintenance History Tab -->
+            <div id="machine-maintenance-tab" class="tab-content" style="display: none;">
+                <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <h4 style="margin: 0;">Maintenance Records</h4>
+                    <button type="button" class="btn btn-primary" onclick="openAddMaintenanceModal()">+ Add Maintenance</button>
+                </div>
+                <div id="maintenance-records-list" style="max-height: 300px; overflow-y: auto;">
+                    <p style="color: #64748b; text-align: center;">Loading maintenance records...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Maintenance Record Modal -->
+    <div class="modal" id="add-maintenance-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Add Maintenance Record</h3>
+                <button class="modal-close" onclick="closeAddMaintenanceModal()">✕</button>
+            </div>
+            <form id="addMaintenanceForm" onsubmit="saveMaintenanceRecord(event)">
+                <input type="hidden" id="maintenance-machine-id">
+                <div class="form-group">
+                    <label for="maintenance-type">Maintenance Type *</label>
+                    <select id="maintenance-type" required>
+                        <option value="">-- Select Type --</option>
+                        <option value="preventive">Preventive Maintenance</option>
+                        <option value="corrective">Corrective Repair</option>
+                        <option value="calibration">Calibration</option>
+                        <option value="inspection">Inspection</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="upgrade">Upgrade/Modification</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="maintenance-description">Description *</label>
+                    <textarea id="maintenance-description" rows="3" required placeholder="Describe the maintenance work performed..."></textarea>
+                </div>
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="maintenance-started">Started At</label>
+                        <input type="datetime-local" id="maintenance-started">
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenance-completed">Completed At</label>
+                        <input type="datetime-local" id="maintenance-completed">
+                    </div>
+                </div>
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="maintenance-cost">Cost (€)</label>
+                        <input type="number" id="maintenance-cost" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenance-next-due">Next Maintenance Due</label>
+                        <input type="date" id="maintenance-next-due">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="maintenance-parts">Parts Replaced</label>
+                    <input type="text" id="maintenance-parts" placeholder="e.g. Spindle bearings, coolant pump">
+                </div>
+                <div class="form-group">
+                    <label for="maintenance-notes">Notes</label>
+                    <textarea id="maintenance-notes" rows="2" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAddMaintenanceModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="js/config.js?v=20260113"></script>
     <script src="js/auth.js?v=20260113"></script>
     <script src="js/api.js?v=20260113"></script>

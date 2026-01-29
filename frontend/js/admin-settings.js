@@ -1027,8 +1027,265 @@ async function deleteMachine(id) {
   }
 }
 
-function editMachine(id) {
-  window.location.href = `machines.html?edit=${id}`;
+// Edit Machine Modal Functions
+let currentEditMachineId = null;
+
+async function editMachine(id) {
+  currentEditMachineId = id;
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines/${id}`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    const data = await response.json();
+    
+    if (!data.success || !data.machine) {
+      throw new Error('Machine not found');
+    }
+    
+    const machine = data.machine;
+    
+    // Populate form fields
+    document.getElementById('edit-machine-id').value = machine.id;
+    document.getElementById('edit-machine-name').value = machine.machine_name || '';
+    document.getElementById('edit-machine-type').value = machine.machine_type || '';
+    document.getElementById('edit-machine-model').value = machine.machine_model || '';
+    document.getElementById('edit-machine-status').value = machine.status || 'available';
+    document.getElementById('edit-machine-location').value = machine.location || '';
+    document.getElementById('edit-machine-notes').value = machine.notes || '';
+    
+    // Format dates for input
+    if (machine.last_maintenance) {
+      document.getElementById('edit-machine-last-maintenance').value = machine.last_maintenance.split('T')[0];
+    } else {
+      document.getElementById('edit-machine-last-maintenance').value = '';
+    }
+    if (machine.next_maintenance_due) {
+      document.getElementById('edit-machine-next-maintenance').value = machine.next_maintenance_due.split('T')[0];
+    } else {
+      document.getElementById('edit-machine-next-maintenance').value = '';
+    }
+    
+    // Reset to details tab
+    switchMachineTab('details');
+    
+    // Open modal
+    document.getElementById('edit-machine-modal').classList.add('active');
+    
+  } catch (error) {
+    console.error('Error loading machine:', error);
+    showToast('Failed to load machine details', 'error');
+  }
+}
+
+function closeEditMachineModal() {
+  document.getElementById('edit-machine-modal').classList.remove('active');
+  currentEditMachineId = null;
+}
+
+function switchMachineTab(tab) {
+  const detailsTab = document.getElementById('machine-details-tab');
+  const maintenanceTab = document.getElementById('machine-maintenance-tab');
+  const detailsBtn = document.getElementById('tab-machine-details');
+  const maintenanceBtn = document.getElementById('tab-machine-maintenance');
+  
+  if (tab === 'details') {
+    detailsTab.style.display = 'block';
+    maintenanceTab.style.display = 'none';
+    detailsBtn.classList.add('active');
+    detailsBtn.style.borderBottom = '2px solid #667eea';
+    detailsBtn.style.color = '#667eea';
+    maintenanceBtn.classList.remove('active');
+    maintenanceBtn.style.borderBottom = 'none';
+    maintenanceBtn.style.color = '#64748b';
+  } else {
+    detailsTab.style.display = 'none';
+    maintenanceTab.style.display = 'block';
+    maintenanceBtn.classList.add('active');
+    maintenanceBtn.style.borderBottom = '2px solid #667eea';
+    maintenanceBtn.style.color = '#667eea';
+    detailsBtn.classList.remove('active');
+    detailsBtn.style.borderBottom = 'none';
+    detailsBtn.style.color = '#64748b';
+    
+    // Load maintenance records
+    loadMaintenanceRecords(currentEditMachineId);
+  }
+}
+
+async function saveEditMachine(event) {
+  event.preventDefault();
+  
+  const id = document.getElementById('edit-machine-id').value;
+  const machineData = {
+    machine_name: document.getElementById('edit-machine-name').value,
+    machine_type: document.getElementById('edit-machine-type').value || null,
+    machine_model: document.getElementById('edit-machine-model').value || null,
+    status: document.getElementById('edit-machine-status').value || 'available',
+    location: document.getElementById('edit-machine-location').value || null,
+    notes: document.getElementById('edit-machine-notes').value || null,
+    last_maintenance: document.getElementById('edit-machine-last-maintenance').value || null,
+    next_maintenance_due: document.getElementById('edit-machine-next-maintenance').value || null
+  };
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify(machineData)
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to update machine');
+    }
+    
+    closeEditMachineModal();
+    loadAdminMachines();
+    showToast('Machine updated successfully', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+// Maintenance Records Functions
+async function loadMaintenanceRecords(machineId) {
+  const container = document.getElementById('maintenance-records-list');
+  container.innerHTML = '<p style="color: #64748b; text-align: center;">Loading...</p>';
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines/${machineId}/maintenance`, {
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to load maintenance records');
+    }
+    
+    const records = data.records || [];
+    
+    if (records.length === 0) {
+      container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No maintenance records found</p>';
+      return;
+    }
+    
+    const typeLabels = {
+      preventive: 'Preventive',
+      corrective: 'Corrective Repair',
+      calibration: 'Calibration',
+      inspection: 'Inspection',
+      cleaning: 'Cleaning',
+      upgrade: 'Upgrade'
+    };
+    
+    const typeColors = {
+      preventive: '#22c55e',
+      corrective: '#ef4444',
+      calibration: '#3b82f6',
+      inspection: '#f59e0b',
+      cleaning: '#8b5cf6',
+      upgrade: '#06b6d4'
+    };
+    
+    container.innerHTML = records.map(r => `
+      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; background: #fafafa;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+          <span style="background: ${typeColors[r.maintenance_type] || '#64748b'}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+            ${typeLabels[r.maintenance_type] || r.maintenance_type}
+          </span>
+          <span style="color: #64748b; font-size: 0.8rem;">${r.completed_at ? new Date(r.completed_at).toLocaleDateString() : (r.started_at ? new Date(r.started_at).toLocaleDateString() : 'N/A')}</span>
+        </div>
+        <p style="margin: 0.5rem 0; color: #334155;">${escapeHtml(r.description || 'No description')}</p>
+        ${r.parts_replaced ? `<p style="margin: 0.25rem 0; font-size: 0.85rem; color: #64748b;"><strong>Parts:</strong> ${escapeHtml(r.parts_replaced)}</p>` : ''}
+        ${r.cost ? `<p style="margin: 0.25rem 0; font-size: 0.85rem; color: #64748b;"><strong>Cost:</strong> €${parseFloat(r.cost).toFixed(2)}</p>` : ''}
+        ${r.performed_by_name ? `<p style="margin: 0.25rem 0; font-size: 0.85rem; color: #64748b;"><strong>By:</strong> ${escapeHtml(r.performed_by_name)}</p>` : ''}
+        <div style="text-align: right; margin-top: 0.5rem;">
+          <button class="btn btn-sm btn-delete" onclick="deleteMaintenanceRecord(${r.id})" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Delete</button>
+        </div>
+      </div>
+    `).join('');
+    
+  } catch (error) {
+    console.error('Error loading maintenance records:', error);
+    container.innerHTML = '<p style="color: #ef4444; text-align: center;">Failed to load maintenance records</p>';
+  }
+}
+
+function openAddMaintenanceModal() {
+  document.getElementById('addMaintenanceForm').reset();
+  document.getElementById('maintenance-machine-id').value = currentEditMachineId;
+  
+  // Set default started time to now
+  const now = new Date();
+  const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('maintenance-started').value = localDateTime;
+  
+  document.getElementById('add-maintenance-modal').classList.add('active');
+}
+
+function closeAddMaintenanceModal() {
+  document.getElementById('add-maintenance-modal').classList.remove('active');
+}
+
+async function saveMaintenanceRecord(event) {
+  event.preventDefault();
+  
+  const machineId = document.getElementById('maintenance-machine-id').value;
+  const maintenanceData = {
+    maintenance_type: document.getElementById('maintenance-type').value,
+    description: document.getElementById('maintenance-description').value,
+    started_at: document.getElementById('maintenance-started').value || null,
+    completed_at: document.getElementById('maintenance-completed').value || null,
+    cost: document.getElementById('maintenance-cost').value || null,
+    next_maintenance_due: document.getElementById('maintenance-next-due').value || null,
+    parts_replaced: document.getElementById('maintenance-parts').value || null,
+    notes: document.getElementById('maintenance-notes').value || null
+  };
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines/${machineId}/maintenance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Auth.getToken()}`
+      },
+      body: JSON.stringify(maintenanceData)
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to add maintenance record');
+    }
+    
+    closeAddMaintenanceModal();
+    loadMaintenanceRecords(machineId);
+    loadAdminMachines(); // Refresh to update next maintenance due date
+    showToast('Maintenance record added', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteMaintenanceRecord(recordId) {
+  if (!confirm('Delete this maintenance record?')) return;
+  
+  try {
+    const response = await fetch(`${config.API_BASE_URL}/machines/maintenance/${recordId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to delete record');
+    
+    loadMaintenanceRecords(currentEditMachineId);
+    showToast('Maintenance record deleted', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 // =============================================

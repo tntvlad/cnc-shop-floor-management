@@ -85,11 +85,11 @@ exports.updateMachine = async (req, res) => {
     const fields = [];
     const values = [];
 
-    const allowed = ['status', 'is_available', 'current_job', 'current_operator', 'maintenance_scheduled_start', 'maintenance_scheduled_end', 'maintenance_notes', 'notes', 'next_maintenance_due', 'last_maintenance'];
+    const allowed = ['machine_name', 'machine_type', 'machine_model', 'machine_number', 'status', 'is_available', 'location', 'current_job', 'current_operator', 'maintenance_scheduled_start', 'maintenance_scheduled_end', 'maintenance_notes', 'notes', 'next_maintenance_due', 'last_maintenance'];
 
     allowed.forEach((key) => {
       if (req.body[key] !== undefined) {
-        values.push(req.body[key]);
+        values.push(req.body[key] === '' ? null : req.body[key]);
         fields.push(`${key} = $${values.length}`);
       }
     });
@@ -176,5 +176,97 @@ exports.deleteMachine = async (req, res) => {
   } catch (error) {
     console.error('Delete machine error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete machine' });
+  }
+};
+
+// =============================================
+// MACHINE MAINTENANCE RECORDS
+// =============================================
+
+// Get maintenance records for a machine
+exports.getMaintenanceRecords = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `SELECT mmr.*, u.name as performed_by_name
+       FROM machine_maintenance_records mmr
+       LEFT JOIN users u ON mmr.performed_by = u.id
+       WHERE mmr.machine_id = $1
+       ORDER BY COALESCE(mmr.completed_at, mmr.started_at, mmr.created_at) DESC`,
+      [id]
+    );
+    
+    res.json({ success: true, records: result.rows });
+  } catch (error) {
+    console.error('Get maintenance records error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch maintenance records' });
+  }
+};
+
+// Create maintenance record
+exports.createMaintenanceRecord = async (req, res) => {
+  try {
+    const { id } = req.params; // machine_id
+    const { maintenance_type, description, started_at, completed_at, cost, parts_replaced, next_maintenance_due, notes } = req.body;
+    
+    // Get current user ID
+    const performed_by = req.user ? req.user.id : null;
+    
+    const result = await pool.query(
+      `INSERT INTO machine_maintenance_records 
+       (machine_id, maintenance_type, description, performed_by, started_at, completed_at, cost, parts_replaced, next_maintenance_due, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [id, maintenance_type, description, performed_by, started_at || null, completed_at || null, cost || null, parts_replaced || null, next_maintenance_due || null, notes || null]
+    );
+    
+    // Update machine's next maintenance due and last maintenance if provided
+    const updateFields = [];
+    const updateValues = [];
+    
+    if (completed_at) {
+      updateValues.push(completed_at);
+      updateFields.push(`last_maintenance = $${updateValues.length}`);
+    }
+    
+    if (next_maintenance_due) {
+      updateValues.push(next_maintenance_due);
+      updateFields.push(`next_maintenance_due = $${updateValues.length}`);
+    }
+    
+    if (updateFields.length > 0) {
+      updateValues.push(id);
+      await pool.query(
+        `UPDATE machines SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${updateValues.length}`,
+        updateValues
+      );
+    }
+    
+    res.status(201).json({ success: true, record: result.rows[0] });
+  } catch (error) {
+    console.error('Create maintenance record error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create maintenance record' });
+  }
+};
+
+// Delete maintenance record
+exports.deleteMaintenanceRecord = async (req, res) => {
+  try {
+    const { recordId } = req.params;
+    
+    const result = await pool.query(
+      'DELETE FROM machine_maintenance_records WHERE id = $1 RETURNING id',
+      [recordId]
+    );
+    
+    if (!result.rows.length) {
+      return res.status(404).json({ success: false, message: 'Maintenance record not found' });
+    }
+    
+    res.json({ success: true, message: 'Maintenance record deleted' });
+  } catch (error) {
+    console.error('Delete maintenance record error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete maintenance record' });
   }
 };

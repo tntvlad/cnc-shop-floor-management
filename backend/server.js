@@ -142,6 +142,29 @@ async function ensureSchema() {
   } catch (err) {
     console.error('Orders contact fields failed:', err.message || err);
   }
+
+  // Create machine_maintenance_records table if not exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS machine_maintenance_records (
+        id SERIAL PRIMARY KEY,
+        machine_id INTEGER REFERENCES machines(id) ON DELETE CASCADE,
+        maintenance_type VARCHAR(50),
+        description TEXT,
+        performed_by INTEGER REFERENCES users(id),
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        cost DECIMAL(10,2),
+        parts_replaced TEXT,
+        next_maintenance_due TIMESTAMP,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✓ Schema check: machine_maintenance_records table ready');
+  } catch (err) {
+    console.error('Machine maintenance records table creation failed:', err.message || err);
+  }
 }
 ensureSchema();
 
@@ -312,6 +335,11 @@ app.post('/api/machines', authMiddleware, requireSupervisor(), validateRequest(s
 app.put('/api/machines/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updateMachine), machinesController.updateMachine);
 app.delete('/api/machines/:id', authMiddleware, requireSupervisor(), machinesController.deleteMachine);
 app.post('/api/machines/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignMachineJob), machinesController.assignJob);
+
+// Machine Maintenance Records
+app.get('/api/machines/:id/maintenance', authMiddleware, machinesController.getMaintenanceRecords);
+app.post('/api/machines/:id/maintenance', authMiddleware, requireSupervisor(), machinesController.createMaintenanceRecord);
+app.delete('/api/machines/maintenance/:recordId', authMiddleware, requireSupervisor(), machinesController.deleteMaintenanceRecord);
 
 // ======================== WORKFLOW TRANSITIONS ========================
 app.post('/api/parts/:partId/workflow/start', authMiddleware, requireSupervisor(), partsController.startWorkflowStage);
