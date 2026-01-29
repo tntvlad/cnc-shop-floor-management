@@ -162,18 +162,23 @@ function renderMachineBoard() {
     
     // Machine lanes
     machines.forEach(machine => {
-      // Match parts by machine ID OR by machine_type + machine_number combo
+      // Match parts by machine_type + machine_number OR by machine_name + machine_id
       const machineParts = allParts.filter(p => {
         if (p.workflow_stage === 'completed') return false;
-        if (!p.machine_type || !p.machine_number) return false;
+        if (!p.machine_type) return false;
         
-        // Match by type and number
+        // Match by traditional type and number
         if (machine.machine_type && machine.machine_number) {
           return p.machine_type === machine.machine_type && 
                  parseInt(p.machine_number) === parseInt(machine.machine_number);
         }
         
-        // If machine has no type/number, match by machine name in notes or some other way
+        // Match by machine name (stored in machine_type) and machine id (stored in machine_number)
+        if (machine.machine_name) {
+          return p.machine_type === machine.machine_name && 
+                 parseInt(p.machine_number) === parseInt(machine.id);
+        }
+        
         return false;
       });
       
@@ -222,15 +227,21 @@ function renderMachineBoard() {
 
   // Create lanes for each machine
   machines.forEach(machine => {
-    // Match parts by machine_type + machine_number combo
+    // Match parts by machine_type + machine_number OR by machine_name + machine_id
     const machineParts = allParts.filter(p => {
       if (p.workflow_stage === 'completed') return false;
-      if (!p.machine_type || !p.machine_number) return false;
+      if (!p.machine_type) return false;
       
-      // Match by type and number
+      // Match by traditional type and number
       if (machine.machine_type && machine.machine_number) {
         return p.machine_type === machine.machine_type && 
                parseInt(p.machine_number) === parseInt(machine.machine_number);
+      }
+      
+      // Match by machine name (stored in machine_type) and machine id (stored in machine_number)
+      if (machine.machine_name) {
+        return p.machine_type === machine.machine_name && 
+               parseInt(p.machine_number) === parseInt(machine.id);
       }
       
       return false;
@@ -532,18 +543,27 @@ async function assignPartToMachine(partId, machineId, machineType, machineNumber
     } else {
       // Find the machine to get its type and number
       const machine = machines.find(m => m.id === parseInt(machineId));
-      if (machine && machine.machine_type && machine.machine_number) {
-        body = {
-          machine_type: machine.machine_type,
-          machine_number: parseInt(machine.machine_number)
-        };
+      if (machine) {
+        if (machine.machine_type && machine.machine_number) {
+          // Use type and number if available
+          body = {
+            machine_type: machine.machine_type,
+            machine_number: parseInt(machine.machine_number)
+          };
+        } else {
+          // Use machine name as type, machine id as number
+          body = {
+            machine_type: machine.machine_name,
+            machine_number: parseInt(machine.id)
+          };
+        }
       } else if (machineType && machineNumber) {
         body = {
           machine_type: machineType,
           machine_number: parseInt(machineNumber)
         };
       } else {
-        showToast('Cannot assign to this machine - missing type/number', 'error');
+        showToast('Machine not found', 'error');
         return;
       }
     }
