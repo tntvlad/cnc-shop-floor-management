@@ -228,6 +228,7 @@ app.put('/api/parts/:id', authMiddleware, requireSupervisor(), validateRequest(s
 app.put('/api/parts/:id/folder', authMiddleware, requireSupervisor(), validateRequest(schemas.updateFolder), partsController.updateFileFolder);
 app.delete('/api/parts/:id', authMiddleware, requireSupervisor(), partsController.deletePart);
 app.post('/api/parts/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignPart), partsController.assignPart);
+app.post('/api/parts/:id/assign-machine', authMiddleware, requireSupervisor(), partsController.assignPartToMachine);
 app.post('/api/parts/:id/start', authMiddleware, partsController.startJob);
 app.post('/api/parts/:id/complete', authMiddleware, validateRequest(schemas.completeTime), partsController.completePart);
 

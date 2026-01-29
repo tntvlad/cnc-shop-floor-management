@@ -461,6 +461,56 @@ exports.deletePart = async (req, res) => {
   }
 };
 
+// Assign part to a machine (drag-drop from supervisor dashboard)
+exports.assignPartToMachine = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { machine_type, machine_number } = req.body;
+
+    // Verify part exists
+    const partCheck = await pool.query('SELECT id, part_name FROM parts WHERE id = $1', [id]);
+    if (partCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Part not found' });
+    }
+
+    // Update the part with machine assignment
+    const result = await pool.query(
+      `UPDATE parts 
+       SET machine_type = $1, 
+           machine_number = $2,
+           assigned_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, part_name, machine_type, machine_number`,
+      [machine_type, machine_number, id]
+    );
+
+    // Log the activity
+    await pool.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, description)
+       VALUES ($1, 'assign_machine', 'part', $2, $3)`,
+      [
+        req.user.id, 
+        id, 
+        machine_type 
+          ? `Assigned part "${partCheck.rows[0].part_name}" to ${machine_type} #${machine_number}` 
+          : `Unassigned part "${partCheck.rows[0].part_name}" from machine`
+      ]
+    );
+
+    res.json({ 
+      success: true, 
+      message: machine_type 
+        ? `Part assigned to ${machine_type} #${machine_number}` 
+        : 'Part unassigned from machine',
+      part: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Assign part to machine error:', error);
+    res.status(500).json({ success: false, message: 'Failed to assign part to machine' });
+  }
+};
+
 // Mark job assignment as complete (operator marks their own assignment as done)
 exports.completePart = async (req, res) => {
   try {

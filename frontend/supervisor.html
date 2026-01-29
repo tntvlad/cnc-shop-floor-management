@@ -70,6 +70,172 @@
     .logout-btn:hover {
       background: #4B5563;
     }
+
+    /* Machine Kanban Board Styles */
+    .machine-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .machine-lane {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .machine-header {
+      padding: 1rem;
+      color: white;
+      text-align: center;
+    }
+
+    .machine-header.mill {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .machine-header.lathe {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .machine-header.unassigned {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    }
+
+    .machine-header h4 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .machine-status {
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      opacity: 0.9;
+    }
+
+    .machine-status.available { color: #90EE90; }
+    .machine-status.busy { color: #FFD700; }
+    .machine-status.maintenance { color: #FF6B6B; }
+
+    .machine-body {
+      flex: 1;
+      padding: 0.75rem;
+      background: #f9f9f9;
+      min-height: 200px;
+    }
+
+    .machine-lane.drag-over {
+      outline: 3px dashed #667eea;
+      outline-offset: -3px;
+    }
+
+    .machine-lane.drag-over .machine-body {
+      background: #e8f4ff;
+    }
+
+    .part-chip {
+      background: white;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      border-left: 4px solid #667eea;
+      cursor: grab;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .part-chip:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .part-chip.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+    }
+
+    .part-chip-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+
+    .part-chip-info {
+      font-size: 0.8rem;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .part-chip-stage {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .part-chip-stage.machining { background: #667eea; color: white; }
+    .part-chip-stage.programming { background: #ffc107; color: #333; }
+    .part-chip-stage.cutting { background: #17a2b8; color: white; }
+    .part-chip-stage.pending { background: #6c757d; color: white; }
+    .part-chip-stage.qc { background: #28a745; color: white; }
+
+    .empty-lane {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+      font-size: 0.9rem;
+    }
+
+    .tab-container {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab-btn {
+      padding: 12px 24px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #333;
+      background: rgba(0,0,0,0.03);
+    }
+
+    .tab-btn.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .refresh-btn {
+      float: right;
+      margin-top: -40px;
+    }
   </style>
 </head>
 <body>
@@ -90,61 +256,91 @@
 
   <main class="main-content">
     <div class="dashboard">
-      <!-- Quick Actions -->
-      <section class="section">
-        <div class="section-header">
-          <h2>Quick Actions</h2>
-        </div>
-        <div class="action-buttons" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px 0;">
-          <a href="create-order.html" class="btn btn-primary" style="padding: 15px 25px; font-size: 1.1em;">
-            ➕ Create Order
-          </a>
-          <a href="materials.html" class="btn btn-secondary" style="padding: 15px 25px; font-size: 1.1em;">
-            📦 Manage Materials
-          </a>
-          <a href="customers.html" class="btn btn-secondary" style="padding: 15px 25px; font-size: 1.1em;">
-            👥 Manage Customers
-          </a>
-        </div>
-      </section>
+      <!-- Tab Navigation -->
+      <div class="tab-container">
+        <button class="tab-btn active" data-tab="machines-tab">🏭 Machines & Parts</button>
+        <button class="tab-btn" data-tab="jobs-tab">📋 Jobs Management</button>
+        <button class="tab-btn" data-tab="actions-tab">⚡ Quick Actions</button>
+      </div>
 
-      <section class="section">
-        <div class="section-header">
-          <h2>Create Job</h2>
-        </div>
-        <form id="createJobForm" class="form-grid">
-          <div class="form-group"><label>Name</label><input id="jobName" required></div>
-          <div class="form-group"><label>Material</label><input id="jobMaterial" required></div>
-          <div class="form-group"><label>Quantity</label><input id="jobQuantity" type="number" min="1" required></div>
-          <div class="form-group"><label>Treatment</label><input id="jobTreatment"></div>
-          <div class="form-group"><label>Target Time (min)</label><input id="jobTarget" type="number" min="1" required></div>
-          <div class="form-group"><label>Order Position</label><input id="jobOrder" type="number" min="1" required></div>
-          <button class="btn btn-primary" type="submit">Create</button>
-          <div id="createJobMsg" class="text-muted"></div>
-        </form>
-      </section>
+      <!-- Machines & Parts Tab (Kanban Board) -->
+      <div id="machines-tab" class="tab-content active">
+        <section class="section">
+          <div class="section-header">
+            <h2>Machine Assignment Board</h2>
+            <button class="btn btn-primary" id="refreshMachinesBtn">🔄 Refresh</button>
+          </div>
+          <p style="color: #666; margin-bottom: 1rem;">Drag and drop parts to assign them to machines</p>
+          
+          <div id="machineBoard" class="machine-board">
+            <!-- Machine lanes will be rendered here -->
+            <div class="loading-message" style="text-align: center; padding: 2rem; color: #666;">
+              Loading machines...
+            </div>
+          </div>
+        </section>
+      </div>
 
-      <section class="section">
-        <div class="section-header">
-          <h2>Jobs</h2>
-          <button class="btn btn-primary" id="refreshJobsBtn">Refresh</button>
-        </div>
-        <div id="jobsLog" class="log" style="display:none;"></div>
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Name</th>
-              <th>Material</th>
-              <th>Qty</th>
-              <th>Target</th>
-              <th>Assignments</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="jobsTableBody"></tbody>
-        </table>
-      </section>
+      <!-- Jobs Management Tab -->
+      <div id="jobs-tab" class="tab-content">
+        <section class="section">
+          <div class="section-header">
+            <h2>Create Job</h2>
+          </div>
+          <form id="createJobForm" class="form-grid">
+            <div class="form-group"><label>Name</label><input id="jobName" required></div>
+            <div class="form-group"><label>Material</label><input id="jobMaterial" required></div>
+            <div class="form-group"><label>Quantity</label><input id="jobQuantity" type="number" min="1" required></div>
+            <div class="form-group"><label>Treatment</label><input id="jobTreatment"></div>
+            <div class="form-group"><label>Target Time (min)</label><input id="jobTarget" type="number" min="1" required></div>
+            <div class="form-group"><label>Order Position</label><input id="jobOrder" type="number" min="1" required></div>
+            <button class="btn btn-primary" type="submit">Create</button>
+            <div id="createJobMsg" class="text-muted"></div>
+          </form>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <h2>Jobs</h2>
+            <button class="btn btn-primary" id="refreshJobsBtn">Refresh</button>
+          </div>
+          <div id="jobsLog" class="log" style="display:none;"></div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Name</th>
+                <th>Material</th>
+                <th>Qty</th>
+                <th>Target</th>
+                <th>Assignments</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobsTableBody"></tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- Quick Actions Tab -->
+      <div id="actions-tab" class="tab-content">
+        <section class="section">
+          <div class="section-header">
+            <h2>Quick Actions</h2>
+          </div>
+          <div class="action-buttons" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px 0;">
+            <a href="create-order.html" class="btn btn-primary" style="padding: 15px 25px; font-size: 1.1em;">
+              ➕ Create Order
+            </a>
+            <a href="materials.html" class="btn btn-secondary" style="padding: 15px 25px; font-size: 1.1em;">
+              📦 Manage Materials
+            </a>
+            <a href="customers.html" class="btn btn-secondary" style="padding: 15px 25px; font-size: 1.1em;">
+              👥 Manage Customers
+            </a>
+          </div>
+        </section>
+      </div>
     </div>
   </main>
 
