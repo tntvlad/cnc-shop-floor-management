@@ -11,8 +11,9 @@ const TIME_SCALE = {
   SHORT: 30,      // < 30 min = short
   MEDIUM: 120,    // 30-120 min = medium
   // > 120 min = long
-  PIXELS_PER_MINUTE: 2,  // Scale factor for gantt bars
-  MAX_BAR_WIDTH: 300     // Max width in pixels
+  PIXELS_PER_MINUTE: 1,  // Scale factor for vertical height
+  MIN_HEIGHT: 50,        // Minimum card height
+  MAX_HEIGHT: 300        // Max height in pixels
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -134,6 +135,64 @@ function renderMachineBoard() {
     return parts.reduce((sum, p) => sum + (p.target_time || p.estimated_time || 0), 0);
   };
   
+  // Vertical time scale view
+  if (viewMode === 'gantt') {
+    let html = '<div class="time-scale-board">';
+    
+    // Unassigned lane
+    const unassignedTotal = calculateTotalTime(unassignedParts);
+    html += `
+      <div class="time-scale-lane" id="machine-unassigned" data-machine-id="unassigned">
+        <div class="machine-header unassigned">
+          <h4>📥 Unassigned</h4>
+          <div class="machine-status">${unassignedParts.length} parts</div>
+        </div>
+        <div class="time-scale-body machine-body">
+          <div class="time-scale-parts">
+            ${renderVerticalParts(unassignedParts)}
+          </div>
+        </div>
+        <div class="queue-summary">⏱️ ${formatTime(unassignedTotal)}</div>
+      </div>
+    `;
+    
+    // Machine lanes
+    machines.forEach(machine => {
+      const machineParts = allParts.filter(p => 
+        p.machine_type === machine.machine_type && 
+        p.machine_number === machine.machine_number &&
+        p.workflow_stage !== 'completed'
+      );
+      
+      const totalTime = calculateTotalTime(machineParts);
+      const headerClass = machine.machine_type === 'lathe' ? 'lathe' : 'mill';
+      const statusClass = machine.status === 'available' ? 'available' : 
+                          machine.status === 'maintenance' ? 'maintenance' : 'busy';
+      const statusIcon = machine.status === 'available' ? '🟢' : 
+                         machine.status === 'maintenance' ? '🔧' : '🟡';
+
+      html += `
+        <div class="time-scale-lane" id="machine-${machine.id}" data-machine-id="${machine.id}" data-machine-type="${machine.machine_type}" data-machine-number="${machine.machine_number}">
+          <div class="machine-header ${headerClass}">
+            <h4>${machine.machine_name || `${machine.machine_type} #${machine.machine_number}`}</h4>
+            <div class="machine-status ${statusClass}">${statusIcon} ${machine.status || 'available'}</div>
+          </div>
+          <div class="time-scale-body machine-body">
+            <div class="time-scale-parts">
+              ${renderVerticalParts(machineParts)}
+            </div>
+          </div>
+          <div class="queue-summary">📊 ${machineParts.length} parts • ⏱️ ${formatTime(totalTime)}</div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    board.innerHTML = html;
+    return;
+  }
+  
+  // Card view (original)
   // Create unassigned lane first
   const unassignedTotal = calculateTotalTime(unassignedParts);
   let html = `
@@ -142,10 +201,8 @@ function renderMachineBoard() {
         <h4>📥 Unassigned Parts</h4>
         <div class="machine-status">${unassignedParts.length} parts</div>
       </div>
-      ${viewMode === 'gantt' ? renderTimeScale() : ''}
-      <div class="machine-body ${viewMode === 'gantt' ? 'gantt-body' : ''}">
+      <div class="machine-body">
         ${renderPartsForMachine(unassignedParts)}
-        ${viewMode === 'gantt' && unassignedParts.length > 0 ? `<div class="total-time-indicator">📊 Total: ${formatTime(unassignedTotal)}</div>` : ''}
       </div>
     </div>
   `;
@@ -171,13 +228,10 @@ function renderMachineBoard() {
           <h4>${machine.machine_name || `${machine.machine_type} #${machine.machine_number}`}</h4>
           <div class="machine-status ${statusClass}">
             ${statusIcon} ${machine.status || 'available'} • ${machineParts.length} parts
-            ${viewMode === 'gantt' && totalTime > 0 ? `• ⏱️ ${formatTime(totalTime)}` : ''}
           </div>
         </div>
-        ${viewMode === 'gantt' ? renderTimeScale() : ''}
-        <div class="machine-body ${viewMode === 'gantt' ? 'gantt-body' : ''}">
+        <div class="machine-body">
           ${renderPartsForMachine(machineParts)}
-          ${viewMode === 'gantt' && machineParts.length > 0 ? `<div class="total-time-indicator">📊 Queue Total: ${formatTime(totalTime)}</div>` : ''}
         </div>
       </div>
     `;
@@ -210,10 +264,41 @@ function getTimeClass(minutes) {
   return 'long';
 }
 
+function getPartHeight(minutes) {
+  if (!minutes || minutes === 0) return TIME_SCALE.MIN_HEIGHT;
+  // Scale: 1 minute = 1 pixel, with min and max bounds
+  const height = Math.max(minutes * TIME_SCALE.PIXELS_PER_MINUTE, TIME_SCALE.MIN_HEIGHT);
+  return Math.min(height, TIME_SCALE.MAX_HEIGHT);
+}
+
 function getBarWidth(minutes) {
   if (!minutes || minutes === 0) return 40; // Minimum width
   const width = minutes * TIME_SCALE.PIXELS_PER_MINUTE;
-  return Math.min(width, TIME_SCALE.MAX_BAR_WIDTH);
+  return Math.min(width, TIME_SCALE.MAX_HEIGHT);
+}
+
+function renderVerticalParts(parts) {
+  if (!parts || parts.length === 0) {
+    return '<div class="empty-lane" style="padding: 2rem; text-align: center; color: #999;">Drop parts here</div>';
+  }
+
+  return parts.map(part => {
+    const stage = part.workflow_stage || 'pending';
+    const estimatedTime = part.target_time || part.estimated_time || 0;
+    const timeClass = getTimeClass(estimatedTime);
+    const height = getPartHeight(estimatedTime);
+    
+    return `
+      <div class="part-chip vertical ${timeClass}" draggable="true" data-part-id="${part.id}" style="height: ${height}px;">
+        <div class="part-name">${part.part_name || part.name}</div>
+        <div class="part-details">
+          <span>Qty: ${part.quantity}</span>
+          <span class="part-stage">${stage}</span>
+        </div>
+        <div class="part-time">⏱️ ${estimatedTime > 0 ? formatTime(estimatedTime) : 'No estimate'}</div>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderPartsForMachine(parts) {
@@ -294,8 +379,8 @@ function setupMachineDragDrop() {
     });
   });
 
-  // Setup drop zones for all machine lanes
-  document.querySelectorAll('.machine-lane').forEach(lane => {
+  // Setup drop zones for all machine lanes (both regular and time-scale)
+  document.querySelectorAll('.machine-lane, .time-scale-lane').forEach(lane => {
     lane.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
