@@ -4,8 +4,9 @@ let assignableUsers = [];
 let machines = [];
 let allParts = [];
 let draggedPartId = null;
-let viewMode = 'cards'; // 'cards' or 'gantt'
+let viewMode = 'cards'; // 'cards', 'gantt', or 'timeline'
 let selectedPart = null; // Currently selected part for modal
+let selectedDate = new Date(); // For timeline view
 
 // Time scale constants (in minutes)
 const TIME_SCALE = {
@@ -52,12 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupViewToggle() {
   const cardBtn = document.getElementById('viewCards');
   const ganttBtn = document.getElementById('viewGantt');
+  const timelineBtn = document.getElementById('viewTimeline');
   const legend = document.getElementById('timeLegend');
 
   cardBtn.addEventListener('click', () => {
     viewMode = 'cards';
     cardBtn.classList.add('active');
     ganttBtn.classList.remove('active');
+    timelineBtn.classList.remove('active');
     legend.style.display = 'none';
     renderMachineBoard();
     setupMachineDragDrop();
@@ -67,6 +70,17 @@ function setupViewToggle() {
     viewMode = 'gantt';
     ganttBtn.classList.add('active');
     cardBtn.classList.remove('active');
+    timelineBtn.classList.remove('active');
+    legend.style.display = 'flex';
+    renderMachineBoard();
+    setupMachineDragDrop();
+  });
+
+  timelineBtn.addEventListener('click', () => {
+    viewMode = 'timeline';
+    timelineBtn.classList.add('active');
+    cardBtn.classList.remove('active');
+    ganttBtn.classList.remove('active');
     legend.style.display = 'flex';
     renderMachineBoard();
     setupMachineDragDrop();
@@ -210,6 +224,12 @@ function renderMachineBoard() {
     return;
   }
   
+  // Timeline view (Gantt chart with work hours)
+  if (viewMode === 'timeline') {
+    renderTimelineView();
+    return;
+  }
+  
   // Card view (original)
   // Create unassigned lane first
   const unassignedTotal = calculateTotalTime(unassignedParts);
@@ -307,6 +327,183 @@ function getBarWidth(minutes) {
   if (!minutes || minutes === 0) return 40; // Minimum width
   const width = minutes * TIME_SCALE.PIXELS_PER_MINUTE;
   return Math.min(width, TIME_SCALE.MAX_HEIGHT);
+}
+
+// =====================================
+// TIMELINE VIEW (Gantt Chart)
+// =====================================
+
+function renderTimelineView() {
+  const board = document.getElementById('machineBoard');
+  
+  // Date formatting
+  const formatDate = (date) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  };
+  
+  // Work hours: 7:00 to 15:30 (8.5 hours)
+  const startHour = 7;
+  const endHour = 15;
+  const endMinutes = 30;
+  const workMinutes = (endHour - startHour) * 60 + endMinutes; // 510 minutes
+  const lunchStart = 11 * 60; // 11:00 in minutes
+  const lunchEnd = 11 * 60 + 30; // 11:30 in minutes
+  
+  // Time slots (30 minute intervals)
+  const timeSlots = [];
+  for (let h = startHour; h <= endHour; h++) {
+    if (h === endHour) {
+      timeSlots.push({ hour: h, minute: 0, label: `${h}:00` });
+      timeSlots.push({ hour: h, minute: 30, label: `${h}:30` });
+      break;
+    }
+    timeSlots.push({ hour: h, minute: 0, label: `${h}:00` });
+    timeSlots.push({ hour: h, minute: 30, label: `${h}:30` });
+  }
+  
+  // Get current time position
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const workDayMinutes = currentMinutes - (startHour * 60);
+  const currentTimePercent = (workDayMinutes / workMinutes) * 100;
+  const isToday = now.toDateString() === selectedDate.toDateString();
+  const showCurrentTime = isToday && currentMinutes >= (startHour * 60) && currentMinutes <= (endHour * 60 + endMinutes);
+  
+  // Build HTML
+  let html = '<div class="timeline-container">';
+  
+  // Date navigation header
+  html += `
+    <div class="timeline-header">
+      <button class="date-nav-btn" id="prevDay" title="Previous Day">◀</button>
+      <div class="current-date">${formatDate(selectedDate)}</div>
+      <button class="date-nav-btn" id="nextDay" title="Next Day">▶</button>
+      <button class="date-nav-btn" id="todayBtn" title="Today">Today</button>
+    </div>
+  `;
+  
+  // Timeline grid
+  html += '<div class="timeline-grid">';
+  
+  // Time axis header
+  html += '<div class="timeline-sidebar"></div>';
+  html += '<div class="timeline-axis">';
+  timeSlots.forEach(slot => {
+    html += `<div class="time-header">${slot.label}</div>`;
+  });
+  html += '</div>';
+  
+  // Render machine rows
+  const allMachinesAndParts = [
+    { machine: null, parts: allParts.filter(p => (!p.machine_type || !p.machine_number) && p.workflow_stage !== 'completed'), label: '📥 Unassigned' },
+    ...machines.map(m => ({
+      machine: m,
+      parts: allParts.filter(p => {
+        if (p.workflow_stage === 'completed') return false;
+        if (!p.machine_type) return false;
+        
+        if (m.machine_type && m.machine_number) {
+          return p.machine_type === m.machine_type && parseInt(p.machine_number) === parseInt(m.machine_number);
+        }
+        
+        if (m.machine_name) {
+          return p.machine_type === m.machine_name && parseInt(p.machine_number) === parseInt(m.id);
+        }
+        
+        return false;
+      }),
+      label: m.machine_name || `${m.machine_type} #${m.machine_number}`
+    }))
+  ];
+  
+  allMachinesAndParts.forEach(({ machine, parts, label }) => {
+    html += '<div class="machine-row">';
+    html += `<div class="machine-label">${label}</div>`;
+    html += '<div class="timeline-track">';
+    
+    // Render time cells with lunch break highlight
+    timeSlots.forEach((slot, index) => {
+      const slotMinutes = slot.hour * 60 + slot.minute;
+      const isLunchTime = slotMinutes >= lunchStart && slotMinutes < lunchEnd;
+      html += `<div class="time-cell ${isLunchTime ? 'lunch-break' : ''}"></div>`;
+    });
+    
+    // Render task cards for this machine
+    let accumulatedTime = 0; // Track cumulative time for stacking
+    parts.forEach(part => {
+      const timeMinutes = part.target_time || part.estimated_time || 30;
+      const widthPercent = (timeMinutes / workMinutes) * 100;
+      const leftPercent = (accumulatedTime / workMinutes) * 100;
+      const timeClass = getTimeClass(timeMinutes);
+      
+      html += `
+        <div class="task-card ${timeClass}" 
+             style="left: ${leftPercent}%; width: ${widthPercent}%"
+             data-part-id="${part.id}"
+             title="${part.part_number || part.id} - ${formatTime(timeMinutes)}">
+          <div class="task-content">
+            <span class="task-title">${part.part_number || `Part ${part.id}`}</span>
+            <span class="task-time">${formatTime(timeMinutes)}</span>
+          </div>
+        </div>
+      `;
+      
+      accumulatedTime += timeMinutes;
+    });
+    
+    html += '</div>'; // Close timeline-track
+    html += '</div>'; // Close machine-row
+  });
+  
+  html += '</div>'; // Close timeline-grid
+  
+  // Current time indicator
+  if (showCurrentTime) {
+    html += `
+      <div class="current-time-line" style="left: calc(200px + ${currentTimePercent}%)">
+        <div class="current-time-indicator">${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}</div>
+      </div>
+    `;
+  }
+  
+  // Legend
+  html += `
+    <div class="timeline-legend">
+      <div class="legend-item-modern"><span class="legend-bar short"></span> Short (&lt;30 min)</div>
+      <div class="legend-item-modern"><span class="legend-bar medium"></span> Medium (30-120 min)</div>
+      <div class="legend-item-modern"><span class="legend-bar long"></span> Long (&gt;120 min)</div>
+      <div class="legend-item-modern"><span class="legend-bar unknown"></span> Not Set</div>
+    </div>
+  `;
+  
+  html += '</div>'; // Close timeline-container
+  
+  board.innerHTML = html;
+  
+  // Setup date navigation
+  document.getElementById('prevDay').addEventListener('click', () => {
+    selectedDate.setDate(selectedDate.getDate() - 1);
+    renderTimelineView();
+  });
+  
+  document.getElementById('nextDay').addEventListener('click', () => {
+    selectedDate.setDate(selectedDate.getDate() + 1);
+    renderTimelineView();
+  });
+  
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    selectedDate = new Date();
+    renderTimelineView();
+  });
+  
+  // Update current time indicator every minute
+  setInterval(() => {
+    if (viewMode === 'timeline') {
+      renderTimelineView();
+    }
+  }, 60000);
 }
 
 function renderVerticalParts(parts) {
