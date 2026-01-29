@@ -289,22 +289,40 @@
 
     .part-chip.vertical.short {
       background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-      min-height: 50px;
+      border: 2px solid #1e7e34;
+      min-height: 60px;
     }
 
     .part-chip.vertical.medium {
       background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+      border: 2px solid #d39e00;
       min-height: 80px;
+    }
+
+    .part-chip.vertical.medium .part-name,
+    .part-chip.vertical.medium .part-details,
+    .part-chip.vertical.medium .part-time {
+      color: #333;
+      text-shadow: none;
     }
 
     .part-chip.vertical.long {
       background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      border: 2px solid #a71d2a;
       min-height: 120px;
     }
 
     .part-chip.vertical.unknown {
-      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-      min-height: 50px;
+      background: #f8f9fa;
+      border: 2px solid #dee2e6;
+      min-height: 60px;
+    }
+
+    .part-chip.vertical.unknown .part-name,
+    .part-chip.vertical.unknown .part-details,
+    .part-chip.vertical.unknown .part-time {
+      color: #495057;
+      text-shadow: none;
     }
 
     .part-chip.vertical .part-name {
