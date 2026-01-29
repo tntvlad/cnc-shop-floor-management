@@ -128,7 +128,10 @@ function renderMachineBoard() {
   const board = document.getElementById('machineBoard');
   
   // Group parts by machine assignment
-  const unassignedParts = allParts.filter(p => !p.machine_type && p.workflow_stage !== 'completed');
+  // Unassigned = no machine_type OR no machine_number
+  const unassignedParts = allParts.filter(p => 
+    (!p.machine_type || !p.machine_number) && p.workflow_stage !== 'completed'
+  );
   
   // Calculate total time for each machine's queue
   // Use target_time (which is estimated_time from DB)
@@ -159,11 +162,20 @@ function renderMachineBoard() {
     
     // Machine lanes
     machines.forEach(machine => {
-      const machineParts = allParts.filter(p => 
-        p.machine_type === machine.machine_type && 
-        p.machine_number === machine.machine_number &&
-        p.workflow_stage !== 'completed'
-      );
+      // Match parts by machine ID OR by machine_type + machine_number combo
+      const machineParts = allParts.filter(p => {
+        if (p.workflow_stage === 'completed') return false;
+        if (!p.machine_type || !p.machine_number) return false;
+        
+        // Match by type and number
+        if (machine.machine_type && machine.machine_number) {
+          return p.machine_type === machine.machine_type && 
+                 parseInt(p.machine_number) === parseInt(machine.machine_number);
+        }
+        
+        // If machine has no type/number, match by machine name in notes or some other way
+        return false;
+      });
       
       const totalTime = calculateTotalTime(machineParts);
       const headerClass = machine.machine_type === 'lathe' ? 'lathe' : 'mill';
@@ -173,7 +185,7 @@ function renderMachineBoard() {
                          machine.status === 'maintenance' ? '🔧' : '🟡';
 
       html += `
-        <div class="time-scale-lane" id="machine-${machine.id}" data-machine-id="${machine.id}" data-machine-type="${machine.machine_type}" data-machine-number="${machine.machine_number}">
+        <div class="time-scale-lane" id="machine-${machine.id}" data-machine-id="${machine.id}" data-machine-type="${machine.machine_type || ''}" data-machine-number="${machine.machine_number || ''}">
           <div class="machine-header ${headerClass}">
             <h4>${machine.machine_name || `${machine.machine_type} #${machine.machine_number}`}</h4>
             <div class="machine-status ${statusClass}">${statusIcon} ${machine.status || 'available'}</div>
@@ -210,11 +222,19 @@ function renderMachineBoard() {
 
   // Create lanes for each machine
   machines.forEach(machine => {
-    const machineParts = allParts.filter(p => 
-      p.machine_type === machine.machine_type && 
-      p.machine_number === machine.machine_number &&
-      p.workflow_stage !== 'completed'
-    );
+    // Match parts by machine_type + machine_number combo
+    const machineParts = allParts.filter(p => {
+      if (p.workflow_stage === 'completed') return false;
+      if (!p.machine_type || !p.machine_number) return false;
+      
+      // Match by type and number
+      if (machine.machine_type && machine.machine_number) {
+        return p.machine_type === machine.machine_type && 
+               parseInt(p.machine_number) === parseInt(machine.machine_number);
+      }
+      
+      return false;
+    });
     
     const totalTime = calculateTotalTime(machineParts);
     const headerClass = machine.machine_type === 'lathe' ? 'lathe' : 'mill';
@@ -224,7 +244,7 @@ function renderMachineBoard() {
                        machine.status === 'maintenance' ? '🔧' : '🟡';
 
     html += `
-      <div class="machine-lane" id="machine-${machine.id}" data-machine-id="${machine.id}" data-machine-type="${machine.machine_type}" data-machine-number="${machine.machine_number}">
+      <div class="machine-lane" id="machine-${machine.id}" data-machine-id="${machine.id}" data-machine-type="${machine.machine_type || ''}" data-machine-number="${machine.machine_number || ''}">
         <div class="machine-header ${headerClass}">
           <h4>${machine.machine_name || `${machine.machine_type} #${machine.machine_number}`}</h4>
           <div class="machine-status ${statusClass}">
@@ -510,10 +530,22 @@ async function assignPartToMachine(partId, machineId, machineType, machineNumber
         machine_number: null
       };
     } else {
-      body = {
-        machine_type: machineType,
-        machine_number: parseInt(machineNumber)
-      };
+      // Find the machine to get its type and number
+      const machine = machines.find(m => m.id === parseInt(machineId));
+      if (machine && machine.machine_type && machine.machine_number) {
+        body = {
+          machine_type: machine.machine_type,
+          machine_number: parseInt(machine.machine_number)
+        };
+      } else if (machineType && machineNumber) {
+        body = {
+          machine_type: machineType,
+          machine_number: parseInt(machineNumber)
+        };
+      } else {
+        showToast('Cannot assign to this machine - missing type/number', 'error');
+        return;
+      }
     }
 
     const response = await fetch(`${API_URL}/parts/${partId}/assign-machine`, {
@@ -534,7 +566,8 @@ async function assignPartToMachine(partId, machineId, machineType, machineNumber
 
     // Reload the board
     loadMachineBoard();
-    showToast(`Part assigned to ${machineId === 'unassigned' ? 'unassigned' : `${machineType} #${machineNumber}`}`, 'success');
+    const machineName = machines.find(m => m.id === parseInt(machineId))?.machine_name || `${body.machine_type} #${body.machine_number}`;
+    showToast(`Part assigned to ${machineId === 'unassigned' ? 'unassigned' : machineName}`, 'success');
   } catch (error) {
     console.error('Error assigning part:', error);
     showToast('Error assigning part: ' + error.message, 'error');
