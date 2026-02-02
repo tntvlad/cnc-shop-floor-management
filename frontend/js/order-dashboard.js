@@ -416,8 +416,9 @@ async function openEditOrderModal(orderId) {
     // Load customers for dropdown
     await loadCustomersForEdit();
     
-    // Populate form
-    document.getElementById('edit-order-id').textContent = orderId;
+    // Populate form - use internal_order_id if available
+    const displayId = order.internal_order_id || `#${orderId}`;
+    document.getElementById('edit-order-id').textContent = displayId;
     document.getElementById('edit-priority').value = (order.priority || 'normal').toLowerCase();
     document.getElementById('edit-status').value = order.status || 'pending';
     document.getElementById('edit-customer').value = order.customer_id || '';
