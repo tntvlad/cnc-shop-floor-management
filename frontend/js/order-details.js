@@ -53,7 +53,8 @@ async function loadOrderDetails() {
 function renderOrderDetails() {
   if (!currentOrder) return;
 
-  document.getElementById('order-id').textContent = currentOrder.id;
+  // Show internal_order_id if available, otherwise fall back to database id
+  document.getElementById('order-id').textContent = currentOrder.internal_order_id || `#${currentOrder.id}`;
   document.getElementById('customer-name').textContent = currentOrder.customer_name;
   document.getElementById('customer-email').textContent = currentOrder.customer_email;
   document.getElementById('customer-phone').textContent = currentOrder.customer_phone || '---';
