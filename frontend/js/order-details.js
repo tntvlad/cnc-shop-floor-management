@@ -66,7 +66,11 @@ function renderOrderDetails() {
   priorityEl.textContent = priority.label;
   const priorityScoreEl = document.getElementById('order-priority-score');
   priorityScoreEl.textContent = priority.weight ? `(Score ${priority.weight})` : '';
-  document.getElementById('order-due-countdown').textContent = formatDueLabel(currentOrder.due_date);
+  document.getElementById('order-due-countdown').textContent = formatDueLabel(
+    currentOrder.due_date, 
+    currentOrder.status, 
+    currentOrder.completed_at
+  );
 
   const statusBadge = `<span class="status-badge status-${currentOrder.status}">${currentOrder.status.toUpperCase()}</span>`;
   document.getElementById('order-status').innerHTML = statusBadge;
@@ -310,17 +314,30 @@ function priorityWeight(key) {
   return 0;
 }
 
-function formatDueLabel(dueDate) {
+function formatDueLabel(dueDate, status = null, completedAt = null) {
   if (!dueDate) return 'No due date';
-  const now = new Date();
+  
+  // For completed orders, use completed_at date or freeze at completion
+  const isCompleted = status === 'completed';
+  const compareDate = (isCompleted && completedAt) ? new Date(completedAt) : new Date();
   const target = new Date(dueDate);
-  const diffMs = target.getTime() - now.getTime();
+  const diffMs = target.getTime() - compareDate.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return `Late ${Math.abs(diffDays)}d`;
-  if (diffDays === 0) return 'Due today';
-  if (diffDays === 1) return 'Due in 1 day';
-  if (diffDays <= 3) return `Due in ${diffDays} days`;
-  return target.toLocaleDateString();
+  
+  if (diffDays < 0) {
+    // Order was/is late
+    return isCompleted ? `Was late ${Math.abs(diffDays)}d` : `Late ${Math.abs(diffDays)}d`;
+  }
+  if (diffDays === 0) {
+    return isCompleted ? 'Completed on time' : 'Due today';
+  }
+  if (diffDays === 1) {
+    return 'Due in 1 day';
+  }
+  if (diffDays <= 3) {
+    return `Due in ${diffDays} days`;
+  }
+  return isCompleted ? 'Completed early' : `${diffDays} days left`;
 }
 
 function showSuccess(message) {
