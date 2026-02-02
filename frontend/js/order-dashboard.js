@@ -419,6 +419,7 @@ async function openEditOrderModal(orderId) {
     // Populate form - use internal_order_id if available
     const displayId = order.internal_order_id || `#${orderId}`;
     document.getElementById('edit-order-id').textContent = displayId;
+    document.getElementById('edit-internal-order-id').value = order.internal_order_id || '';
     document.getElementById('edit-priority').value = (order.priority || 'normal').toLowerCase();
     document.getElementById('edit-status').value = order.status || 'pending';
     document.getElementById('edit-customer').value = order.customer_id || '';
@@ -555,6 +556,7 @@ async function saveOrderChanges(event) {
   if (!editingOrderId) return;
   
   const updates = {
+    internal_order_id: document.getElementById('edit-internal-order-id').value || null,
     priority: document.getElementById('edit-priority').value,
     status: document.getElementById('edit-status').value,
     customer_id: document.getElementById('edit-customer').value || null,
