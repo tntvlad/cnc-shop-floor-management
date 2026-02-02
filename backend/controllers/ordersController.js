@@ -232,6 +232,7 @@ async function getOrderById(req, res) {
         o.notes,
         o.created_at,
         o.updated_at,
+        o.completed_at,
         o.invoice_contact_id,
         o.order_contact_id,
         o.technical_contact_id,
