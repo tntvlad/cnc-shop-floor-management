@@ -420,6 +420,7 @@ async function openEditOrderModal(orderId) {
     const displayId = order.internal_order_id || `#${orderId}`;
     document.getElementById('edit-order-id').textContent = displayId;
     document.getElementById('edit-internal-order-id').value = order.internal_order_id || '';
+    document.getElementById('edit-external-order-id').value = order.external_order_id || '';
     document.getElementById('edit-priority').value = (order.priority || 'normal').toLowerCase();
     document.getElementById('edit-status').value = order.status || 'pending';
     document.getElementById('edit-customer').value = order.customer_id || '';
@@ -557,6 +558,7 @@ async function saveOrderChanges(event) {
   
   const updates = {
     internal_order_id: document.getElementById('edit-internal-order-id').value || null,
+    external_order_id: document.getElementById('edit-external-order-id').value || null,
     priority: document.getElementById('edit-priority').value,
     status: document.getElementById('edit-status').value,
     customer_id: document.getElementById('edit-customer').value || null,

@@ -363,7 +363,7 @@ async function updateOrder(req, res) {
     const { id } = req.params;
     const { 
       customer_name, customer_email, customer_phone, 
-      due_date, notes, priority, status, customer_id, internal_order_id 
+      due_date, notes, priority, status, customer_id, internal_order_id, external_order_id 
     } = req.body;
 
     // Build dynamic update query based on provided fields
@@ -374,6 +374,10 @@ async function updateOrder(req, res) {
     if (internal_order_id !== undefined) {
       updates.push(`internal_order_id = $${paramCount++}`);
       values.push(internal_order_id);
+    }
+    if (external_order_id !== undefined) {
+      updates.push(`external_order_id = $${paramCount++}`);
+      values.push(external_order_id);
     }
     if (customer_name !== undefined) {
       updates.push(`customer_name = $${paramCount++}`);
