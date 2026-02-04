@@ -180,10 +180,6 @@ function renderActions(order) {
     buttons.push(`<button class="btn-action btn-invoice" onclick="openInvoiceModal(${order.id})">Upload Invoice</button>`);
   }
 
-  if (stage === 'delivered' && order.no_invoice_needed) {
-    buttons.push(`<button class="btn-action btn-payment" onclick="openPaymentModal(${order.id})">Mark Cashed In</button>`);
-  }
-
   if (stage === 'invoiced') {
     buttons.push(`<button class="btn-action btn-payment" onclick="openPaymentModal(${order.id})">Mark Cashed In</button>`);
   }
@@ -277,7 +273,7 @@ function openDeliveryModal(orderId) {
 }
 
 // Submit delivery document
-async function submitDelivery() {
+async function submitDelivery(event) {
   const orderId = document.getElementById('deliveryOrderId').value;
   const fileInput = document.getElementById('deliveryFile');
   
@@ -331,7 +327,7 @@ function openInvoiceModal(orderId) {
 }
 
 // Submit invoice document
-async function submitInvoice() {
+async function submitInvoice(event) {
   const orderId = document.getElementById('invoiceOrderId').value;
   const invoiceNumber = document.getElementById('invoiceNumber').value;
   const fileInput = document.getElementById('invoiceFile');
@@ -392,7 +388,7 @@ function openPaymentModal(orderId) {
 }
 
 // Submit payment (mark as cashed in)
-async function submitPayment() {
+async function submitPayment(event) {
   const orderId = document.getElementById('paymentOrderId').value;
   const paymentAmount = document.getElementById('paymentAmount').value;
   const paymentNotes = document.getElementById('paymentNotes').value;
@@ -432,7 +428,7 @@ async function submitPayment() {
 
 // Toggle no invoice needed
 async function toggleNoInvoiceNeeded(orderId) {
-  if (!confirm('Mark this order as "No Invoice Needed"? This will skip the invoicing stage.')) {
+  if (!confirm('Mark this order as "No Invoice Needed"? This will complete the financial tracking without requiring invoice or payment.')) {
     return;
   }
 
@@ -440,13 +436,13 @@ async function toggleNoInvoiceNeeded(orderId) {
     const response = await API.request(`/orders/${orderId}/financial-stage`, {
       method: 'PUT',
       body: JSON.stringify({
-        financial_stage: 'cashed_in',
+        financial_stage: 'completed',
         no_invoice_needed: true
       })
     });
 
     if (response.success) {
-      alert('Order marked as "No Invoice Needed"');
+      alert('Order marked as "No Invoice Needed" and completed');
       await loadFinancialOrders();
     } else {
       alert('Error: ' + (response.message || 'Failed to update order'));
