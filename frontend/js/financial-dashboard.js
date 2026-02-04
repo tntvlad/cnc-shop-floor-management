@@ -11,6 +11,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // Display user name from local storage immediately
+  const localUser = Auth.getUser();
+  const userNameEl = document.getElementById('userName');
+  if (userNameEl && localUser && localUser.name) {
+    userNameEl.textContent = localUser.name;
+  }
+
   // Check admin level (500)
   try {
     const user = await API.auth.getCurrentUser();
@@ -20,8 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Display user name
-    const userNameEl = document.getElementById('userName');
+    // Update user name from API response if available
     if (userNameEl && user.name) {
       userNameEl.textContent = user.name;
     }
