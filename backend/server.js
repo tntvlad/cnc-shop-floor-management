@@ -335,19 +335,20 @@ app.get('/api/parts/:partId/timelogs', authMiddleware, timeController.getPartTim
 
 // ======================== ORDERS ROUTES ========================
 // Note: requireSupervisor must be INVOKED to return the middleware instance.
+// IMPORTANT: Specific routes must come BEFORE parameterized routes like /api/orders/:id
 app.get('/api/orders/next-internal-id', authMiddleware, requireSupervisor(), ordersController.getNextInternalOrderId);
+app.get('/api/orders/stats/summary', authMiddleware, requireSupervisor(), ordersController.getOrderStats);
+app.get('/api/orders/financial', authMiddleware, requireAdmin(), ordersController.getFinancialOrders);
 app.post('/api/orders', authMiddleware, requireSupervisor(), ordersController.createOrder);
 app.get('/api/orders', authMiddleware, requireSupervisor(), ordersController.getOrders);
 app.get('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.getOrderById);
 app.put('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.updateOrder);
 app.put('/api/orders/:id/status', authMiddleware, requireSupervisor(), ordersController.updateOrderStatus);
 app.delete('/api/orders/:id', authMiddleware, requireSupervisor(), ordersController.deleteOrder);
-app.get('/api/orders/stats/summary', authMiddleware, requireSupervisor(), ordersController.getOrderStats);
 app.post('/api/orders/:orderId/parts', authMiddleware, requireSupervisor(), ordersController.addPartToOrder);
 app.put('/api/parts/:partId/priority', authMiddleware, requireSupervisor(), ordersController.updatePartPriority);
 
 // ======================== FINANCIAL DASHBOARD ROUTES (Admin Level 500) ========================
-app.get('/api/orders/financial', authMiddleware, requireAdmin(), ordersController.getFinancialOrders);
 app.put('/api/orders/:id/financial-stage', authMiddleware, requireAdmin(), ordersController.updateFinancialStage);
 app.post('/api/orders/:id/delivery-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadDeliveryDocument);
 app.post('/api/orders/:id/invoice-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadInvoiceDocument);
