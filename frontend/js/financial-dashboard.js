@@ -546,18 +546,20 @@ function viewDocuments(orderId) {
       const docNumber = order.delivery_document_path.replace('manual:', '');
       docsHtml += `<span>Document #: ${docNumber}</span>`;
     } else {
-      docsHtml += `<a href="${config.API_BASE_URL}/files/download?path=${encodeURIComponent(order.delivery_document_path)}" target="_blank">
-        ${order.delivery_document_path.split('/').pop()}
+      const fileName = order.delivery_document_path.split('/').pop();
+      docsHtml += `<a href="#" onclick="downloadFinancialDocument('${encodeURIComponent(order.delivery_document_path)}', '${fileName}'); return false;" style="cursor: pointer; color: #2196F3;">
+        ${fileName}
       </a>`;
     }
     docsHtml += '</p>';
   }
 
   if (order.invoice_document_path) {
+    const invoiceFileName = order.invoice_document_path.split('/').pop();
     docsHtml += `<p><strong>📄 Invoice Document:</strong><br>
       Invoice #: ${order.invoice_number || 'N/A'}<br>
-      <a href="${config.API_BASE_URL}/files/download?path=${encodeURIComponent(order.invoice_document_path)}" target="_blank">
-        ${order.invoice_document_path.split('/').pop()}
+      <a href="#" onclick="downloadFinancialDocument('${encodeURIComponent(order.invoice_document_path)}', '${invoiceFileName}'); return false;" style="cursor: pointer; color: #2196F3;">
+        ${invoiceFileName}
       </a></p>`;
   }
 
@@ -581,6 +583,38 @@ function viewDocuments(orderId) {
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+// Download financial document with authentication
+async function downloadFinancialDocument(encodedPath, fileName) {
+  try {
+    const path = decodeURIComponent(encodedPath);
+    const response = await fetch(`${config.API_BASE_URL}/files/download?path=${encodeURIComponent(path)}`, {
+      method: 'GET',
+      headers: {
+        ...Auth.getAuthHeader()
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Download failed');
+    }
+
+    // Get the blob and create download link
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  } catch (error) {
+    console.error('Download error:', error);
+    alert('Error downloading file: ' + error.message);
+  }
 }
 
 // Close modal when clicking outside
