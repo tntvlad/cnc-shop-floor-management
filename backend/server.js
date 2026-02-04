@@ -7,7 +7,7 @@ const pool = require('./config/database');
 
 const authMiddleware = require('./middleware/auth');
 const { validateRequest, schemas } = require('./middleware/validation');
-const { requireSupervisor } = require('./middleware/permissions');
+const { requireSupervisor, requireAdmin } = require('./middleware/permissions');
 
 // Controllers
 const authController = require('./controllers/authController');
@@ -143,6 +143,25 @@ async function ensureSchema() {
     console.error('Orders contact fields failed:', err.message || err);
   }
 
+  // Add financial tracking fields to orders table
+  try {
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS financial_stage VARCHAR(50) DEFAULT 'pending'");
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS no_invoice_needed BOOLEAN DEFAULT false');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_date TIMESTAMP NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_document_path TEXT NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_date TIMESTAMP NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(100) NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_document_path TEXT NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS cashed_in_date TIMESTAMP NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_amount DECIMAL(12,2) NULL');
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_notes TEXT NULL');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_orders_financial_stage ON orders(financial_stage)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_orders_status_financial ON orders(status, financial_stage)');
+    console.log('✓ Schema check: orders financial tracking fields ready');
+  } catch (err) {
+    console.error('Orders financial tracking fields failed:', err.message || err);
+  }
+
   // Create machine_maintenance_records table if not exists
   try {
     await pool.query(`
@@ -167,6 +186,65 @@ async function ensureSchema() {
   }
 }
 ensureSchema();
+
+// Configure multer for financial document uploads
+const fs = require('fs');
+const financialStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = process.env.UPLOAD_DIR || './uploads';
+    const financialDir = path.join(uploadDir, 'financial');
+    
+    // Determine subdirectory based on file type
+    let subDir;
+    if (req.path.includes('delivery-document')) {
+      subDir = path.join(financialDir, 'delivery');
+    } else if (req.path.includes('invoice-document')) {
+      subDir = path.join(financialDir, 'invoices');
+    } else {
+      subDir = financialDir;
+    }
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(subDir)) {
+      fs.mkdirSync(subDir, { recursive: true, mode: 0o777 });
+    }
+    
+    cb(null, subDir);
+  },
+  filename: (req, file, cb) => {
+    const orderId = req.params.id;
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname);
+    let prefix;
+    
+    if (req.path.includes('delivery-document')) {
+      prefix = 'delivery';
+    } else if (req.path.includes('invoice-document')) {
+      prefix = 'invoice';
+    } else {
+      prefix = 'document';
+    }
+    
+    cb(null, `order_${orderId}_${prefix}_${timestamp}${ext}`);
+  }
+});
+
+const financialUpload = multer({
+  storage: financialStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    // Accept PDF and image files
+    const allowedTypes = /pdf|jpg|jpeg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF and image files (jpg, png) are allowed'));
+    }
+  }
+});
 
 // Middleware - CORS configuration
 const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -267,6 +345,13 @@ app.delete('/api/orders/:id', authMiddleware, requireSupervisor(), ordersControl
 app.get('/api/orders/stats/summary', authMiddleware, requireSupervisor(), ordersController.getOrderStats);
 app.post('/api/orders/:orderId/parts', authMiddleware, requireSupervisor(), ordersController.addPartToOrder);
 app.put('/api/parts/:partId/priority', authMiddleware, requireSupervisor(), ordersController.updatePartPriority);
+
+// ======================== FINANCIAL DASHBOARD ROUTES (Admin Level 500) ========================
+app.get('/api/orders/financial', authMiddleware, requireAdmin(), ordersController.getFinancialOrders);
+app.put('/api/orders/:id/financial-stage', authMiddleware, requireAdmin(), ordersController.updateFinancialStage);
+app.post('/api/orders/:id/delivery-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadDeliveryDocument);
+app.post('/api/orders/:id/invoice-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadInvoiceDocument);
+app.post('/api/orders/:id/cashed-in', authMiddleware, requireAdmin(), ordersController.markCashedIn);
 
 // ======================== MATERIALS ROUTES ========================
 app.get('/api/materials/stats', authMiddleware, materialsController.getMaterialsStats);
