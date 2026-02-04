@@ -768,13 +768,8 @@ async function updateFinancialStage(req, res) {
 async function uploadDeliveryDocument(req, res) {
   try {
     const { id } = req.params;
-    
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
-      });
-    }
+    const deliveryOption = req.body.deliveryOption || 'upload';
+    const documentNumber = req.body.documentNumber;
     
     // Get order to verify it's completed
     const orderResult = await pool.query(
@@ -793,6 +788,31 @@ async function uploadDeliveryDocument(req, res) {
       });
     }
     
+    let deliveryDocPath = null;
+    
+    if (deliveryOption === 'upload') {
+      // File upload option
+      if (!req.file) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'No file uploaded' 
+        });
+      }
+      deliveryDocPath = req.file.path;
+    } else if (deliveryOption === 'manual') {
+      // Manual document number - store it in the path field
+      if (!documentNumber) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Document number is required' 
+        });
+      }
+      deliveryDocPath = `manual:${documentNumber}`;
+    } else if (deliveryOption === 'none') {
+      // No document required
+      deliveryDocPath = 'none';
+    }
+    
     // Update order with delivery document path and set stage to delivered
     await pool.query(
       `UPDATE orders 
@@ -800,13 +820,14 @@ async function uploadDeliveryDocument(req, res) {
            delivery_date = NOW(), 
            financial_stage = 'delivered'
        WHERE id = $2`,
-      [req.file.path, id]
+      [deliveryDocPath, id]
     );
     
     res.json({
       success: true,
-      message: 'Delivery document uploaded successfully',
-      filePath: req.file.path
+      message: 'Order marked as delivered successfully',
+      deliveryOption: deliveryOption,
+      documentPath: deliveryDocPath
     });
   } catch (error) {
     console.error('Error uploading delivery document:', error);

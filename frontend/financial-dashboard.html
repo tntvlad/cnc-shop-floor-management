@@ -504,27 +504,61 @@
   <div id="deliveryModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>📦 Upload Delivery Document</h2>
+        <h2>📦 Mark as Delivered</h2>
         <button class="modal-close" onclick="closeModal('deliveryModal')">&times;</button>
       </div>
       <div class="modal-body">
         <form id="deliveryForm">
           <input type="hidden" id="deliveryOrderId">
+          
+          <!-- Option selector -->
           <div class="form-group">
+            <label>Choose an option:</label>
+            <div class="delivery-options" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="manual" onchange="toggleDeliveryOption('manual')" checked>
+                <span>✏️ Enter document number manually</span>
+              </label>
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="upload" onchange="toggleDeliveryOption('upload')">
+                <span>📄 Upload document file</span>
+              </label>
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="none" onchange="toggleDeliveryOption('none')">
+                <span>❌ No document required</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Manual document number input -->
+          <div id="manualDocSection" class="form-group">
+            <label>Document Number / Reference</label>
+            <input type="text" id="deliveryDocNumber" placeholder="e.g., AWB-123456, CMR-789">
+          </div>
+
+          <!-- File upload section -->
+          <div id="uploadDocSection" class="form-group" style="display: none;">
             <label>Delivery Document (PDF, JPG, PNG)</label>
             <div class="file-upload" onclick="document.getElementById('deliveryFile').click()">
-              <input type="file" id="deliveryFile" accept=".pdf,.jpg,.jpeg,.png" required>
+              <input type="file" id="deliveryFile" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDeliveryFileName()">
               <label class="file-upload-label">
                 📄 Click to select file or drag and drop
               </label>
               <div id="deliveryFileName" style="margin-top: 0.5rem; color: #666;"></div>
             </div>
           </div>
+
+          <!-- No document message -->
+          <div id="noDocSection" class="form-group" style="display: none;">
+            <p style="color: #666; font-style: italic; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
+              ℹ️ This order will be marked as delivered without any document reference.
+            </p>
+          </div>
         </form>
       </div>
       <div class="modal-footer">
         <button class="btn-modal btn-secondary" onclick="closeModal('deliveryModal')">Cancel</button>
-        <button class="btn-modal btn-primary" onclick="submitDelivery(event)">Upload</button>
+        <button class="btn-modal btn-primary" onclick="submitDelivery(event)">Confirm Delivery</button>
       </div>
     </div>
   </div>

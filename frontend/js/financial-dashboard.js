@@ -281,27 +281,81 @@ function closeModal(modalId) {
 // Open delivery modal
 function openDeliveryModal(orderId) {
   document.getElementById('deliveryOrderId').value = orderId;
+  // Reset form
+  document.getElementById('deliveryDocNumber').value = '';
+  document.getElementById('deliveryFile').value = '';
+  document.getElementById('deliveryFileName').textContent = '';
+  // Set default option to manual
+  document.querySelector('input[name="deliveryOption"][value="manual"]').checked = true;
+  toggleDeliveryOption('manual');
   openModal('deliveryModal');
+}
+
+// Toggle delivery option sections
+function toggleDeliveryOption(option) {
+  const manualSection = document.getElementById('manualDocSection');
+  const uploadSection = document.getElementById('uploadDocSection');
+  const noDocSection = document.getElementById('noDocSection');
+  
+  manualSection.style.display = option === 'manual' ? 'block' : 'none';
+  uploadSection.style.display = option === 'upload' ? 'block' : 'none';
+  noDocSection.style.display = option === 'none' ? 'block' : 'none';
+  
+  // Update radio button styling
+  document.querySelectorAll('.delivery-options .radio-option').forEach(label => {
+    const input = label.querySelector('input');
+    if (input.checked) {
+      label.style.borderColor = '#4CAF50';
+      label.style.background = '#E8F5E9';
+    } else {
+      label.style.borderColor = '#e0e0e0';
+      label.style.background = 'transparent';
+    }
+  });
+}
+
+// Update file name display when file is selected
+function updateDeliveryFileName() {
+  const fileInput = document.getElementById('deliveryFile');
+  const fileNameDiv = document.getElementById('deliveryFileName');
+  if (fileInput.files && fileInput.files.length > 0) {
+    fileNameDiv.textContent = '✓ ' + fileInput.files[0].name;
+    fileNameDiv.style.color = '#4CAF50';
+  } else {
+    fileNameDiv.textContent = '';
+  }
 }
 
 // Submit delivery document
 async function submitDelivery(event) {
   const orderId = document.getElementById('deliveryOrderId').value;
-  const fileInput = document.getElementById('deliveryFile');
+  const selectedOption = document.querySelector('input[name="deliveryOption"]:checked').value;
   
-  if (!fileInput.files || fileInput.files.length === 0) {
-    alert('Please select a file to upload');
-    return;
+  let formData = new FormData();
+  formData.append('deliveryOption', selectedOption);
+  
+  if (selectedOption === 'manual') {
+    const docNumber = document.getElementById('deliveryDocNumber').value.trim();
+    if (!docNumber) {
+      alert('Please enter a document number');
+      return;
+    }
+    formData.append('documentNumber', docNumber);
+  } else if (selectedOption === 'upload') {
+    const fileInput = document.getElementById('deliveryFile');
+    if (!fileInput.files || fileInput.files.length === 0) {
+      alert('Please select a file to upload');
+      return;
+    }
+    formData.append('document', fileInput.files[0]);
   }
-
-  const formData = new FormData();
-  formData.append('document', fileInput.files[0]);
+  // For 'none' option, we don't need to append anything extra
 
   try {
     // Show loading state
     const btn = event.target;
     btn.disabled = true;
-    btn.textContent = 'Uploading...';
+    btn.textContent = 'Processing...';
 
     const response = await fetch(`${config.API_BASE_URL}/orders/${orderId}/delivery-document`, {
       method: 'POST',
@@ -314,20 +368,20 @@ async function submitDelivery(event) {
     const data = await response.json();
 
     if (data.success) {
-      alert('Delivery document uploaded successfully!');
+      alert('Order marked as delivered successfully!');
       closeModal('deliveryModal');
       await loadFinancialOrders();
     } else {
-      alert('Error: ' + (data.message || 'Failed to upload document'));
+      alert('Error: ' + (data.message || 'Failed to mark as delivered'));
     }
   } catch (error) {
-    console.error('Error uploading delivery document:', error);
-    alert('Error uploading document: ' + error.message);
+    console.error('Error marking delivery:', error);
+    alert('Error: ' + error.message);
   } finally {
     const btn = document.querySelector('#deliveryModal .btn-primary');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Upload';
+      btn.textContent = 'Confirm Delivery';
     }
   }
 }
