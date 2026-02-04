@@ -224,6 +224,38 @@ exports.downloadFile = async (req, res) => {
   }
 };
 
+// Download file by path (for financial documents)
+exports.downloadFileByPath = async (req, res) => {
+  try {
+    const { path: filePath } = req.query;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'Path parameter is required' });
+    }
+    
+    // Check if it's a manual document number (not a real file)
+    if (filePath.startsWith('manual:') || filePath === 'none') {
+      return res.status(400).json({ error: 'This is not a downloadable file' });
+    }
+    
+    // Resolve the full path
+    const fullPath = path.resolve(filePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+    
+    // Get filename from path
+    const filename = path.basename(fullPath);
+    
+    res.download(fullPath, filename);
+  } catch (error) {
+    console.error('Download file by path error:', error);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+};
+
 // Get files for part
 exports.getPartFiles = async (req, res) => {
   try {

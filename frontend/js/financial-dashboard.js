@@ -539,10 +539,18 @@ function viewDocuments(orderId) {
   docsHtml += '<div style="margin-top: 1rem;">';
 
   if (order.delivery_document_path) {
-    docsHtml += `<p><strong>📦 Delivery Document:</strong><br>
-      <a href="${config.API_BASE_URL}/files/download?path=${encodeURIComponent(order.delivery_document_path)}" target="_blank">
+    docsHtml += '<p><strong>📦 Delivery Document:</strong><br>';
+    if (order.delivery_document_path === 'none') {
+      docsHtml += '<span style="color: #666; font-style: italic;">No document (marked delivered without document)</span>';
+    } else if (order.delivery_document_path.startsWith('manual:')) {
+      const docNumber = order.delivery_document_path.replace('manual:', '');
+      docsHtml += `<span>Document #: ${docNumber}</span>`;
+    } else {
+      docsHtml += `<a href="${config.API_BASE_URL}/files/download?path=${encodeURIComponent(order.delivery_document_path)}" target="_blank">
         ${order.delivery_document_path.split('/').pop()}
-      </a></p>`;
+      </a>`;
+    }
+    docsHtml += '</p>';
   }
 
   if (order.invoice_document_path) {

@@ -457,6 +457,7 @@ app.get('/api/priority-queue', authMiddleware, phase1bController.getPriorityQueu
 
 
 // File routes
+app.get('/api/files/download', authMiddleware, filesController.downloadFileByPath);
 app.get('/api/parts/:partId/files', authMiddleware, filesController.getPartFiles);
 app.post('/api/parts/:partId/files', authMiddleware, filesController.uploadFile);
 app.get('/api/files/:fileId/download', authMiddleware, filesController.downloadFile);
