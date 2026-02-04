@@ -535,7 +535,13 @@ module.exports = {
   getOrderStats,
   addPartToOrder,
   updatePartPriority,
-  getNextInternalOrderId
+  getNextInternalOrderId,
+  // Financial dashboard functions
+  getFinancialOrders,
+  updateFinancialStage,
+  uploadDeliveryDocument,
+  uploadInvoiceDocument,
+  markCashedIn
 };
 
 // Get next available internal order ID (format: FP-YYYY-NNN)
@@ -652,6 +658,274 @@ async function updatePartPriority(req, res) {
     });
   } catch (error) {
     console.error('Error updating part priority:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// ======================== FINANCIAL DASHBOARD FUNCTIONS ========================
+
+// Get orders for financial dashboard (completed orders only)
+async function getFinancialOrders(req, res) {
+  try {
+    const { financial_stage } = req.query;
+    
+    let query = `
+      SELECT 
+        o.*,
+        c.company_name as customer_company_name,
+        u.name as approved_by_name
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN users u ON o.approved_by_id = u.id
+      WHERE o.status = 'completed'
+    `;
+    
+    const params = [];
+    
+    // Filter by financial stage if provided
+    if (financial_stage) {
+      params.push(financial_stage);
+      query += ` AND o.financial_stage = $${params.length}`;
+    }
+    
+    query += ' ORDER BY o.updated_at DESC, o.id DESC';
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      orders: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching financial orders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Update financial stage
+async function updateFinancialStage(req, res) {
+  try {
+    const { id } = req.params;
+    const { financial_stage, no_invoice_needed } = req.body;
+    
+    // Validate stage
+    const validStages = ['pending', 'delivered', 'invoiced', 'cashed_in', 'completed'];
+    if (!validStages.includes(financial_stage)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid financial stage' 
+      });
+    }
+    
+    // Get current order state
+    const orderResult = await pool.query(
+      'SELECT status, financial_stage, no_invoice_needed FROM orders WHERE id = $1',
+      [id]
+    );
+    
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    const order = orderResult.rows[0];
+    
+    // Only allow financial tracking for completed orders
+    if (order.status !== 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Only completed orders can be tracked financially' 
+      });
+    }
+    
+    // Update financial stage and no_invoice_needed flag
+    const updateFields = { financial_stage };
+    if (no_invoice_needed !== undefined) {
+      updateFields.no_invoice_needed = no_invoice_needed;
+    }
+    
+    const setClause = Object.keys(updateFields)
+      .map((key, idx) => `${key} = $${idx + 2}`)
+      .join(', ');
+    
+    const values = [id, ...Object.values(updateFields)];
+    
+    await pool.query(
+      `UPDATE orders SET ${setClause} WHERE id = $1`,
+      values
+    );
+    
+    res.json({
+      success: true,
+      message: 'Financial stage updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating financial stage:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Upload delivery document
+async function uploadDeliveryDocument(req, res) {
+  try {
+    const { id } = req.params;
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+    
+    // Get order to verify it's completed
+    const orderResult = await pool.query(
+      'SELECT status FROM orders WHERE id = $1',
+      [id]
+    );
+    
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    if (orderResult.rows[0].status !== 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Only completed orders can have delivery documents' 
+      });
+    }
+    
+    // Update order with delivery document path and set stage to delivered
+    await pool.query(
+      `UPDATE orders 
+       SET delivery_document_path = $1, 
+           delivery_date = NOW(), 
+           financial_stage = 'delivered'
+       WHERE id = $2`,
+      [req.file.path, id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Delivery document uploaded successfully',
+      filePath: req.file.path
+    });
+  } catch (error) {
+    console.error('Error uploading delivery document:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Upload invoice document
+async function uploadInvoiceDocument(req, res) {
+  try {
+    const { id } = req.params;
+    const { invoice_number } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+    
+    if (!invoice_number) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invoice number is required' 
+      });
+    }
+    
+    // Get order to verify state
+    const orderResult = await pool.query(
+      'SELECT status, financial_stage FROM orders WHERE id = $1',
+      [id]
+    );
+    
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    const order = orderResult.rows[0];
+    
+    if (order.status !== 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Only completed orders can have invoices' 
+      });
+    }
+    
+    // Update order with invoice details
+    await pool.query(
+      `UPDATE orders 
+       SET invoice_document_path = $1, 
+           invoice_number = $2,
+           invoice_date = NOW(), 
+           financial_stage = 'invoiced'
+       WHERE id = $3`,
+      [req.file.path, invoice_number, id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Invoice document uploaded successfully',
+      filePath: req.file.path,
+      invoiceNumber: invoice_number
+    });
+  } catch (error) {
+    console.error('Error uploading invoice document:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Mark as cashed in
+async function markCashedIn(req, res) {
+  try {
+    const { id } = req.params;
+    const { payment_amount, payment_notes } = req.body;
+    
+    // Get order to verify state
+    const orderResult = await pool.query(
+      'SELECT status, financial_stage, no_invoice_needed FROM orders WHERE id = $1',
+      [id]
+    );
+    
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    const order = orderResult.rows[0];
+    
+    if (order.status !== 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Only completed orders can be marked as cashed in' 
+      });
+    }
+    
+    // If not no_invoice_needed, require payment_amount
+    if (!order.no_invoice_needed && !payment_amount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Payment amount is required' 
+      });
+    }
+    
+    // Update order with payment details
+    await pool.query(
+      `UPDATE orders 
+       SET cashed_in_date = NOW(), 
+           payment_amount = $1,
+           payment_notes = $2,
+           financial_stage = 'completed'
+       WHERE id = $3`,
+      [payment_amount || null, payment_notes || null, id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Order marked as cashed in successfully'
+    });
+  } catch (error) {
+    console.error('Error marking order as cashed in:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 }

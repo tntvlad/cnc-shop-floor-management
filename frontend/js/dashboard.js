@@ -40,6 +40,7 @@ function loadUserInfo() {
   const supervisorLink = document.getElementById('supervisorLink');
   const ordersLink = document.getElementById('ordersLink');
   const customersLink = document.getElementById('customersLink');
+  const financialLink = document.getElementById('financialLink');
   const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
     || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
   if (isSupervisorPlus) {
@@ -47,6 +48,11 @@ function loadUserInfo() {
     if (supervisorLink) supervisorLink.style.display = 'inline-block';
     if (ordersLink) ordersLink.style.display = 'inline-block';
     if (customersLink) customersLink.style.display = 'inline-block';
+  }
+
+  // Show financial dashboard link for level 500 (Admin) users
+  if (user && user.level >= 500) {
+    if (financialLink) financialLink.style.display = 'inline-block';
   }
 }
 
