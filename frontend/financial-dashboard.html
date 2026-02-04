@@ -438,17 +438,20 @@
 </head>
 <body>
   <!-- Header -->
-  <header style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-    <div class="container" style="display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto;">
-      <h1 style="margin: 0; font-size: 1.8rem; font-weight: 600;">💰 Financial Dashboard</h1>
-      <div class="header-nav">
-        <a href="index.html" class="nav-btn">🏠 Home</a>
-        <a href="order-dashboard.html" class="nav-btn">📦 Orders</a>
-        <a href="admin-settings.html" class="nav-btn">⚙️ Settings</a>
-        <button id="logoutBtn" class="nav-btn">🚪 Logout</button>
-      </div>
+  <nav class="navbar" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 1rem 2rem;">
+    <div class="nav-left">
+      <h1 style="color: white; margin: 0;">💰 Financial Dashboard</h1>
     </div>
-  </header>
+    <nav class="header-nav">
+      <a href="order-dashboard.html" id="ordersLink" class="nav-btn">📦 Orders</a>
+      <a href="index.html" class="nav-btn">📊 Dashboard</a>
+      <a href="supervisor.html" id="supervisorLink" class="nav-btn">🗂️ Supervisor</a>
+      <a href="financial-dashboard.html" id="financialLink" class="nav-btn active">💰 Financial</a>
+      <a href="admin-settings.html" id="adminLink" class="nav-btn">⚙️ Admin</a>
+      <span class="user-btn">👤 <span id="userName">Loading...</span></span>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </nav>
+  </nav>
 
   <!-- Main Content -->
   <main class="container" style="max-width: 1400px; margin: 2rem auto; padding: 0 1rem;">

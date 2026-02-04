@@ -31,6 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // Show financial link for level 500 (Admin) users
+  if (user && user.level >= 500) {
+    const financialLink = document.getElementById('financialLink');
+    if (financialLink) financialLink.style.display = 'inline-block';
+  }
+
   // Setup tab navigation
   setupTabs();
   setupViewToggle();

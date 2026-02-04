@@ -47,6 +47,12 @@ function loadCurrentUser() {
     if (supervisorLink) supervisorLink.style.display = 'inline-flex';
     if (adminLink) adminLink.style.display = 'inline-flex';
   }
+
+  // Show financial link for level 500 (Admin) users
+  if (user && user.level >= 500) {
+    const financialLink = document.getElementById('financialLink');
+    if (financialLink) financialLink.style.display = 'inline-flex';
+  }
 }
 
 function setupSearch() {

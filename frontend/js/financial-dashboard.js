@@ -20,6 +20,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Display user name
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl && user.name) {
+      userNameEl.textContent = user.name;
+    }
+
     // Set up logout button
     document.getElementById('logoutBtn').addEventListener('click', () => {
       Auth.logout();
