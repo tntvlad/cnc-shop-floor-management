@@ -58,6 +58,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('invoiceFile').addEventListener('change', (e) => {
       const fileName = e.target.files[0]?.name || '';
       document.getElementById('invoiceFileName').textContent = fileName ? `Selected: ${fileName}` : '';
+      
+      // Auto-fill invoice number from filename (without extension)
+      if (fileName) {
+        const invoiceNumberField = document.getElementById('invoiceNumber');
+        // Remove file extension and use as invoice number
+        const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+        invoiceNumberField.value = nameWithoutExt;
+      }
     });
 
     // Load orders
