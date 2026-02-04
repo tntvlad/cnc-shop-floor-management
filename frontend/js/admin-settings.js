@@ -18,6 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Display user info
   document.getElementById('userName').textContent = user.name || user.employeeId;
 
+  // Show financial dashboard link for level 500 (Admin) users
+  if (user && user.level >= 500) {
+    const financialLink = document.getElementById('financialLink');
+    if (financialLink) {
+      financialLink.style.display = 'inline-flex';
+    }
+  }
+
   // Logout button
   document.getElementById('logoutBtn').addEventListener('click', () => {
     Auth.logout();

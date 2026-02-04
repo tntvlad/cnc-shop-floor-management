@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💰 Financial Dashboard - CNC Shop Floor</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .financial-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+      color: white !important;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card * {
+      color: white !important;
+    }
+
+    .stat-card.pending {
+      background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+    }
+
+    .stat-card.delivered {
+      background: linear-gradient(135deg, #2196F3 0%, #0891b2 100%);
+    }
+
+    .stat-card.invoiced {
+      background: linear-gradient(135deg, #9C27B0 0%, #673AB7 100%);
+    }
+
+    .stat-card.cashed {
+      background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .financial-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-tabs button {
+      padding: 0.75rem 1.5rem;
+      border: 2px solid #ddd;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 500;
+    }
+
+    .filter-tabs button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .financial-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .financial-table thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .financial-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+    }
+
+    .financial-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .financial-table tbody tr:hover {
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+
+    .stage-badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .stage-pending {
+      background: #FFF3CD;
+      color: #856404;
+    }
+
+    .stage-delivered {
+      background: #D1ECF1;
+      color: #0C5460;
+    }
+
+    .stage-invoiced {
+      background: #E1BEE7;
+      color: #4A148C;
+    }
+
+    .stage-cashed_in {
+      background: #C8E6C9;
+      color: #1B5E20;
+    }
+
+    .stage-completed {
+      background: #A5D6A7;
+      color: #2E7D32;
+      font-weight: bold;
+    }
+
+    .status-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .status-date {
+      color: #666;
+    }
+
+    .status-icon {
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .status-icon:hover {
+      transform: scale(1.2);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-delivery {
+      background: #2196F3;
+      color: white;
+    }
+
+    .btn-delivery:hover {
+      background: #1976D2;
+    }
+
+    .btn-invoice {
+      background: #9C27B0;
+      color: white;
+    }
+
+    .btn-invoice:hover {
+      background: #7B1FA2;
+    }
+
+    .btn-payment {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-payment:hover {
+      background: #388E3C;
+    }
+
+    .btn-view {
+      background: #607D8B;
+      color: white;
+    }
+
+    .btn-view:hover {
+      background: #455A64;
+    }
+
+    .btn-no-invoice {
+      background: #FF9800;
+      color: white;
+    }
+
+    .btn-no-invoice:hover {
+      background: #F57C00;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      overflow: auto;
+    }
+
+    .modal.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 1rem;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .modal-close {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #999;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .modal-body {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .file-upload {
+      border: 2px dashed #ddd;
+      padding: 2rem;
+      text-align: center;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .file-upload:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+
+    .file-upload input[type="file"] {
+      display: none;
+    }
+
+    .file-upload-label {
+      cursor: pointer;
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+    }
+
+    .btn-modal {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #d0d0d0;
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Header Navigation Styles */
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .checkbox-field input[type="checkbox"] {
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto;">
+      <h1 style="margin: 0; font-size: 1.8rem; font-weight: 600;">💰 Financial Dashboard</h1>
+      <div class="header-nav">
+        <a href="index.html" class="nav-btn">🏠 Home</a>
+        <a href="order-dashboard.html" class="nav-btn">📦 Orders</a>
+        <a href="admin-settings.html" class="nav-btn">⚙️ Settings</a>
+        <button id="logoutBtn" class="nav-btn">🚪 Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container" style="max-width: 1400px; margin: 2rem auto; padding: 0 1rem;">
+    <!-- Statistics Cards -->
+    <div class="financial-stats" id="statsCards"></div>
+
+    <!-- Header with Filters -->
+    <div class="financial-header">
+      <h2 style="margin: 0;">Orders Financial Tracking</h2>
+      <div class="filter-tabs">
+        <button class="active" data-stage="all">All</button>
+        <button data-stage="pending">Pending</button>
+        <button data-stage="delivered">Delivered</button>
+        <button data-stage="invoiced">Invoiced</button>
+        <button data-stage="cashed_in">Cashed In</button>
+        <button data-stage="completed">Completed</button>
+      </div>
+    </div>
+
+    <!-- Financial Orders Table -->
+    <div style="overflow-x: auto;">
+      <table class="financial-table" id="financialTable">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Customer</th>
+            <th>Completion Date</th>
+            <th>Financial Stage</th>
+            <th>Delivery</th>
+            <th>Invoice</th>
+            <th>Payment</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="financialTableBody">
+          <!-- Populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-state-icon">📊</div>
+      <h3>No completed orders found</h3>
+      <p>Orders that are marked as completed will appear here for financial tracking.</p>
+    </div>
+  </main>
+
+  <!-- Delivery Document Modal -->
+  <div id="deliveryModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📦 Upload Delivery Document</h2>
+        <button class="modal-close" onclick="closeModal('deliveryModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="deliveryForm">
+          <input type="hidden" id="deliveryOrderId">
+          <div class="form-group">
+            <label>Delivery Document (PDF, JPG, PNG)</label>
+            <div class="file-upload" onclick="document.getElementById('deliveryFile').click()">
+              <input type="file" id="deliveryFile" accept=".pdf,.jpg,.jpeg,.png" required>
+              <label class="file-upload-label">
+                📄 Click to select file or drag and drop
+              </label>
+              <div id="deliveryFileName" style="margin-top: 0.5rem; color: #666;"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-secondary" onclick="closeModal('deliveryModal')">Cancel</button>
+        <button class="btn-modal btn-primary" onclick="submitDelivery()">Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Document Modal -->
+  <div id="invoiceModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📄 Upload Invoice</h2>
+        <button class="modal-close" onclick="closeModal('invoiceModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="invoiceForm">
+          <input type="hidden" id="invoiceOrderId">
+          <div class="form-group">
+            <label>Invoice Number *</label>
+            <input type="text" id="invoiceNumber" placeholder="e.g., INV-2024-001" required>
+          </div>
+          <div class="form-group">
+            <label>Invoice Document (PDF, JPG, PNG)</label>
+            <div class="file-upload" onclick="document.getElementById('invoiceFile').click()">
+              <input type="file" id="invoiceFile" accept=".pdf,.jpg,.jpeg,.png" required>
+              <label class="file-upload-label">
+                📄 Click to select file or drag and drop
+              </label>
+              <div id="invoiceFileName" style="margin-top: 0.5rem; color: #666;"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-secondary" onclick="closeModal('invoiceModal')">Cancel</button>
+        <button class="btn-modal btn-primary" onclick="submitInvoice()">Upload Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="paymentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>💰 Mark as Cashed In</h2>
+        <button class="modal-close" onclick="closeModal('paymentModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="paymentForm">
+          <input type="hidden" id="paymentOrderId">
+          <div class="form-group">
+            <label>Payment Amount (RON)</label>
+            <input type="number" id="paymentAmount" step="0.01" placeholder="e.g., 1500.00">
+          </div>
+          <div class="form-group">
+            <label>Payment Notes</label>
+            <textarea id="paymentNotes" placeholder="Optional notes about the payment..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal btn-secondary" onclick="closeModal('paymentModal')">Cancel</button>
+        <button class="btn-modal btn-primary" onclick="submitPayment()">Mark Cashed In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/financial-dashboard.js"></script>
+</body>
+</html>
