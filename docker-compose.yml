@@ -45,6 +45,7 @@ services:
       - uploads_data:/app/uploads
       - /home/vlad/hdd/Tools:/data/jobfiles
       - ${CLIENTS_HOST_PATH:-/mnt/nas_NAS_Storage_LOGICAL/shares/Prelucrare/1-Clienti}:/data/clients
+      - /mnt/nas_NAS_Storage_LOGICAL/shares/BackupOnServer/3-Facturi/Iesiri:/app/uploads/financial/invoices  # Invoice storage on NAS
       - .:/app/project  # Mount project for git operations (writable for branch switch)
       - /var/run/docker.sock:/var/run/docker.sock  # For docker-compose restart
     ports:
