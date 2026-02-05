@@ -344,7 +344,7 @@ function updateDeliveryFileName() {
 // Invoice API base URL
 const INVOICE_API_URL = 'http://192.168.2.121:3001';
 
-// Load aviz data (order items and next number)
+// Load aviz data (order items, next number, and matching partner from IceFact)
 async function loadAvizData() {
   const orderId = document.getElementById('deliveryOrderId').value;
   const serie = document.getElementById('avizSerie').value || 'AFE';
@@ -374,6 +374,58 @@ async function loadAvizData() {
       } else {
         itemsDiv.innerHTML = '<p style="color: #999;">No parts found for this order.</p>';
       }
+      
+      // Search for matching partner in IceFact database
+      const customerName = order.customer_company_name || order.customer_name || '';
+      if (customerName) {
+        try {
+          const partnerResponse = await fetch(`${INVOICE_API_URL}/api/partners/search/${encodeURIComponent(customerName)}`);
+          const partnerData = await partnerResponse.json();
+          
+          if (partnerData.data && partnerData.data.length > 0) {
+            const partner = partnerData.data[0]; // Use first match
+            
+            // Store partner data for aviz creation
+            window.currentAvizPartner = partner;
+            
+            // Show matched partner info
+            const partnerInfoDiv = document.getElementById('avizPartnerInfo');
+            if (partnerInfoDiv) {
+              partnerInfoDiv.innerHTML = `
+                <div style="background: #E8F5E9; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                  <strong style="color: #2E7D32;">✓ Matched in IceFact:</strong> ${partner.den}
+                  <br><small style="color: #666;">CIF: ${partner.cui || '-'} | ${partner.localitate || ''}, ${partner.judet || ''}</small>
+                </div>
+              `;
+            }
+            
+            // Auto-fill delegate info if available
+            if (partner.delegat_nume) {
+              document.getElementById('avizDelegat').value = partner.delegat_nume;
+              document.getElementById('avizCISeria').value = partner.delegat_ci_seria || '';
+              document.getElementById('avizCINr').value = partner.delegat_ci_nr || '';
+              document.getElementById('avizCIPol').value = partner.delegat_ci_pol || '';
+              document.getElementById('avizTransport').value = partner.delegat_mij_trans || 'auto';
+              document.getElementById('avizNrAuto').value = partner.delegat_mij_trans_nr || '';
+            }
+          } else {
+            // No match found
+            window.currentAvizPartner = null;
+            const partnerInfoDiv = document.getElementById('avizPartnerInfo');
+            if (partnerInfoDiv) {
+              partnerInfoDiv.innerHTML = `
+                <div style="background: #FFF3E0; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                  <strong style="color: #E65100;">⚠ Not found in IceFact:</strong> ${customerName}
+                  <br><small style="color: #666;">Customer data from CNC order will be used.</small>
+                </div>
+              `;
+            }
+          }
+        } catch (partnerError) {
+          console.error('Error searching partner:', partnerError);
+          window.currentAvizPartner = null;
+        }
+      }
     }
   } catch (error) {
     console.error('Error loading aviz data:', error);
@@ -399,23 +451,26 @@ async function createAviz() {
     throw new Error('Order data not loaded');
   }
   
+  // Use IceFact partner data if matched, otherwise use CNC order data
+  const partner = window.currentAvizPartner;
+  
   // Build aviz data with correct IceFact schema
   const avizData = {
     serie: serie,
     numar: parseInt(numar),
     data: new Date().toISOString().split('T')[0],
-    // Customer (beneficiar) info
-    benef_den: order.customer_company_name || order.customer_name || '',
-    benef_cui: order.customer_cif || '',
-    benef_sediu: order.customer_address || '',
-    benef_atrf: order.customer_cif ? 'RO' : '',
-    benef_regcom: order.customer_reg_com || '',
-    benef_localitate: order.customer_city || '',
-    benef_judet: order.customer_county || '',
-    benef_tara: 'România',
-    benef_cont: order.customer_bank_account || '',
-    benef_banca: order.customer_bank || '',
-    // Delegate info
+    // Customer (beneficiar) info - prefer IceFact data
+    benef_den: partner?.den || order.customer_company_name || order.customer_name || '',
+    benef_cui: partner?.cui || order.customer_cif || '',
+    benef_sediu: partner?.sediu || order.customer_address || '',
+    benef_atrf: partner?.atrf || (order.customer_cif ? 'RO' : ''),
+    benef_regcom: partner?.regcom || order.customer_reg_com || '',
+    benef_localitate: partner?.localitate || order.customer_city || '',
+    benef_judet: partner?.judet || order.customer_county || '',
+    benef_tara: partner?.tara || 'România',
+    benef_cont: partner?.cont || order.customer_bank_account || '',
+    benef_banca: partner?.banca || order.customer_bank || '',
+    // Delegate info - from form fields (pre-filled from IceFact if matched)
     deleg_nume: delegat,
     deleg_ci_seria: document.getElementById('avizCISeria')?.value || '',
     deleg_ci_nr: document.getElementById('avizCINr')?.value || '',
