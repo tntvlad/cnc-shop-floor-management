@@ -352,21 +352,10 @@ async function loadAvizData() {
   const serie = document.getElementById('avizSerie').value || 'AFE';
   
   try {
-    // Reserve next aviz number from invoice-api (atomic operation)
-    const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/reserve-number/${serie}`, {
-      method: 'POST'
-    });
+    // Just GET next number for preview (NO reservation yet - reserve only on actual create)
+    const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
     const nextNumData = await nextNumResponse.json();
-    
-    if (nextNumData.success) {
-      document.getElementById('avizNumber').value = nextNumData.reserved_number || '';
-      window.reservedAvizNumber = nextNumData.reserved_number; // Store for later use
-    } else {
-      // Fallback to non-reserved get
-      const fallbackResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
-      const fallbackData = await fallbackResponse.json();
-      document.getElementById('avizNumber').value = fallbackData.next_number || '';
-    }
+    document.getElementById('avizNumber').value = nextNumData.next_number || '';
     
     // Get order details with parts
     const orderResponse = await API.request(`/orders/${orderId}`);
@@ -450,19 +439,30 @@ async function loadAvizData() {
 async function createAviz() {
   const orderId = document.getElementById('deliveryOrderId').value;
   const serie = document.getElementById('avizSerie').value;
-  const numar = document.getElementById('avizNumber').value;
   const delegat = document.getElementById('avizDelegat').value;
   const transport = document.getElementById('avizTransport').value;
   const nrAuto = document.getElementById('avizNrAuto').value;
   
-  if (!serie || !numar) {
-    throw new Error('Series and number are required');
+  if (!serie) {
+    throw new Error('Series is required');
   }
   
   const order = window.currentAvizOrder;
   if (!order) {
     throw new Error('Order data not loaded');
   }
+  
+  // ATOMIC: Reserve number right before creating (not on modal open)
+  const reserveResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/reserve-number/${serie}`, {
+    method: 'POST'
+  });
+  const reserveData = await reserveResponse.json();
+  
+  if (!reserveData.success) {
+    throw new Error('Failed to reserve aviz number');
+  }
+  
+  const numar = reserveData.reserved_number;
   
   // Use IceFact partner data if matched, otherwise use CNC order data
   const partner = window.currentAvizPartner;
