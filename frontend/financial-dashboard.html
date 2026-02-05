@@ -774,19 +774,44 @@
     // Backup database
     async function backupDatabase() {
       try {
-        const response = await API.request('/admin/database/backup');
-        if (response.success && response.downloadUrl) {
-          // Trigger download
-          const link = document.createElement('a');
-          link.href = response.downloadUrl;
-          link.download = response.filename || 'backup.sql';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          alert('Backup downloaded successfully!');
-        } else {
-          alert('Backup failed: ' + (response.message || 'Unknown error'));
+        // Get auth token
+        const token = Auth.getToken();
+        if (!token) {
+          alert('Please login first');
+          return;
         }
+        
+        // Direct download - the endpoint returns the SQL file
+        const response = await fetch('/api/admin/database/backup', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Backup failed');
+        }
+        
+        // Get the blob and trigger download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Get filename from header or generate one
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filename = contentDisposition 
+          ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
+          : `cnc_backup_${new Date().toISOString().split('T')[0]}.sql`;
+        
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        alert('Backup downloaded successfully!');
       } catch (error) {
         alert('Backup error: ' + error.message);
       }
