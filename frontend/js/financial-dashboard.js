@@ -352,10 +352,21 @@ async function loadAvizData() {
   const serie = document.getElementById('avizSerie').value || 'AFE';
   
   try {
-    // Get next aviz number from invoice-api
-    const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
+    // Reserve next aviz number from invoice-api (atomic operation)
+    const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/reserve-number/${serie}`, {
+      method: 'POST'
+    });
     const nextNumData = await nextNumResponse.json();
-    document.getElementById('avizNumber').value = nextNumData.next_number || '';
+    
+    if (nextNumData.success) {
+      document.getElementById('avizNumber').value = nextNumData.reserved_number || '';
+      window.reservedAvizNumber = nextNumData.reserved_number; // Store for later use
+    } else {
+      // Fallback to non-reserved get
+      const fallbackResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
+      const fallbackData = await fallbackResponse.json();
+      document.getElementById('avizNumber').value = fallbackData.next_number || '';
+    }
     
     // Get order details with parts
     const orderResponse = await API.request(`/orders/${orderId}`);
