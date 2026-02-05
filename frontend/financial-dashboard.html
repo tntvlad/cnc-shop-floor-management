@@ -434,58 +434,6 @@
     .checkbox-field input[type="checkbox"] {
       width: auto;
     }
-
-    /* Settings Gear Button */
-    .settings-gear {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 1.4rem;
-      cursor: pointer;
-      padding: 0.25rem 0.5rem;
-      opacity: 0.8;
-      transition: opacity 0.2s, transform 0.2s;
-    }
-    .settings-gear:hover {
-      opacity: 1;
-      transform: rotate(45deg);
-    }
-
-    /* Settings Popup */
-    .settings-popup {
-      position: fixed;
-      top: 60px;
-      right: 20px;
-      z-index: 1000;
-    }
-    .settings-popup-content {
-      background: white;
-      padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      min-width: 250px;
-    }
-    .settings-popup-content h3 {
-      margin: 0 0 0.5rem 0;
-      color: #333;
-    }
-    .settings-popup-content hr {
-      border: none;
-      border-top: 1px solid #e0e0e0;
-      margin: 0.5rem 0 1rem 0;
-    }
-    .btn-secondary {
-      background: #6c757d;
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      width: 100%;
-    }
-    .btn-secondary:hover {
-      background: #5a6268;
-    }
   </style>
 </head>
 <body>
@@ -501,22 +449,9 @@
       <a href="financial-dashboard.html" id="financialLink" class="nav-btn active">💰 Financial</a>
       <a href="admin-settings.html" id="adminLink" class="nav-btn">⚙️ Admin</a>
       <span class="user-btn">👤 <span id="userName">Loading...</span></span>
-      <button class="settings-gear" id="settingsGear" onclick="toggleSettingsPopup()" title="Quick Settings">⚙</button>
       <button class="logout-btn" id="logoutBtn">Logout</button>
     </nav>
   </nav>
-
-  <!-- Settings Popup -->
-  <div id="settingsPopup" class="settings-popup" style="display: none;">
-    <div class="settings-popup-content">
-      <h3>⚙️ Quick Settings</h3>
-      <hr>
-      <button class="btn btn-primary" onclick="backupDatabase()" style="width: 100%; margin-bottom: 10px;">
-        📥 Download Database Backup
-      </button>
-      <button class="btn btn-secondary" onclick="document.getElementById('settingsPopup').style.display='none'">Close</button>
-    </div>
-  </div>
 
   <!-- Main Content -->
   <main class="container" style="max-width: 1400px; margin: 2rem auto; padding: 0 1rem;">
@@ -755,60 +690,5 @@
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
   <script src="js/financial-dashboard.js"></script>
-  <script>
-    // Toggle settings popup
-    function toggleSettingsPopup() {
-      const popup = document.getElementById('settingsPopup');
-      popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
-    }
-
-    // Close popup when clicking outside
-    document.addEventListener('click', function(e) {
-      const popup = document.getElementById('settingsPopup');
-      const gear = document.getElementById('settingsGear');
-      if (popup && !popup.contains(e.target) && e.target !== gear) {
-        popup.style.display = 'none';
-      }
-    });
-
-    // Backup database (same as admin-settings.js)
-    async function backupDatabase() {
-      const popup = document.getElementById('settingsPopup');
-      
-      try {
-        const response = await fetch('/api/admin/database/backup', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${Auth.getToken()}`
-          }
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Backup failed');
-        }
-
-        // Download the SQL file
-        const blob = await response.blob();
-        const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
-        const filename = `cnc_backup_${timestamp}.sql`;
-        
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
-
-        alert(`Backup downloaded: ${filename}`);
-      } catch (error) {
-        alert('Backup error: ' + error.message);
-      }
-      
-      popup.style.display = 'none';
-    }
-  </script>
 </body>
 </html>
