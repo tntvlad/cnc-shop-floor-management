@@ -196,6 +196,8 @@ function renderActions(order) {
   }
 
   if (stage === 'delivered' && !order.no_invoice_needed) {
+    // TEMP: Reset button for testing
+    buttons.push(`<button class="btn-action" style="background:#f44336;" onclick="resetToPending(${order.id})">↩ Reset</button>`);
     buttons.push(`<button class="btn-action btn-no-invoice" onclick="toggleNoInvoiceNeeded(${order.id})">No Invoice Needed</button>`);
     buttons.push(`<button class="btn-action btn-invoice" onclick="openInvoiceModal(${order.id})">Upload Invoice</button>`);
   }
@@ -829,6 +831,29 @@ async function downloadFinancialDocument(encodedPath, fileName) {
   } catch (error) {
     console.error('Download error:', error);
     alert('Error downloading file: ' + error.message);
+  }
+}
+
+// TEMP: Reset order to pending status (for testing)
+async function resetToPending(orderId) {
+  if (!confirm('Reset this order back to Pending status?')) {
+    return;
+  }
+  
+  try {
+    const response = await API.request(`/orders/${orderId}/reset-financial`, {
+      method: 'POST'
+    });
+    
+    if (response.success) {
+      alert('Order reset to Pending');
+      await loadFinancialOrders();
+    } else {
+      alert('Error: ' + (response.message || 'Failed to reset'));
+    }
+  } catch (error) {
+    console.error('Error resetting order:', error);
+    alert('Error: ' + error.message);
   }
 }
 

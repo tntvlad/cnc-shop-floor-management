@@ -353,6 +353,7 @@ app.put('/api/orders/:id/financial-stage', authMiddleware, requireAdmin(), order
 app.post('/api/orders/:id/delivery-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadDeliveryDocument);
 app.post('/api/orders/:id/invoice-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadInvoiceDocument);
 app.post('/api/orders/:id/cashed-in', authMiddleware, requireAdmin(), ordersController.markCashedIn);
+app.post('/api/orders/:id/reset-financial', authMiddleware, requireAdmin(), ordersController.resetFinancialStatus);
 
 // ======================== MATERIALS ROUTES ========================
 app.get('/api/materials/stats', authMiddleware, materialsController.getMaterialsStats);

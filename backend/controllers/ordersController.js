@@ -541,7 +541,8 @@ module.exports = {
   updateFinancialStage,
   uploadDeliveryDocument,
   uploadInvoiceDocument,
-  markCashedIn
+  markCashedIn,
+  resetFinancialStatus
 };
 
 // Get next available internal order ID (format: FP-YYYY-NNN)
@@ -947,6 +948,32 @@ async function markCashedIn(req, res) {
     });
   } catch (error) {
     console.error('Error marking order as cashed in:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Reset financial status to pending (temporary testing function)
+async function resetFinancialStatus(req, res) {
+  try {
+    const { id } = req.params;
+    
+    await pool.query(
+      `UPDATE orders 
+       SET financial_stage = 'pending', 
+           delivery_date = NULL,
+           cashed_in_date = NULL,
+           payment_amount = NULL,
+           payment_notes = NULL
+       WHERE id = $1`,
+      [id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Order reset to pending successfully'
+    });
+  } catch (error) {
+    console.error('Error resetting financial status:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 }
