@@ -399,23 +399,40 @@ async function createAviz() {
     throw new Error('Order data not loaded');
   }
   
-  // Build aviz data
+  // Build aviz data with correct IceFact schema
   const avizData = {
     serie: serie,
     numar: parseInt(numar),
     data: new Date().toISOString().split('T')[0],
+    // Customer (beneficiar) info
     benef_den: order.customer_company_name || order.customer_name || '',
     benef_cui: order.customer_cif || '',
     benef_sediu: order.customer_address || '',
-    delegat: delegat,
-    ci_delegat: '',
-    mijloc_transport: transport,
-    nr_auto: nrAuto,
+    benef_atrf: order.customer_cif ? 'RO' : '',
+    benef_regcom: order.customer_reg_com || '',
+    benef_localitate: order.customer_city || '',
+    benef_judet: order.customer_county || '',
+    benef_tara: 'România',
+    benef_cont: order.customer_bank_account || '',
+    benef_banca: order.customer_bank || '',
+    // Delegate info
+    deleg_nume: delegat,
+    deleg_ci_seria: document.getElementById('avizCISeria')?.value || '',
+    deleg_ci_nr: document.getElementById('avizCINr')?.value || '',
+    deleg_ci_pol: document.getElementById('avizCIPol')?.value || '',
+    deleg_mij_trans: transport,
+    deleg_mij_trans_nr: nrAuto,
+    // Emitter
+    emis_de: Auth.getUser()?.name || '',
+    // Items - with proper format
     articole: (order.parts || []).map(part => ({
       denumire: part.part_name || part.name || 'Part',
+      um: 'BUC',
       cantitate: part.quantity || 1,
-      um: 'buc'
-    }))
+      pret: 0,
+      valoare: 0
+    })),
+    obs: ''
   };
   
   // Create aviz in invoice-api
