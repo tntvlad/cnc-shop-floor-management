@@ -304,10 +304,17 @@ function toggleDeliveryOption(option) {
   const manualSection = document.getElementById('manualDocSection');
   const uploadSection = document.getElementById('uploadDocSection');
   const noDocSection = document.getElementById('noDocSection');
+  const avizSection = document.getElementById('avizSection');
   
   manualSection.style.display = option === 'manual' ? 'block' : 'none';
   uploadSection.style.display = option === 'upload' ? 'block' : 'none';
   noDocSection.style.display = option === 'none' ? 'block' : 'none';
+  avizSection.style.display = option === 'aviz' ? 'block' : 'none';
+  
+  // If aviz option selected, load order items and next number
+  if (option === 'aviz') {
+    loadAvizData();
+  }
   
   // Update radio button styling
   document.querySelectorAll('.delivery-options .radio-option').forEach(label => {
@@ -334,10 +341,146 @@ function updateDeliveryFileName() {
   }
 }
 
+// Invoice API base URL
+const INVOICE_API_URL = 'http://192.168.2.121:3001';
+
+// Load aviz data (order items and next number)
+async function loadAvizData() {
+  const orderId = document.getElementById('deliveryOrderId').value;
+  const serie = document.getElementById('avizSerie').value || 'AFE';
+  
+  try {
+    // Get next aviz number from invoice-api
+    const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
+    const nextNumData = await nextNumResponse.json();
+    document.getElementById('avizNumber').value = nextNumData.next_number || '';
+    
+    // Get order details with parts
+    const orderResponse = await API.request(`/orders/${orderId}`);
+    if (orderResponse.success && orderResponse.order) {
+      const order = orderResponse.order;
+      const itemsDiv = document.getElementById('avizItems');
+      
+      if (order.parts && order.parts.length > 0) {
+        itemsDiv.innerHTML = order.parts.map((part, idx) => `
+          <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <span><strong>${idx + 1}.</strong> ${part.part_name || part.name || 'Part'}</span>
+            <span style="color: #667eea; font-weight: bold;">${part.quantity || 1} buc</span>
+          </div>
+        `).join('');
+        
+        // Store order data for aviz creation
+        window.currentAvizOrder = order;
+      } else {
+        itemsDiv.innerHTML = '<p style="color: #999;">No parts found for this order.</p>';
+      }
+    }
+  } catch (error) {
+    console.error('Error loading aviz data:', error);
+    document.getElementById('avizItems').innerHTML = '<p style="color: #f44336;">Error loading order items.</p>';
+  }
+}
+
+// Create aviz via invoice-api
+async function createAviz() {
+  const orderId = document.getElementById('deliveryOrderId').value;
+  const serie = document.getElementById('avizSerie').value;
+  const numar = document.getElementById('avizNumber').value;
+  const delegat = document.getElementById('avizDelegat').value;
+  const transport = document.getElementById('avizTransport').value;
+  const nrAuto = document.getElementById('avizNrAuto').value;
+  
+  if (!serie || !numar) {
+    throw new Error('Series and number are required');
+  }
+  
+  const order = window.currentAvizOrder;
+  if (!order) {
+    throw new Error('Order data not loaded');
+  }
+  
+  // Build aviz data
+  const avizData = {
+    serie: serie,
+    numar: parseInt(numar),
+    data: new Date().toISOString().split('T')[0],
+    benef_den: order.customer_company_name || order.customer_name || '',
+    benef_cui: order.customer_cif || '',
+    benef_sediu: order.customer_address || '',
+    delegat: delegat,
+    ci_delegat: '',
+    mijloc_transport: transport,
+    nr_auto: nrAuto,
+    articole: (order.parts || []).map(part => ({
+      denumire: part.part_name || part.name || 'Part',
+      cantitate: part.quantity || 1,
+      um: 'buc'
+    }))
+  };
+  
+  // Create aviz in invoice-api
+  const response = await fetch(`${INVOICE_API_URL}/api/delivery-notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(avizData)
+  });
+  
+  const result = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(result.error || 'Failed to create delivery note');
+  }
+  
+  return { avizId: result.id, avizRef: `${serie}-${numar}` };
+}
+
 // Submit delivery document
 async function submitDelivery(event) {
   const orderId = document.getElementById('deliveryOrderId').value;
   const selectedOption = document.querySelector('input[name="deliveryOption"]:checked').value;
+  
+  // Handle aviz creation separately
+  if (selectedOption === 'aviz') {
+    try {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Creating Aviz...';
+      
+      // Create aviz in invoice-api
+      const avizResult = await createAviz();
+      
+      // Now mark as delivered with the aviz reference
+      let formData = new FormData();
+      formData.append('deliveryOption', 'manual');
+      formData.append('documentNumber', `Aviz: ${avizResult.avizRef}`);
+      
+      const response = await fetch(`${config.API_BASE_URL}/orders/${orderId}/delivery-document`, {
+        method: 'POST',
+        headers: { ...Auth.getAuthHeader() },
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`Delivery note created successfully!\nAviz: ${avizResult.avizRef}`);
+        closeModal('deliveryModal');
+        await loadFinancialOrders();
+      } else {
+        alert('Error: ' + (data.message || 'Failed to mark as delivered'));
+      }
+    } catch (error) {
+      console.error('Error creating aviz:', error);
+      alert('Error: ' + error.message);
+    } finally {
+      const btn = document.querySelector('#deliveryModal .btn-primary');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Confirm Delivery';
+      }
+    }
+    return;
+  }
   
   let formData = new FormData();
   formData.append('deliveryOption', selectedOption);

@@ -159,3 +159,6 @@ vite.config.ts.timestamp-*
 
 # Test files
 test_file/
+
+# Invoice API (separate project)
+test_file/invoice-api/
