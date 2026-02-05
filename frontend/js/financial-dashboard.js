@@ -357,6 +357,15 @@ async function loadAvizData() {
     const nextNumData = await nextNumResponse.json();
     document.getElementById('avizNumber').value = nextNumData.next_number || '';
     
+    // Load delegate defaults from cache_delegati (last used delegate, will be overwritten if partner has specific delegate)
+    const delegDefaults = nextNumData.delegate_defaults || {};
+    document.getElementById('avizDelegat').value = delegDefaults.deleg_nume || '';
+    document.getElementById('avizCISeria').value = delegDefaults.deleg_ci_seria || '';
+    document.getElementById('avizCINr').value = delegDefaults.deleg_ci_nr || '';
+    document.getElementById('avizCIPol').value = delegDefaults.deleg_ci_pol || '';
+    document.getElementById('avizTransport').value = delegDefaults.mij_trans || 'auto';
+    document.getElementById('avizNrAuto').value = delegDefaults.mij_trans_nr || '';
+    
     // Get order details with parts
     const orderResponse = await API.request(`/orders/${orderId}`);
     if (orderResponse.success && orderResponse.order) {
@@ -401,7 +410,7 @@ async function loadAvizData() {
               `;
             }
             
-            // Auto-fill delegate info if available
+            // Override delegate info ONLY if partner has delegate data
             if (partner.delegat_nume) {
               document.getElementById('avizDelegat').value = partner.delegat_nume;
               document.getElementById('avizCISeria').value = partner.delegat_ci_seria || '';
