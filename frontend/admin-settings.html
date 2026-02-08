@@ -1981,6 +1981,20 @@
                             <input type="file" id="modalRestoreFileInput" accept=".sql" style="display: none;" onchange="restoreDatabase(event)">
                         </div>
                         <div class="log-output" id="dbLog" style="display: none;"></div>
+                        
+                        <!-- Invoice API Database Section -->
+                        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+                        <h4 style="margin: 0 0 10px 0; color: #0f172a;">🧾 Invoice API Database</h4>
+                        <p style="color: #64748b; margin: 0 0 15px 0; font-size: 13px;">
+                            Switch between production and test databases for the Invoice API.
+                        </p>
+                        <div id="invoiceDbCurrent" style="background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 13px;">
+                            <strong>Current:</strong> <span id="invoiceDbPath" style="color: #22c55e;">Loading...</span>
+                        </div>
+                        <div id="invoiceDbList" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Databases will be loaded here -->
+                        </div>
+                        <div id="invoiceDbMessage" style="display: none; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px;"></div>
                     </div>
                     
                 </div>

@@ -743,6 +743,8 @@ function switchVCTab(tabName) {
   // Load data for the tab if needed
   if (tabName === 'status') {
     checkModalStatus();
+  } else if (tabName === 'database') {
+    loadInvoiceDatabases();
   }
 }
 
@@ -788,6 +790,89 @@ async function checkModalStatus() {
       modalDbStatus.textContent = 'Error';
       modalDbStatus.className = 'status-value error';
     }
+  }
+}
+
+// =============================================
+// INVOICE API DATABASE MANAGEMENT
+// =============================================
+const INVOICE_API_URL = 'http://192.168.2.121:3001';
+
+async function loadInvoiceDatabases() {
+  const pathEl = document.getElementById('invoiceDbPath');
+  const listEl = document.getElementById('invoiceDbList');
+  const msgEl = document.getElementById('invoiceDbMessage');
+  
+  if (!pathEl || !listEl) return;
+  
+  pathEl.textContent = 'Loading...';
+  listEl.innerHTML = '<div style="color: #64748b; font-size: 13px;">Loading databases...</div>';
+  
+  try {
+    const res = await fetch(INVOICE_API_URL + '/api/admin/databases');
+    const data = await res.json();
+    
+    pathEl.textContent = data.current;
+    
+    listEl.innerHTML = data.databases.map(function(db) {
+      const isActive = db.active;
+      return '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: ' + 
+        (isActive ? 'rgba(34, 197, 94, 0.1)' : '#f8fafc') + '; border: 1px solid ' + 
+        (isActive ? '#22c55e' : '#e2e8f0') + '; border-radius: 6px;">' +
+        '<div>' +
+          '<div style="font-weight: 600;">' + db.name + 
+          (isActive ? ' <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">ACTIVE</span>' : '') + 
+          '</div>' +
+          '<div style="font-size: 12px; color: #64748b;">' + db.path + '</div>' +
+        '</div>' +
+        '<button onclick="switchInvoiceDatabase(\'' + db.path + '\')" ' +
+          'style="background: ' + (isActive ? '#22c55e' : '#3b82f6') + '; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: ' + 
+          (isActive ? 'default' : 'pointer') + '; font-weight: 500;"' + 
+          (isActive ? ' disabled' : '') + '>' +
+          (isActive ? '✓ In Use' : 'Switch') +
+        '</button>' +
+      '</div>';
+    }).join('');
+    
+    msgEl.style.display = 'none';
+  } catch (err) {
+    pathEl.textContent = 'Error';
+    listEl.innerHTML = '<div style="color: #ef4444; font-size: 13px;">Failed to load Invoice API databases. Is the service running?</div>';
+    console.error('Invoice API error:', err);
+  }
+}
+
+async function switchInvoiceDatabase(dbPath) {
+  if (!confirm('Switch Invoice API to database:\n' + dbPath + '?')) return;
+  
+  const msgEl = document.getElementById('invoiceDbMessage');
+  
+  try {
+    const res = await fetch(INVOICE_API_URL + '/api/admin/switch-database', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: dbPath })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      msgEl.style.display = 'block';
+      msgEl.style.background = 'rgba(34, 197, 94, 0.1)';
+      msgEl.style.border = '1px solid #22c55e';
+      msgEl.style.color = '#22c55e';
+      msgEl.textContent = '✓ Successfully switched database!';
+      loadInvoiceDatabases();
+      setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch (err) {
+    msgEl.style.display = 'block';
+    msgEl.style.background = 'rgba(239, 68, 68, 0.1)';
+    msgEl.style.border = '1px solid #ef4444';
+    msgEl.style.color = '#ef4444';
+    msgEl.textContent = '✗ Failed: ' + err.message;
   }
 }
 
