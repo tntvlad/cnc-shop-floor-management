@@ -498,7 +498,7 @@ async function deleteOrder(req, res) {
   }
 }
 
-// Get order summary stats
+// Get order summary stats (excludes delivered orders - they move to Financial Dashboard)
 async function getOrderStats(req, res) {
   try {
     const stats = await pool.query(`
@@ -513,6 +513,7 @@ async function getOrderStats(req, res) {
       FROM orders o
       LEFT JOIN parts p ON o.id = p.order_id
       WHERE o.created_at >= NOW() - INTERVAL '30 days'
+        AND o.delivery_date IS NULL
     `);
 
     res.status(200).json({

@@ -136,6 +136,9 @@ function applyFilters() {
   
   let filtered = [...allOrdersCache];
   
+  // Hide delivered orders (they move to Financial Dashboard)
+  filtered = filtered.filter(order => !order.delivery_date);
+  
   // Filter by status button (unless "all" is selected)
   if (currentFilter && currentFilter !== 'all') {
     filtered = filtered.filter(order => order.status === currentFilter);
