@@ -164,6 +164,8 @@ async function getOrders(req, res) {
         o.order_contact_id,
         o.technical_contact_id,
         o.delivery_address,
+        o.delivery_date,
+        o.financial_stage,
         c.headquarters_address,
         c.cif,
         c.trade_register_number,
