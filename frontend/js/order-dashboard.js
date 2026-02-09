@@ -725,6 +725,20 @@ async function loadAvizData() {
   const serie = document.getElementById('avizSerie').value || 'AFE';
   
   try {
+    // Check if using test database and show warning
+    try {
+      const dbResponse = await fetch(`${INVOICE_API_URL}/api/admin/databases`);
+      const dbData = await dbResponse.json();
+      const warningDiv = document.getElementById('testDbWarning');
+      if (dbData.current && dbData.current.toLowerCase().includes('test')) {
+        warningDiv.style.display = 'block';
+      } else {
+        warningDiv.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('Could not check database status:', e);
+    }
+    
     // Get next number for preview
     const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
     const nextNumData = await nextNumResponse.json();
