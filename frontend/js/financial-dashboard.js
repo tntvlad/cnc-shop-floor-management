@@ -215,19 +215,31 @@ function renderActions(order) {
 }
 
 // Update statistics cards
+// Stats show cumulative progress: "Delivered" counts all orders that have been delivered
 function updateStats(orders) {
   const stats = {
     pending: 0,
     delivered: 0,
     invoiced: 0,
-    cashed_in: 0,
-    completed: 0
+    cashed_in: 0
   };
 
   orders.forEach(order => {
-    const stage = order.financial_stage || 'pending';
-    if (stats.hasOwnProperty(stage)) {
-      stats[stage]++;
+    // Pending = not yet delivered
+    if (!order.delivery_date) {
+      stats.pending++;
+    }
+    // Delivered = has delivery date
+    if (order.delivery_date) {
+      stats.delivered++;
+    }
+    // Invoiced = has invoice date
+    if (order.invoice_date) {
+      stats.invoiced++;
+    }
+    // Cashed In = has been paid
+    if (order.cashed_in_date || order.financial_stage === 'cashed_in' || order.financial_stage === 'completed') {
+      stats.cashed_in++;
     }
   });
 
@@ -246,18 +258,35 @@ function updateStats(orders) {
       <div class="stat-label">Invoiced</div>
     </div>
     <div class="stat-card cashed">
-      <div class="stat-value">${stats.cashed_in + stats.completed}</div>
+      <div class="stat-value">${stats.cashed_in}</div>
       <div class="stat-label">Cashed In</div>
     </div>
   `;
 }
 
 // Filter orders by stage
+// Filters show cumulative progress: "Delivered" shows all orders that have been delivered (even if now invoiced/paid)
 function filterByStage(stage) {
   currentFilter = stage;
   
   if (stage === 'all') {
     renderOrders(allOrders);
+  } else if (stage === 'pending') {
+    // Pending = not yet delivered
+    const filtered = allOrders.filter(order => !order.delivery_date);
+    renderOrders(filtered);
+  } else if (stage === 'delivered') {
+    // Delivered = has been delivered (regardless of current stage)
+    const filtered = allOrders.filter(order => order.delivery_date);
+    renderOrders(filtered);
+  } else if (stage === 'invoiced') {
+    // Invoiced = has been invoiced (regardless of current stage)
+    const filtered = allOrders.filter(order => order.invoice_date);
+    renderOrders(filtered);
+  } else if (stage === 'cashed_in' || stage === 'completed') {
+    // Cashed In = has been paid
+    const filtered = allOrders.filter(order => order.cashed_in_date || order.financial_stage === 'cashed_in' || order.financial_stage === 'completed');
+    renderOrders(filtered);
   } else {
     const filtered = allOrders.filter(order => order.financial_stage === stage);
     renderOrders(filtered);
