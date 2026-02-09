@@ -843,6 +843,129 @@
     </div>
   </div>
 
+  <!-- Delivery Document Modal (for Supervisors) -->
+  <div id="deliveryModal" class="modal">
+    <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0;">
+        <h2 style="margin: 0; font-size: 1.25rem;">📦 Mark as Delivered</h2>
+        <button class="modal-close" onclick="closeDeliveryModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <form id="deliveryForm">
+          <input type="hidden" id="deliveryOrderId">
+          
+          <!-- Option selector -->
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Choose an option:</label>
+            <div class="delivery-options" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="manual" onchange="toggleDeliveryOption('manual')" checked>
+                <span>✏️ Enter document number manually</span>
+              </label>
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="upload" onchange="toggleDeliveryOption('upload')">
+                <span>📄 Upload document file</span>
+              </label>
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="none" onchange="toggleDeliveryOption('none')">
+                <span>❌ No document required</span>
+              </label>
+              <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.2s;">
+                <input type="radio" name="deliveryOption" value="aviz" onchange="toggleDeliveryOption('aviz')">
+                <span>📋 Create Delivery Note (Aviz)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Manual document number input -->
+          <div id="manualDocSection" class="form-group" style="margin-bottom: 1rem;">
+            <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Document Number / Reference</label>
+            <input type="text" id="deliveryDocNumber" placeholder="e.g., AWB-123456, CMR-789" style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 6px;">
+          </div>
+
+          <!-- File upload section -->
+          <div id="uploadDocSection" class="form-group" style="display: none; margin-bottom: 1rem;">
+            <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Delivery Document (PDF, JPG, PNG)</label>
+            <div class="file-upload" onclick="document.getElementById('deliveryFile').click()" style="border: 2px dashed #e0e0e0; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer;">
+              <input type="file" id="deliveryFile" accept=".pdf,.jpg,.jpeg,.png" onchange="updateDeliveryFileName()" style="display: none;">
+              <label style="cursor: pointer; color: #667eea;">📄 Click to select file or drag and drop</label>
+              <div id="deliveryFileName" style="margin-top: 0.5rem; color: #666;"></div>
+            </div>
+          </div>
+
+          <!-- No document message -->
+          <div id="noDocSection" class="form-group" style="display: none; margin-bottom: 1rem;">
+            <p style="color: #666; font-style: italic; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
+              ℹ️ This order will be marked as delivered without any document reference.
+            </p>
+          </div>
+
+          <!-- Create Aviz section -->
+          <div id="avizSection" class="form-group" style="display: none; margin-bottom: 1rem;">
+            <div style="background: #E3F2FD; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+              <strong>📋 Create Delivery Note (Aviz)</strong>
+              <p style="margin: 0.5rem 0 0 0; color: #1565C0; font-size: 0.9rem;">A delivery note will be created in IceFact with the order items.</p>
+            </div>
+            
+            <!-- Partner match info -->
+            <div id="avizPartnerInfo" style="margin-bottom: 0.5rem;">
+              <p style="color: #999; font-style: italic;">Searching for customer in IceFact...</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Series</label>
+                <input type="text" id="avizSerie" value="AFE" readonly autocomplete="off" style="width: 100%; padding: 0.5rem; background: #f5f5f5; cursor: not-allowed; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Number (auto)</label>
+                <input type="text" id="avizNumber" readonly style="width: 100%; padding: 0.5rem; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+            </div>
+            <div style="margin-top: 1rem;">
+              <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Delegate Name *</label>
+              <input type="text" id="avizDelegat" placeholder="e.g., Chiriac Florin" required style="width: 100%; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 2fr 2fr; gap: 0.5rem; margin-top: 0.5rem;">
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">CI Series</label>
+                <input type="text" id="avizCISeria" placeholder="AR" style="width: 100%; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">CI Number</label>
+                <input type="text" id="avizCINr" placeholder="987636" style="width: 100%; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">CI Issued By (Pol.)</label>
+                <input type="text" id="avizCIPol" placeholder="Lipova" style="width: 100%; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Transport</label>
+                <input type="text" id="avizTransport" value="auto" style="width: 100%; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+              <div>
+                <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">License Plate</label>
+                <input type="text" id="avizNrAuto" placeholder="e.g., AR 01 ABC" style="width: 100%; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+              </div>
+            </div>
+            <div style="margin-top: 1rem;">
+              <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Order Items:</label>
+              <div id="avizItems" style="background: #f9f9f9; border-radius: 8px; padding: 1rem; max-height: 200px; overflow-y: auto;">
+                <p style="color: #999;">Loading items...</p>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="padding: 1rem 1.5rem; background: #f5f5f5; border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <button class="btn-cancel" onclick="closeDeliveryModal()" style="padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; background: #e0e0e0;">Cancel</button>
+        <button class="btn-save" onclick="submitDelivery(event)" style="padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">Confirm Delivery</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/auth.js"></script>
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>

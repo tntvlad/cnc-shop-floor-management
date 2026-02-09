@@ -192,6 +192,8 @@ function renderOrders(orders) {
     const overdueClass = isOverdue ? 'order-overdue' : '';
     const dueDateClass = isOverdue ? 'due-date-overdue' : '';
     const showEditBtn = canEditOrders();
+    // Show delivery button for completed orders with pending financial stage (supervisors only)
+    const showDeliveryBtn = showEditBtn && order.status === 'completed' && (!order.financial_stage || order.financial_stage === 'pending');
 
     return `
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
@@ -226,6 +228,7 @@ function renderOrders(orders) {
         <td>
           <div class="action-buttons">
             <button class="btn-view" onclick="openOrderDetails(${order.id}); event.stopPropagation();">View</button>
+            ${showDeliveryBtn ? `<button class="btn-delivery" onclick="openDeliveryModal(${order.id}); event.stopPropagation();" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">📦 Deliver</button>` : ''}
             ${showEditBtn ? `<button class="btn-edit" onclick="openEditOrderModal(${order.id}); event.stopPropagation();">Edit</button>` : ''}
             <button class="btn-delete" onclick="deleteOrder(${order.id}); event.stopPropagation();">Delete</button>
           </div>
@@ -646,3 +649,275 @@ async function addPartToOrder(event) {
     showError('Error adding part');
   }
 }
+
+// =============================================
+// DELIVERY FUNCTIONS (for Supervisors)
+// =============================================
+
+const INVOICE_API_URL = 'http://192.168.2.121:3001';
+let currentAvizOrder = null;
+let currentAvizPartner = null;
+
+function openDeliveryModal(orderId) {
+  document.getElementById('deliveryOrderId').value = orderId;
+  // Reset form
+  document.getElementById('deliveryDocNumber').value = '';
+  const fileInput = document.getElementById('deliveryFile');
+  if (fileInput) fileInput.value = '';
+  document.getElementById('deliveryFileName').textContent = '';
+  // Set default option to manual
+  document.querySelector('input[name="deliveryOption"][value="manual"]').checked = true;
+  toggleDeliveryOption('manual');
+  document.getElementById('deliveryModal').classList.add('active');
+}
+
+function closeDeliveryModal() {
+  document.getElementById('deliveryModal').classList.remove('active');
+  currentAvizOrder = null;
+  currentAvizPartner = null;
+}
+
+function toggleDeliveryOption(option) {
+  const manualSection = document.getElementById('manualDocSection');
+  const uploadSection = document.getElementById('uploadDocSection');
+  const noDocSection = document.getElementById('noDocSection');
+  const avizSection = document.getElementById('avizSection');
+  
+  manualSection.style.display = option === 'manual' ? 'block' : 'none';
+  uploadSection.style.display = option === 'upload' ? 'block' : 'none';
+  noDocSection.style.display = option === 'none' ? 'block' : 'none';
+  avizSection.style.display = option === 'aviz' ? 'block' : 'none';
+  
+  // If aviz option selected, load order items and next number
+  if (option === 'aviz') {
+    loadAvizData();
+  }
+  
+  // Update radio button styling
+  document.querySelectorAll('.delivery-options .radio-option').forEach(label => {
+    const input = label.querySelector('input');
+    if (input.checked) {
+      label.style.borderColor = '#667eea';
+      label.style.background = '#f0f4ff';
+    } else {
+      label.style.borderColor = '#e0e0e0';
+      label.style.background = 'transparent';
+    }
+  });
+}
+
+function updateDeliveryFileName() {
+  const fileInput = document.getElementById('deliveryFile');
+  const fileNameDiv = document.getElementById('deliveryFileName');
+  if (fileInput.files && fileInput.files.length > 0) {
+    fileNameDiv.textContent = '✓ ' + fileInput.files[0].name;
+    fileNameDiv.style.color = '#4CAF50';
+  } else {
+    fileNameDiv.textContent = '';
+  }
+}
+
+async function loadAvizData() {
+  const orderId = document.getElementById('deliveryOrderId').value;
+  const serie = document.getElementById('avizSerie').value || 'AFE';
+  
+  try {
+    // Get next number for preview
+    const nextNumResponse = await fetch(`${INVOICE_API_URL}/api/delivery-notes/next-number/${serie}`);
+    const nextNumData = await nextNumResponse.json();
+    document.getElementById('avizNumber').value = nextNumData.next_number || '';
+    
+    // Load delegate defaults from cache_delegati
+    const delegDefaults = nextNumData.delegate_defaults || {};
+    document.getElementById('avizDelegat').value = delegDefaults.deleg_nume || '';
+    document.getElementById('avizCISeria').value = delegDefaults.deleg_ci_seria || '';
+    document.getElementById('avizCINr').value = delegDefaults.deleg_ci_nr || '';
+    document.getElementById('avizCIPol').value = delegDefaults.deleg_ci_pol || '';
+    document.getElementById('avizTransport').value = delegDefaults.mij_trans || 'auto';
+    document.getElementById('avizNrAuto').value = delegDefaults.mij_trans_nr || '';
+    
+    // Get order details with parts
+    const orderResponse = await API.request(`/orders/${orderId}`);
+    if (orderResponse.success && orderResponse.order) {
+      const order = orderResponse.order;
+      const itemsDiv = document.getElementById('avizItems');
+      
+      if (order.parts && order.parts.length > 0) {
+        itemsDiv.innerHTML = order.parts.map((part, idx) => `
+          <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <span><strong>${idx + 1}.</strong> ${part.part_name || part.name || 'Part'}</span>
+            <span style="color: #667eea; font-weight: bold;">${part.quantity || 1} buc</span>
+          </div>
+        `).join('');
+        
+        currentAvizOrder = order;
+      } else {
+        itemsDiv.innerHTML = '<p style="color: #999;">No parts found for this order.</p>';
+      }
+      
+      // Search for matching partner in IceFact database
+      const customerName = order.customer_company_name || order.customer_name || '';
+      if (customerName) {
+        try {
+          const partnerResponse = await fetch(`${INVOICE_API_URL}/api/partners/search/${encodeURIComponent(customerName)}`);
+          const partnerData = await partnerResponse.json();
+          
+          const partnerInfoDiv = document.getElementById('avizPartnerInfo');
+          if (partnerData.data && partnerData.data.length > 0) {
+            const partner = partnerData.data[0];
+            currentAvizPartner = partner;
+            
+            partnerInfoDiv.innerHTML = `
+              <div style="background: #E8F5E9; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #4CAF50;">
+                <strong style="color: #2E7D32;">✓ Partner found in IceFact:</strong>
+                <div style="margin-top: 0.25rem; color: #1B5E20;">${partner.den_pj || partner.den_pf}</div>
+                <div style="font-size: 0.85rem; color: #666;">${partner.judet || ''} ${partner.oras || ''}</div>
+              </div>
+            `;
+            
+            // Check for partner-specific delegate
+            if (partner.deleg_nume) {
+              document.getElementById('avizDelegat').value = partner.deleg_nume;
+              document.getElementById('avizCISeria').value = partner.deleg_ci_seria || '';
+              document.getElementById('avizCINr').value = partner.deleg_ci_nr || '';
+              document.getElementById('avizCIPol').value = partner.deleg_ci_pol || '';
+            }
+          } else {
+            partnerInfoDiv.innerHTML = `
+              <div style="background: #FFF3E0; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #FF9800;">
+                <strong style="color: #E65100;">⚠️ No matching partner in IceFact</strong>
+                <div style="font-size: 0.85rem; color: #666;">Searched: "${customerName}"</div>
+              </div>
+            `;
+          }
+        } catch (e) {
+          console.error('Partner search error:', e);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading aviz data:', error);
+    document.getElementById('avizItems').innerHTML = '<p style="color: #f44336;">Error loading data</p>';
+  }
+}
+
+async function submitDelivery(event) {
+  event.preventDefault();
+  
+  const orderId = document.getElementById('deliveryOrderId').value;
+  const selectedOption = document.querySelector('input[name="deliveryOption"]:checked').value;
+  
+  try {
+    if (selectedOption === 'aviz') {
+      // Create aviz via Invoice API
+      await createAviz(orderId);
+    } else {
+      // Update financial stage via CNC API
+      let documentNumber = '';
+      let documentPath = '';
+      
+      if (selectedOption === 'manual') {
+        documentNumber = document.getElementById('deliveryDocNumber').value;
+      } else if (selectedOption === 'upload') {
+        // Handle file upload
+        const fileInput = document.getElementById('deliveryFile');
+        if (fileInput.files && fileInput.files.length > 0) {
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          formData.append('orderId', orderId);
+          formData.append('type', 'delivery');
+          
+          const uploadRes = await fetch(`${API_URL}/files/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+            body: formData
+          });
+          
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            documentPath = uploadData.path || uploadData.filePath;
+          }
+        }
+      }
+      
+      // Update financial stage to 'delivered'
+      const res = await fetch(`${API_URL}/orders/${orderId}/financial-stage`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          financial_stage: 'delivered',
+          delivery_document_number: documentNumber || null,
+          delivery_document_path: documentPath || null
+        })
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to update order');
+      }
+    }
+    
+    showSuccess('Order marked as delivered!');
+    closeDeliveryModal();
+    loadOrders();
+  } catch (error) {
+    console.error('Delivery error:', error);
+    showError('Error: ' + error.message);
+  }
+}
+
+async function createAviz(orderId) {
+  if (!currentAvizOrder || !currentAvizPartner) {
+    throw new Error('Missing order or partner data');
+  }
+  
+  const serie = document.getElementById('avizSerie').value;
+  
+  // Build aviz data
+  const avizData = {
+    serie: serie,
+    id_client: currentAvizPartner.id,
+    data: new Date().toISOString().split('T')[0],
+    deleg_nume: document.getElementById('avizDelegat').value,
+    deleg_ci_seria: document.getElementById('avizCISeria').value,
+    deleg_ci_nr: document.getElementById('avizCINr').value,
+    deleg_ci_pol: document.getElementById('avizCIPol').value,
+    mij_trans: document.getElementById('avizTransport').value,
+    mij_trans_nr: document.getElementById('avizNrAuto').value,
+    items: currentAvizOrder.parts.map(part => ({
+      denumire: part.part_name || part.name || 'Part',
+      um: 'buc',
+      cantitate: part.quantity || 1
+    }))
+  };
+  
+  const res = await fetch(`${INVOICE_API_URL}/api/delivery-notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(avizData)
+  });
+  
+  if (!res.ok) {
+    const errData = await res.json();
+    throw new Error(errData.error || 'Failed to create aviz');
+  }
+  
+  const avizResult = await res.json();
+  
+  // Update CNC order with aviz info
+  await fetch(`${API_URL}/orders/${orderId}/financial-stage`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${getToken()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      financial_stage: 'delivered',
+      delivery_document_number: `${serie}-${avizResult.numar}`,
+      delivery_document_path: null
+    })
+  });
+}
+
