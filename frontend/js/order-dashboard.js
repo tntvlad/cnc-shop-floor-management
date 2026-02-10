@@ -9,6 +9,24 @@ const PRIORITY_WEIGHT = {
   low: 1
 };
 
+// Fetch wrapper that handles 401 (expired token) by redirecting to login
+async function authFetch(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${getToken()}`,
+      ...options.headers
+    }
+  });
+  
+  if (response.status === 401) {
+    Auth.logout();
+    throw new Error('Session expired');
+  }
+  
+  return response;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   checkPageAccess();
@@ -109,10 +127,7 @@ async function loadOrders(status = 'all', customer = '') {
       url += '?' + params.toString();
     }
 
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${getToken()}` }
-    });
-
+    const response = await authFetch(url);
     const data = await response.json();
 
     if (!response.ok) {
@@ -243,10 +258,7 @@ function renderOrders(orders) {
 
 async function loadStats() {
   try {
-    const response = await fetch(`${API_URL}/orders/stats/summary`, {
-      headers: { 'Authorization': `Bearer ${getToken()}` }
-    });
-
+    const response = await authFetch(`${API_URL}/orders/stats/summary`);
     const data = await response.json();
 
     if (!response.ok || !data.success) {
@@ -273,9 +285,8 @@ async function deleteOrder(orderId) {
   }
 
   try {
-    const response = await fetch(`${API_URL}/orders/${orderId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${getToken()}` }
+    const response = await authFetch(`${API_URL}/orders/${orderId}`, {
+      method: 'DELETE'
     });
 
     const data = await response.json();
