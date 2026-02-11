@@ -723,7 +723,7 @@ async function updateFinancialStage(req, res) {
     
     // Get current order state
     const orderResult = await pool.query(
-      'SELECT status, financial_stage, no_invoice_needed FROM orders WHERE id = $1',
+      'SELECT status, financial_stage, no_invoice_needed, delivery_date FROM orders WHERE id = $1',
       [id]
     );
     
@@ -745,6 +745,11 @@ async function updateFinancialStage(req, res) {
     const updateFields = { financial_stage };
     if (no_invoice_needed !== undefined) {
       updateFields.no_invoice_needed = no_invoice_needed;
+    }
+    
+    // Set delivery_date when marking as delivered
+    if (financial_stage === 'delivered' && !order.delivery_date) {
+      updateFields.delivery_date = new Date().toISOString();
     }
     
     const setClause = Object.keys(updateFields)
