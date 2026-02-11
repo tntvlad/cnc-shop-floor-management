@@ -216,6 +216,16 @@ function renderOrders(orders) {
     const showEditBtn = canEditOrders();
     // Show delivery button for completed orders with pending financial stage (supervisors only)
     const showDeliveryBtn = showEditBtn && order.status === 'completed' && (!order.financial_stage || order.financial_stage === 'pending');
+    
+    // Debug: Log delivery button conditions
+    if (order.status === 'completed') {
+      console.log('Completed order found:', order.internal_order_id, {
+        showEditBtn,
+        status: order.status,
+        financial_stage: order.financial_stage,
+        showDeliveryBtn
+      });
+    }
 
     return `
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
