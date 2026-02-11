@@ -30,7 +30,7 @@ async function authFetch(url, options = {}) {
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   checkPageAccess();
-  loadCurrentUser();
+  loadCurrentUser();  // Must be before loadOrders so currentUser is set
   loadOrders();
   loadStats();
   setupEventListeners();
@@ -84,7 +84,11 @@ function loadCurrentUser() {
 
 function canEditOrders() {
   // Supervisor (level 400) and Admin (level 500) can edit orders
-  return currentUser && currentUser.level >= 400;
+  if (!currentUser) return false;
+  const level = parseInt(currentUser.level, 10);
+  const hasLevel = !isNaN(level) && level >= 400;
+  const hasRole = currentUser.role && (currentUser.role === 'admin' || currentUser.role === 'supervisor');
+  return hasLevel || hasRole;
 }
 
 function setupEventListeners() {
