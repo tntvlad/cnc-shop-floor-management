@@ -348,9 +348,11 @@ app.delete('/api/orders/:id', authMiddleware, requireSupervisor(), ordersControl
 app.post('/api/orders/:orderId/parts', authMiddleware, requireSupervisor(), ordersController.addPartToOrder);
 app.put('/api/parts/:partId/priority', authMiddleware, requireSupervisor(), ordersController.updatePartPriority);
 
-// ======================== FINANCIAL DASHBOARD ROUTES (Admin Level 500) ========================
-app.put('/api/orders/:id/financial-stage', authMiddleware, requireAdmin(), ordersController.updateFinancialStage);
-app.post('/api/orders/:id/delivery-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadDeliveryDocument);
+// ======================== FINANCIAL DASHBOARD ROUTES ========================
+// Delivery routes - Supervisor Level 400+
+app.put('/api/orders/:id/financial-stage', authMiddleware, requireSupervisor(), ordersController.updateFinancialStage);
+app.post('/api/orders/:id/delivery-document', authMiddleware, requireSupervisor(), financialUpload.single('document'), ordersController.uploadDeliveryDocument);
+// Invoice and payment routes - Admin Level 500
 app.post('/api/orders/:id/invoice-document', authMiddleware, requireAdmin(), financialUpload.single('document'), ordersController.uploadInvoiceDocument);
 app.post('/api/orders/:id/cashed-in', authMiddleware, requireAdmin(), ordersController.markCashedIn);
 app.post('/api/orders/:id/reset-financial', authMiddleware, requireAdmin(), ordersController.resetFinancialStatus);
