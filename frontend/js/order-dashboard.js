@@ -116,7 +116,6 @@ function setupEventListeners() {
 }
 
 async function loadOrders(status = 'all', customer = '') {
-  console.log('=== LOAD ORDERS CALLED ===');
   try {
     let url = `${API_URL}/orders`;
     const params = new URLSearchParams();
@@ -221,8 +220,6 @@ function renderOrders(orders) {
     const isInProgress = order.status === 'in-progress' || order.status === 'in_progress';
     const hasCompletedParts = parseInt(order.completed_parts || 0) > 0;
     const showPartialDeliveryBtn = showEditBtn && isInProgress && hasCompletedParts;
-    // Debug logging for ALL in-progress orders
-    console.log('Order check:', { id: order.internal_order_id, status: order.status, isInProgress, completed_parts: order.completed_parts, hasCompletedParts, showEditBtn, showPartialDeliveryBtn });
 
     return `
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
