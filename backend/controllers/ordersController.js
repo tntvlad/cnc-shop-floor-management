@@ -239,6 +239,7 @@ async function getOrderById(req, res) {
         o.order_contact_id,
         o.technical_contact_id,
         o.delivery_address as order_delivery_address,
+        c.company_name as customer_company_name,
         c.headquarters_address,
         c.delivery_address as customer_delivery_address,
         c.cif,
