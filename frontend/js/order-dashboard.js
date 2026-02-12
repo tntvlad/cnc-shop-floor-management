@@ -116,6 +116,7 @@ function setupEventListeners() {
 }
 
 async function loadOrders(status = 'all', customer = '') {
+  console.log('=== LOAD ORDERS CALLED ===');
   try {
     let url = `${API_URL}/orders`;
     const params = new URLSearchParams();
