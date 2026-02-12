@@ -918,6 +918,16 @@
               <p style="color: #999; font-style: italic;">Searching for customer in IceFact...</p>
             </div>
             
+            <!-- Manual partner search -->
+            <div style="margin-bottom: 1rem;">
+              <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">🔍 Search Partner in IceFact</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="partnerSearchInput" placeholder="Type company name..." style="flex: 1; padding: 0.5rem; border: 1px solid #e0e0e0; border-radius: 4px;">
+                <button type="button" onclick="searchPartnerManually()" style="padding: 0.5rem 1rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Search</button>
+              </div>
+              <div id="partnerSearchResults" style="display: none; margin-top: 0.5rem; max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;"></div>
+            </div>
+            
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div>
                 <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Series</label>

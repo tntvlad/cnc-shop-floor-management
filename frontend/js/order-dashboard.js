@@ -717,6 +717,75 @@ function closeDeliveryModal() {
   document.getElementById('deliveryModal').classList.remove('active');
   currentAvizOrder = null;
   currentAvizPartner = null;
+  // Clear manual search
+  document.getElementById('partnerSearchInput').value = '';
+  document.getElementById('partnerSearchResults').style.display = 'none';
+}
+
+// Manual partner search
+async function searchPartnerManually() {
+  const searchTerm = document.getElementById('partnerSearchInput').value.trim();
+  if (!searchTerm || searchTerm.length < 2) {
+    alert('Please enter at least 2 characters to search');
+    return;
+  }
+  
+  const resultsDiv = document.getElementById('partnerSearchResults');
+  resultsDiv.innerHTML = '<p style="padding: 0.5rem; color: #999;">Searching...</p>';
+  resultsDiv.style.display = 'block';
+  
+  try {
+    const response = await fetch(`${INVOICE_API_URL}/api/partners/search/${encodeURIComponent(searchTerm)}`);
+    const data = await response.json();
+    
+    if (data.data && data.data.length > 0) {
+      resultsDiv.innerHTML = data.data.map((partner, idx) => `
+        <div onclick="selectPartner(${idx})" style="padding: 0.75rem; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;" 
+             onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'"
+             data-partner='${JSON.stringify(partner).replace(/'/g, "&#39;")}'>
+          <strong>${partner.den}</strong>
+          <div style="font-size: 0.85rem; color: #666;">CIF: ${partner.cui || '-'} | ${partner.localitate || ''}, ${partner.judet || ''}</div>
+        </div>
+      `).join('');
+      // Store results for selection
+      window.partnerSearchResults = data.data;
+    } else {
+      resultsDiv.innerHTML = '<p style="padding: 0.75rem; color: #E65100;">No partners found matching "' + searchTerm + '"</p>';
+    }
+  } catch (e) {
+    console.error('Partner search error:', e);
+    resultsDiv.innerHTML = '<p style="padding: 0.75rem; color: #c62828;">Error searching partners</p>';
+  }
+}
+
+function selectPartner(index) {
+  const partner = window.partnerSearchResults[index];
+  if (!partner) return;
+  
+  currentAvizPartner = partner;
+  
+  // Update partner info display
+  const partnerInfoDiv = document.getElementById('avizPartnerInfo');
+  partnerInfoDiv.innerHTML = `
+    <div style="background: #E8F5E9; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #4CAF50;">
+      <strong style="color: #2E7D32;">✓ Partner selected:</strong>
+      <div style="margin-top: 0.25rem; color: #1B5E20;">${partner.den}</div>
+      <div style="font-size: 0.85rem; color: #666;">CIF: ${partner.cui || '-'} | ${partner.localitate || ''}, ${partner.judet || ''}</div>
+    </div>
+  `;
+  
+  // Override delegate info if partner has delegate data
+  if (partner.delegat_nume) {
+    document.getElementById('avizDelegat').value = partner.delegat_nume;
+    document.getElementById('avizCISeria').value = partner.delegat_ci_seria || '';
+    document.getElementById('avizCINr').value = partner.delegat_ci_nr || '';
+    document.getElementById('avizCIPol').value = partner.delegat_ci_pol || '';
+    document.getElementById('avizTransport').value = partner.delegat_mij_trans || 'auto';
+    document.getElementById('avizNrAuto').value = partner.delegat_mij_trans_nr || '';
+  }
+  
+  // Hide search results
+  document.getElementById('partnerSearchResults').style.display = 'none';
 }
 
 function toggleDeliveryOption(option) {
@@ -824,6 +893,8 @@ async function loadAvizData() {
       
       // Search for matching partner in IceFact database
       const customerName = order.customer_company_name || order.customer_name || '';
+      // Pre-populate manual search input
+      document.getElementById('partnerSearchInput').value = customerName;
       if (customerName) {
         try {
           const partnerResponse = await fetch(`${INVOICE_API_URL}/api/partners/search/${encodeURIComponent(customerName)}`);
@@ -854,8 +925,8 @@ async function loadAvizData() {
           } else {
             partnerInfoDiv.innerHTML = `
               <div style="background: #FFF3E0; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #FF9800;">
-                <strong style="color: #E65100;">⚠️ No matching partner in IceFact</strong>
-                <div style="font-size: 0.85rem; color: #666;">Searched: "${customerName}"</div>
+                <strong style="color: #E65100;">⚠️ Not found in IceFact:</strong> ${customerName}
+                <div style="font-size: 0.85rem; color: #666;">Use the search below to find the correct partner.</div>
               </div>
             `;
           }
