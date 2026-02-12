@@ -1014,19 +1014,30 @@ async function createAviz(orderId) {
   }
   
   const serie = document.getElementById('avizSerie').value;
+  const numar = document.getElementById('avizNumber').value;
   
-  // Build aviz data
+  // Build aviz data - matching backend expected fields
   const avizData = {
     serie: serie,
-    id_client: currentAvizPartner.id,
+    numar: numar,
     data: new Date().toISOString().split('T')[0],
+    // Beneficiar (customer) info from partner
+    benef_den: currentAvizPartner.den || '',
+    benef_sediu: currentAvizPartner.sediu || '',
+    benef_cui: currentAvizPartner.cui || '',
+    benef_regcom: currentAvizPartner.regcom || '',
+    benef_localitate: currentAvizPartner.localitate || '',
+    benef_judet: currentAvizPartner.judet || '',
+    benef_tara: currentAvizPartner.tara || 'România',
+    // Delegate info
     deleg_nume: document.getElementById('avizDelegat').value,
     deleg_ci_seria: document.getElementById('avizCISeria').value,
     deleg_ci_nr: document.getElementById('avizCINr').value,
     deleg_ci_pol: document.getElementById('avizCIPol').value,
-    mij_trans: document.getElementById('avizTransport').value,
-    mij_trans_nr: document.getElementById('avizNrAuto').value,
-    items: currentAvizOrder.parts.map(part => ({
+    deleg_mij_trans: document.getElementById('avizTransport').value,
+    deleg_mij_trans_nr: document.getElementById('avizNrAuto').value,
+    // Items (backend expects 'articole')
+    articole: currentAvizOrder.parts.map(part => ({
       denumire: part.part_name || part.name || 'Part',
       um: 'buc',
       cantitate: part.quantity || 1
