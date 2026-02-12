@@ -312,6 +312,11 @@ function closeModal(modalId) {
   // Reset file name displays
   if (modalId === 'deliveryModal') {
     document.getElementById('deliveryFileName').textContent = '';
+    // Clear partner search results
+    const searchResults = document.getElementById('partnerSearchResults');
+    if (searchResults) searchResults.innerHTML = '';
+    const searchInput = document.getElementById('partnerSearchInput');
+    if (searchInput) searchInput.value = '';
   } else if (modalId === 'invoiceModal') {
     document.getElementById('invoiceFileName').textContent = '';
   }
@@ -470,10 +475,13 @@ async function loadAvizData() {
               partnerInfoDiv.innerHTML = `
                 <div style="background: #FFF3E0; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
                   <strong style="color: #E65100;">⚠ Not found in IceFact:</strong> ${customerName}
-                  <br><small style="color: #666;">Customer data from CNC order will be used.</small>
+                  <br><small style="color: #666;">Use the search below to find the correct partner.</small>
                 </div>
               `;
             }
+            // Pre-fill search input for manual search
+            const searchInput = document.getElementById('partnerSearchInput');
+            if (searchInput) searchInput.value = customerName;
           }
         } catch (partnerError) {
           console.error('Error searching partner:', partnerError);
@@ -484,6 +492,79 @@ async function loadAvizData() {
   } catch (error) {
     console.error('Error loading aviz data:', error);
     document.getElementById('avizItems').innerHTML = '<p style="color: #f44336;">Error loading order items.</p>';
+  }
+}
+
+// Manual partner search
+async function searchPartnerManually() {
+  const searchInput = document.getElementById('partnerSearchInput');
+  const searchTerm = searchInput.value.trim();
+  
+  if (!searchTerm || searchTerm.length < 2) {
+    alert('Please enter at least 2 characters to search');
+    return;
+  }
+  
+  const resultsDiv = document.getElementById('partnerSearchResults');
+  resultsDiv.innerHTML = '<p style="color: #666;">Searching...</p>';
+  
+  try {
+    const response = await fetch(`${INVOICE_API_URL}/api/partners/search/${encodeURIComponent(searchTerm)}`);
+    const data = await response.json();
+    
+    if (data.data && data.data.length > 0) {
+      window.partnerSearchResults = data.data;
+      let html = '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">';
+      data.data.forEach((partner, index) => {
+        html += `
+          <div onclick="selectPartner(${index})" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid #eee; hover: background #f5f5f5;" 
+               onmouseover="this.style.background='#E3F2FD'" onmouseout="this.style.background='white'">
+            <strong>${partner.den}</strong>
+            <br><small style="color: #666;">CIF: ${partner.cui || '-'} | ${partner.localitate || ''}, ${partner.judet || ''}</small>
+          </div>
+        `;
+      });
+      html += '</div>';
+      resultsDiv.innerHTML = html;
+    } else {
+      resultsDiv.innerHTML = '<p style="color: #E65100;">No partners found with that name.</p>';
+    }
+  } catch (error) {
+    console.error('Error searching partners:', error);
+    resultsDiv.innerHTML = '<p style="color: #f44336;">Error searching partners.</p>';
+  }
+}
+
+// Select partner from search results
+function selectPartner(index) {
+  const partner = window.partnerSearchResults[index];
+  if (!partner) return;
+  
+  // Store selected partner
+  window.currentAvizPartner = partner;
+  
+  // Update display
+  const partnerInfoDiv = document.getElementById('avizPartnerInfo');
+  if (partnerInfoDiv) {
+    partnerInfoDiv.innerHTML = `
+      <div style="background: #E8F5E9; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;">
+        <strong style="color: #2E7D32;">✓ Selected:</strong> ${partner.den}
+        <br><small style="color: #666;">CIF: ${partner.cui || '-'} | ${partner.localitate || ''}, ${partner.judet || ''}</small>
+      </div>
+    `;
+  }
+  
+  // Clear search results
+  document.getElementById('partnerSearchResults').innerHTML = '';
+  
+  // Fill delegate info if available
+  if (partner.delegat_nume) {
+    document.getElementById('avizDelegat').value = partner.delegat_nume;
+    document.getElementById('avizCISeria').value = partner.delegat_ci_seria || '';
+    document.getElementById('avizCINr').value = partner.delegat_ci_nr || '';
+    document.getElementById('avizCIPol').value = partner.delegat_ci_pol || '';
+    document.getElementById('avizTransport').value = partner.delegat_mij_trans || 'auto';
+    document.getElementById('avizNrAuto').value = partner.delegat_mij_trans_nr || '';
   }
 }
 
