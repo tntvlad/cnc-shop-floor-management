@@ -216,8 +216,14 @@ function renderOrders(orders) {
     const showEditBtn = canEditOrders();
     // Show delivery button for completed orders with pending financial stage (supervisors only)
     const showDeliveryBtn = showEditBtn && order.status === 'completed' && (!order.financial_stage || order.financial_stage === 'pending');
-    // Show partial delivery button for in-progress orders with completed parts
-    const showPartialDeliveryBtn = showEditBtn && order.status === 'in-progress' && (order.completed_parts || 0) > 0;
+    // Show partial delivery button for in-progress orders with completed parts (support both status formats)
+    const isInProgress = order.status === 'in-progress' || order.status === 'in_progress';
+    const hasCompletedParts = (order.completed_parts || 0) > 0;
+    const showPartialDeliveryBtn = showEditBtn && isInProgress && hasCompletedParts;
+    // Debug logging for partial delivery button
+    if (hasCompletedParts && isInProgress) {
+      console.log('Partial delivery check:', { orderId: order.id, showEditBtn, status: order.status, isInProgress, completedParts: order.completed_parts, showPartialDeliveryBtn });
+    }
 
     return `
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
