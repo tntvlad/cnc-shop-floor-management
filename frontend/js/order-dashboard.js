@@ -837,17 +837,19 @@ async function loadAvizData() {
             partnerInfoDiv.innerHTML = `
               <div style="background: #E8F5E9; padding: 0.75rem; border-radius: 6px; border-left: 4px solid #4CAF50;">
                 <strong style="color: #2E7D32;">✓ Partner found in IceFact:</strong>
-                <div style="margin-top: 0.25rem; color: #1B5E20;">${partner.den_pj || partner.den_pf}</div>
-                <div style="font-size: 0.85rem; color: #666;">${partner.judet || ''} ${partner.oras || ''}</div>
+                <div style="margin-top: 0.25rem; color: #1B5E20;">${partner.den}</div>
+                <div style="font-size: 0.85rem; color: #666;">CIF: ${partner.cui || '-'} | ${partner.localitate || ''}, ${partner.judet || ''}</div>
               </div>
             `;
             
-            // Check for partner-specific delegate
-            if (partner.deleg_nume) {
-              document.getElementById('avizDelegat').value = partner.deleg_nume;
-              document.getElementById('avizCISeria').value = partner.deleg_ci_seria || '';
-              document.getElementById('avizCINr').value = partner.deleg_ci_nr || '';
-              document.getElementById('avizCIPol').value = partner.deleg_ci_pol || '';
+            // Override delegate info if partner has delegate data
+            if (partner.delegat_nume) {
+              document.getElementById('avizDelegat').value = partner.delegat_nume;
+              document.getElementById('avizCISeria').value = partner.delegat_ci_seria || '';
+              document.getElementById('avizCINr').value = partner.delegat_ci_nr || '';
+              document.getElementById('avizCIPol').value = partner.delegat_ci_pol || '';
+              document.getElementById('avizTransport').value = partner.delegat_mij_trans || 'auto';
+              document.getElementById('avizNrAuto').value = partner.delegat_mij_trans_nr || '';
             }
           } else {
             partnerInfoDiv.innerHTML = `
