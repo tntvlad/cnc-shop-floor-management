@@ -216,6 +216,8 @@ function renderOrders(orders) {
     const showEditBtn = canEditOrders();
     // Show delivery button for completed orders with pending financial stage (supervisors only)
     const showDeliveryBtn = showEditBtn && order.status === 'completed' && (!order.financial_stage || order.financial_stage === 'pending');
+    // Show partial delivery button for in-progress orders with completed parts
+    const showPartialDeliveryBtn = showEditBtn && order.status === 'in-progress' && (order.completed_parts || 0) > 0;
 
     return `
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
@@ -250,7 +252,8 @@ function renderOrders(orders) {
         <td>
           <div class="action-buttons">
             <button class="btn-view" onclick="openOrderDetails(${order.id}); event.stopPropagation();">View</button>
-            ${showDeliveryBtn ? `<button class="btn-delivery" onclick="openDeliveryModal(${order.id}); event.stopPropagation();" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">📦 Deliver</button>` : ''}
+            ${showDeliveryBtn ? `<button class="btn-delivery" onclick="openDeliveryModal(${order.id}, false); event.stopPropagation();" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">📦 Deliver</button>` : ''}
+            ${showPartialDeliveryBtn ? `<button class="btn-delivery" onclick="openDeliveryModal(${order.id}, true); event.stopPropagation();" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white;">📦 Partial</button>` : ''}
             ${showEditBtn ? `<button class="btn-edit" onclick="openEditOrderModal(${order.id}); event.stopPropagation();">Edit</button>` : ''}
             <button class="btn-delete" onclick="deleteOrder(${order.id}); event.stopPropagation();">Delete</button>
           </div>
@@ -675,17 +678,36 @@ async function addPartToOrder(event) {
 const INVOICE_API_URL = 'http://192.168.2.121:3001';
 let currentAvizOrder = null;
 let currentAvizPartner = null;
+let isPartialDelivery = false;
 
-function openDeliveryModal(orderId) {
+function openDeliveryModal(orderId, isPartial = false) {
+  isPartialDelivery = isPartial;
   document.getElementById('deliveryOrderId').value = orderId;
   // Reset form
   document.getElementById('deliveryDocNumber').value = '';
   const fileInput = document.getElementById('deliveryFile');
   if (fileInput) fileInput.value = '';
   document.getElementById('deliveryFileName').textContent = '';
-  // Set default option to manual
-  document.querySelector('input[name="deliveryOption"][value="manual"]').checked = true;
-  toggleDeliveryOption('manual');
+  
+  // Update modal title for partial delivery
+  const modalTitle = document.querySelector('#deliveryModal h3');
+  if (modalTitle) {
+    modalTitle.textContent = isPartial ? '📦 Partial Delivery - Completed Parts Only' : '📦 Mark as Delivered';
+  }
+  
+  // Hide non-aviz options for partial delivery (partial only makes sense with aviz)
+  const deliveryOptions = document.querySelectorAll('.delivery-options .radio-option');
+  deliveryOptions.forEach(option => {
+    const input = option.querySelector('input');
+    if (input && input.value !== 'aviz') {
+      option.style.display = isPartial ? 'none' : 'flex';
+    }
+  });
+  
+  // Set default option to aviz for partial (most common use case)
+  const defaultOption = isPartial ? 'aviz' : 'manual';
+  document.querySelector(`input[name="deliveryOption"][value="${defaultOption}"]`).checked = true;
+  toggleDeliveryOption(defaultOption);
   document.getElementById('deliveryModal').classList.add('active');
 }
 
@@ -774,17 +796,28 @@ async function loadAvizData() {
       const order = orderResponse.order;
       const itemsDiv = document.getElementById('avizItems');
       
-      if (order.parts && order.parts.length > 0) {
-        itemsDiv.innerHTML = order.parts.map((part, idx) => `
+      // Filter parts for partial delivery - only completed parts
+      let partsToDeliver = order.parts || [];
+      if (isPartialDelivery) {
+        partsToDeliver = partsToDeliver.filter(p => 
+          p.status === 'completed' || 
+          p.workflow_stage === 'completed' ||
+          p.workflow_stage === 'done'
+        );
+      }
+      
+      if (partsToDeliver.length > 0) {
+        itemsDiv.innerHTML = partsToDeliver.map((part, idx) => `
           <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0;">
             <span><strong>${idx + 1}.</strong> ${part.part_name || part.name || 'Part'}</span>
             <span style="color: #667eea; font-weight: bold;">${part.quantity || 1} buc</span>
           </div>
         `).join('');
         
-        currentAvizOrder = order;
+        // Store order with only the parts to deliver
+        currentAvizOrder = { ...order, parts: partsToDeliver };
       } else {
-        itemsDiv.innerHTML = '<p style="color: #999;">No parts found for this order.</p>';
+        itemsDiv.innerHTML = '<p style="color: #999;">No completed parts found for partial delivery.</p>';
       }
       
       // Search for matching partner in IceFact database
@@ -891,7 +924,7 @@ async function submitDelivery(event) {
       }
     }
     
-    showSuccess('Order marked as delivered!');
+    showSuccess(isPartialDelivery ? 'Partial delivery aviz created!' : 'Order marked as delivered!');
     closeDeliveryModal();
     loadOrders();
   } catch (error) {
@@ -938,18 +971,23 @@ async function createAviz(orderId) {
   
   const avizResult = await res.json();
   
-  // Update CNC order with aviz info
-  await fetch(`${API_URL}/orders/${orderId}/financial-stage`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${getToken()}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      financial_stage: 'delivered',
-      delivery_document_number: `${serie}-${avizResult.numar}`,
-      delivery_document_path: null
-    })
-  });
+  // Update CNC order with aviz info (only for full delivery, not partial)
+  if (!isPartialDelivery) {
+    await fetch(`${API_URL}/orders/${orderId}/financial-stage`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        financial_stage: 'delivered',
+        delivery_document_number: `${serie}-${avizResult.numar}`,
+        delivery_document_path: null
+      })
+    });
+  } else {
+    // For partial delivery, just store the aviz number as reference in notes
+    showSuccess(`Partial aviz created: ${serie}-${avizResult.numar}`);
+  }
 }
 
