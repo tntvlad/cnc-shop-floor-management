@@ -1525,6 +1525,88 @@ html[data-theme="dark"] .order-details-card {
 }
 html[data-theme="dark"] .section-header h2 { color: #f1f5f9; }
 
+/* ---- DARK: dashboard part cards ---- */
+html[data-theme="dark"] .part-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+html[data-theme="dark"] .part-card.completed {
+    background: #0f2d1e !important;
+    border-color: #166534 !important;
+}
+html[data-theme="dark"] .part-card:hover {
+    border-color: #6366f1 !important;
+}
+html[data-theme="dark"] .part-name,
+html[data-theme="dark"] .info-value {
+    color: #f1f5f9 !important;
+}
+html[data-theme="dark"] .info-label {
+    color: #94a3b8 !important;
+}
+/* Stat card icon box */
+html[data-theme="dark"] .stat-icon {
+    background: #0f172a !important;
+}
+/* Part availability / status badges on cards */
+html[data-theme="dark"] .badge-locked {
+    background: #3b1f1f !important;
+    color: #fca5a5 !important;
+}
+html[data-theme="dark"] .badge-unlocked {
+    background: #1e3a5f !important;
+    color: #93c5fd !important;
+}
+html[data-theme="dark"] .badge-completed {
+    background: #0f2d1e !important;
+    color: #86efac !important;
+}
+/* PDF preview area inside part cards */
+html[data-theme="dark"] .part-pdf-preview {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+/* Main content white background fallback */
+html[data-theme="dark"] .main-content {
+    background: #0f172a !important;
+}
+/* Step viewer modal */
+html[data-theme="dark"] .step-viewer-container {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+html[data-theme="dark"] .step-measure-menu {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #f1f5f9 !important;
+}
+html[data-theme="dark"] .step-measurement-panel {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+/* Supervisor / workflow page cards */
+html[data-theme="dark"] .machine-card,
+html[data-theme="dark"] .workflow-card,
+html[data-theme="dark"] .assignment-card,
+html[data-theme="dark"] .order-card,
+html[data-theme="dark"] .customer-card,
+html[data-theme="dark"] .financial-card,
+html[data-theme="dark"] .report-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+/* Generic white panels / sections not using .card */
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .section-card,
+html[data-theme="dark"] .filter-bar,
+html[data-theme="dark"] .toolbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
 /* ---- LIGHT THEME ---- */
 html[data-theme="light"] body {
     background: #f0f4f8;
