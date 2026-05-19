@@ -117,7 +117,7 @@ function renderOrders(orders) {
   tbody.innerHTML = orders.map(order => {
     const stage = order.financial_stage || 'pending';
     const customerName = order.customer_company_name || order.customer_name || 'N/A';
-    const completionDate = order.updated_at ? new Date(order.updated_at).toLocaleDateString() : 'N/A';
+    const completionDate = order.updated_at ? formatDate(order.updated_at) : 'N/A';
     
     return `
       <tr>
@@ -149,7 +149,7 @@ function formatStage(stage) {
 // Render delivery status
 function renderDeliveryStatus(order) {
   if (order.delivery_date) {
-    const date = new Date(order.delivery_date).toLocaleDateString();
+    const date = formatDate(order.delivery_date);
     const docIcon = order.delivery_document_path ? '📄' : '';
     return `<div class="status-info"><span class="status-date">${date}</span> ${docIcon}</div>`;
   }
@@ -162,7 +162,7 @@ function renderInvoiceStatus(order) {
     return '<span style="color: #FF9800; font-weight: 500;">No Invoice Needed</span>';
   }
   if (order.invoice_date) {
-    const date = new Date(order.invoice_date).toLocaleDateString();
+    const date = formatDate(order.invoice_date);
     const invoiceNum = order.invoice_number || '';
     const docIcon = order.invoice_document_path ? '📄' : '';
     return `<div class="status-info">
@@ -176,7 +176,7 @@ function renderInvoiceStatus(order) {
 // Render payment status
 function renderPaymentStatus(order) {
   if (order.cashed_in_date) {
-    const date = new Date(order.cashed_in_date).toLocaleDateString();
+    const date = formatDate(order.cashed_in_date);
     const amount = order.payment_amount ? `${parseFloat(order.payment_amount).toFixed(2)} RON` : '';
     return `<div class="status-info">
       <span class="status-date">${date}</span><br>

@@ -60,8 +60,8 @@ function renderOrderDetails() {
   document.getElementById('customer-name').textContent = currentOrder.customer_name;
   document.getElementById('customer-email').textContent = currentOrder.customer_email;
   document.getElementById('customer-phone').textContent = currentOrder.customer_phone || '---';
-  document.getElementById('order-date').textContent = new Date(currentOrder.order_date).toLocaleDateString();
-  document.getElementById('due-date').textContent = new Date(currentOrder.due_date).toLocaleDateString();
+  document.getElementById('order-date').textContent = formatDate(currentOrder.order_date);
+  document.getElementById('due-date').textContent = formatDate(currentOrder.due_date);
 
   const priority = getPriorityMeta(currentOrder);
   const priorityEl = document.getElementById('order-priority');

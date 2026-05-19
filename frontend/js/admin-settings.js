@@ -231,7 +231,7 @@ async function loadReleases() {
     if (data.releases && data.releases.length > 0) {
       select.innerHTML = '<option value="">-- Select a release --</option>';
       data.releases.forEach(rel => {
-        const date = new Date(rel.date).toLocaleDateString();
+        const date = formatDate(rel.date);
         const option = document.createElement('option');
         option.value = rel.tag;
         option.textContent = `${rel.tag} (${rel.commit} - ${date})`;
@@ -264,8 +264,8 @@ async function checkForUpdates() {
     
     if (!resp.ok) throw new Error(data.error || 'Failed to check updates');
     
-    localEl.textContent = `${data.local.commit} (${new Date(data.local.date).toLocaleDateString()})`;
-    remoteEl.textContent = `${data.remote.commit} (${new Date(data.remote.date).toLocaleDateString()})`;
+    localEl.textContent = `${data.local.commit} (${formatDate(data.local.date)})`;
+    remoteEl.textContent = `${data.remote.commit} (${formatDate(data.remote.date)})`;
     
     if (data.updateAvailable) {
       statusEl.style.display = 'block';
@@ -1290,7 +1290,7 @@ async function loadMaintenanceRecords(machineId) {
           <span style="background: ${typeColors[r.maintenance_type] || '#64748b'}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
             ${typeLabels[r.maintenance_type] || r.maintenance_type}
           </span>
-          <span style="color: #64748b; font-size: 0.8rem;">${r.completed_at ? new Date(r.completed_at).toLocaleDateString() : (r.started_at ? new Date(r.started_at).toLocaleDateString() : 'N/A')}</span>
+          <span style="color: #64748b; font-size: 0.8rem;">${r.completed_at ? formatDate(r.completed_at) : (r.started_at ? formatDate(r.started_at) : 'N/A')}</span>
         </div>
         <p style="margin: 0.5rem 0; color: #334155;">${escapeHtml(r.description || 'No description')}</p>
         ${r.parts_replaced ? `<p style="margin: 0.25rem 0; font-size: 0.85rem; color: #64748b;"><strong>Parts:</strong> ${escapeHtml(r.parts_replaced)}</p>` : ''}

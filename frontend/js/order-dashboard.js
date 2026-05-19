@@ -1,6 +1,7 @@
 let currentFilter = 'all';
 let currentUser = null;
-let allOrdersCache = []; // Cache all orders for filtering
+let allOrdersCache = [];
+let currentSort = { col: null, dir: 'asc' };
 const PRIORITY_WEIGHT = {
   urgent: 3,
   high: 3,
@@ -31,9 +32,18 @@ document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   checkPageAccess();
   loadCurrentUser();  // Must be before loadOrders so currentUser is set
+  initUserMenu();
   loadOrders();
   loadStats();
   setupEventListeners();
+
+  // Close user menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.user-menu-wrapper')) {
+      const menu = document.getElementById('userMenuDropdown');
+      if (menu) menu.classList.remove('open');
+    }
+  });
 
   // Refresh every 30 seconds
   setInterval(() => {
@@ -192,6 +202,24 @@ function renderOrders(orders) {
   }
 
   const sorted = [...orders].sort((a, b) => {
+    if (currentSort.col) {
+      const dir = currentSort.dir === 'asc' ? 1 : -1;
+      switch (currentSort.col) {
+        case 'id': return dir * (a.internal_order_id || '').localeCompare(b.internal_order_id || '');
+        case 'priority': return dir * (getPriorityMeta(a).weight - getPriorityMeta(b).weight);
+        case 'customer': return dir * (a.customer_name || '').localeCompare(b.customer_name || '');
+        case 'parts': return dir * ((a.part_count || 0) - (b.part_count || 0));
+        case 'progress': {
+          const pa2 = a.part_count > 0 ? Math.round((a.workflow_progress_sum || 0) / (a.part_count * 100) * 100) : 0;
+          const pb2 = b.part_count > 0 ? Math.round((b.workflow_progress_sum || 0) / (b.part_count * 100) * 100) : 0;
+          return dir * (pa2 - pb2);
+        }
+        case 'created': return dir * (new Date(a.created_at || 0) - new Date(b.created_at || 0));
+        case 'due_date': return dir * (new Date(a.due_date || 0) - new Date(b.due_date || 0));
+        case 'status': return dir * (a.status || '').localeCompare(b.status || '');
+      }
+    }
+    // Default: priority desc, then due date asc
     const pa = getPriorityMeta(a).weight;
     const pb = getPriorityMeta(b).weight;
     if (pb !== pa) return pb - pa;
@@ -202,8 +230,8 @@ function renderOrders(orders) {
 
   emptyState.style.display = 'none';
   tbody.innerHTML = sorted.map(order => {
-    const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '—';
-    const createdDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : '—';
+    const dueDate = formatDate(order.due_date);
+    const createdDate = formatDate(order.created_at);
     // For completed orders, calculate late based on completed_at, not today
     const dueInfo = getDueInfo(order.due_date, order.status === 'completed' ? order.completed_at : null);
     // Calculate progress based on workflow stages (weighted) or fall back to completed parts
@@ -422,10 +450,57 @@ function formatDueLabel(dueDate) {
   if (diffDays === 0) return 'Due today';
   if (diffDays === 1) return 'Due in 1 day';
   if (diffDays <= 3) return `Due in ${diffDays} days`;
-  return target.toLocaleDateString();
+  return formatDate(target);
 }
 
-// ========== Edit Order Functions ==========
+// ========== Sort Functions ==========
+function toggleSort(col) {
+  if (currentSort.col === col) {
+    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort.col = col;
+    currentSort.dir = 'asc';
+  }
+  updateSortArrows();
+  applyFilters();
+}
+
+function updateSortArrows() {
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = '↕';
+  });
+  if (currentSort.col) {
+    const th = document.getElementById(`th-${currentSort.col}`);
+    if (th) {
+      th.classList.add(currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+      const icon = th.querySelector('.sort-icon');
+      if (icon) icon.textContent = currentSort.dir === 'asc' ? '↑' : '↓';
+    }
+  }
+}
+
+// ========== User Menu / Date Format ==========
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('userMenuDropdown');
+  if (menu) menu.classList.toggle('open');
+}
+
+function setDateFormat(fmt) {
+  localStorage.setItem('cnc_date_format', fmt);
+  applyFilters();
+  const menu = document.getElementById('userMenuDropdown');
+  if (menu) menu.classList.remove('open');
+}
+
+function initUserMenu() {
+  const fmt = localStorage.getItem('cnc_date_format') || 'dd/mm/yyyy';
+  document.querySelectorAll('input[name="dateFormat"]').forEach(r => {
+    r.checked = r.value === fmt;
+  });
+}
 let editingOrderId = null;
 let editingOrderParts = [];
 let allCustomers = [];

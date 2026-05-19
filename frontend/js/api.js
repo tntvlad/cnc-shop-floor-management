@@ -1,3 +1,21 @@
+// ---- Date Formatting Utility (global, used by all pages) ----
+// Reads user preference from localStorage key 'cnc_date_format'
+// Supported formats: 'dd/mm/yyyy' (default), 'mm/dd/yyyy', 'yyyy-mm-dd'
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '—';
+  const fmt = localStorage.getItem('cnc_date_format') || 'dd/mm/yyyy';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  switch (fmt) {
+    case 'mm/dd/yyyy': return `${mm}/${dd}/${yyyy}`;
+    case 'yyyy-mm-dd': return `${yyyy}-${mm}-${dd}`;
+    default: return `${dd}/${mm}/${yyyy}`;
+  }
+}
+
 // API client
 const API = {
   // Generic fetch wrapper

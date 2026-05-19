@@ -629,6 +629,33 @@
     .modal-close:hover {
       color: #333;
     }
+
+    /* Sortable column headers */
+    th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    th.sortable:hover { background: rgba(255, 255, 255, 0.08); }
+    .sort-icon { margin-left: 4px; font-size: 0.7rem; opacity: 0.35; }
+    th.sort-asc .sort-icon, th.sort-desc .sort-icon { opacity: 1; color: #60a5fa; }
+
+    /* User menu dropdown */
+    .user-menu-wrapper { position: relative; display: inline-block; }
+    .user-btn { cursor: pointer; }
+    .user-menu-dropdown {
+      display: none; position: absolute; right: 0; top: calc(100% + 6px);
+      background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      min-width: 190px; z-index: 1000; padding: 0.4rem 0; border: 1px solid #e2e8f0;
+    }
+    .user-menu-dropdown.open { display: block; }
+    .user-menu-section-title {
+      padding: 0.4rem 1rem; font-size: 0.72rem; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1px solid #e2e8f0; margin-bottom: 0.25rem;
+    }
+    .user-menu-option {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.45rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer;
+    }
+    .user-menu-option:hover { background: #f8fafc; }
+    .user-menu-option input[type="radio"] { accent-color: #3b82f6; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -644,7 +671,15 @@
         <a href="supervisor.html" id="supervisorLink" class="nav-btn" style="display: none;">🗂️ Supervisor</a>
         <a href="financial-dashboard.html" id="financialLink" class="nav-btn" style="display: none;">💰 Financial</a>
         <a href="admin-settings.html" id="adminLink" class="nav-btn" style="display: none;">⚙️ Admin</a>
-        <span class="user-btn">👤 <span id="userName">User</span></span>
+        <div class="user-menu-wrapper">
+          <span class="user-btn" onclick="toggleUserMenu(event)">👤 <span id="userName">User</span> ▾</span>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+            <div class="user-menu-section-title">Date Format</div>
+            <label class="user-menu-option"><input type="radio" name="dateFormat" value="dd/mm/yyyy" onchange="setDateFormat(this.value)"> DD/MM/YYYY</label>
+            <label class="user-menu-option"><input type="radio" name="dateFormat" value="mm/dd/yyyy" onchange="setDateFormat(this.value)"> MM/DD/YYYY</label>
+            <label class="user-menu-option"><input type="radio" name="dateFormat" value="yyyy-mm-dd" onchange="setDateFormat(this.value)"> YYYY-MM-DD</label>
+          </div>
+        </div>
         <button class="logout-btn" onclick="logout()">Logout</button>
       </nav>
     </nav>
@@ -693,14 +728,14 @@
         <table class="orders-table">
           <thead>
             <tr>
-              <th>Order ID</th>
-              <th>Priority</th>
-              <th>Customer</th>
-              <th>Parts</th>
-              <th>Progress</th>
-              <th>Created</th>
-              <th>Due Date</th>
-              <th>Status</th>
+              <th class="sortable" id="th-id" onclick="toggleSort('id')">Order ID <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-priority" onclick="toggleSort('priority')">Priority <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-customer" onclick="toggleSort('customer')">Customer <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-parts" onclick="toggleSort('parts')">Parts <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-progress" onclick="toggleSort('progress')">Progress <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-created" onclick="toggleSort('created')">Created <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-due_date" onclick="toggleSort('due_date')">Due Date <span class="sort-icon">↕</span></th>
+              <th class="sortable" id="th-status" onclick="toggleSort('status')">Status <span class="sort-icon">↕</span></th>
               <th>Actions</th>
             </tr>
           </thead>
