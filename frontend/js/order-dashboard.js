@@ -203,6 +203,7 @@ function renderOrders(orders) {
   emptyState.style.display = 'none';
   tbody.innerHTML = sorted.map(order => {
     const dueDate = order.due_date ? new Date(order.due_date).toLocaleDateString() : '—';
+    const createdDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : '—';
     // For completed orders, calculate late based on completed_at, not today
     const dueInfo = getDueInfo(order.due_date, order.status === 'completed' ? order.completed_at : null);
     // Calculate progress based on workflow stages (weighted) or fall back to completed parts
@@ -242,6 +243,7 @@ function renderOrders(orders) {
           </div>
           <div style="font-size: 0.85rem; text-align: center; margin-top: 0.5rem; color: #374151;">${progress}%</div>
         </td>
+        <td style="color: #374151;">${createdDate}</td>
         <td>
           <div class="${dueDateClass}">${isOverdue ? '⚠️ ' : ''}${dueDate}</div>
           <span class="due-chip ${dueInfo.chipClass}">${escapeHtml(dueInfo.label)}</span>
