@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preferences - CNC Shop Floor</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .pref-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    .pref-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: var(--text-primary);
+    }
+    .pref-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 1.75rem;
+    }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.25); }
+    .pref-user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .pref-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: white;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .pref-user-name { font-weight: 700; font-size: 1rem; color: #1e293b; }
+    .pref-user-role { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+
+    html[data-theme="dark"] .pref-user-info {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+    }
+    html[data-theme="dark"] .pref-user-name { color: #f1f5f9; }
+    html[data-theme="dark"] .pref-user-role { color: #94a3b8; }
+    html[data-theme="dark"] .date-option { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+    html[data-theme="dark"] .date-option:hover { background: #0f172a; border-color: #3b82f6; }
+    html[data-theme="dark"] .date-option.active { background: #1e3a5f; border-color: #3b82f6; }
+    html[data-theme="dark"] .date-option .fmt-label { color: #f1f5f9; }
+    html[data-theme="dark"] .date-option.active .fmt-label { color: #60a5fa; }
+    html[data-theme="dark"] .date-option .fmt-example { color: #94a3b8; }
+    html[data-theme="dark"] .theme-name { color: #f1f5f9; }
+    html[data-theme="dark"] .theme-swatch.active .theme-name { color: #60a5fa; }
+    html[data-theme="dark"] .pref-card h3 { color: #f1f5f9; border-color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="navbar" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 1rem 2rem;">
+      <div class="nav-left">
+        <h1 style="color: white; margin: 0;">⚙️ Preferences</h1>
+      </div>
+      <nav class="header-nav">
+        <button class="back-btn" onclick="history.back()">← Back</button>
+        <span class="user-btn" style="cursor:default;">👤 <span id="userName">User</span></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </nav>
+    </nav>
+
+    <main class="main-content" style="padding: 2rem;">
+      <div class="pref-container">
+
+        <!-- User Info -->
+        <div class="pref-user-info">
+          <div class="pref-avatar" id="userAvatar">?</div>
+          <div>
+            <div class="pref-user-name" id="userFullName">Loading...</div>
+            <div class="pref-user-role" id="userRoleLabel">—</div>
+          </div>
+          <div style="margin-left: auto;">
+            <span class="pref-saved" id="savedIndicator">✓ Saved</span>
+          </div>
+        </div>
+
+        <!-- Date Format -->
+        <div class="pref-card">
+          <h3>📅 Date Format</h3>
+          <div class="date-format-options">
+            <div class="date-option" data-fmt="dd/mm/yyyy" onclick="setDateFormat('dd/mm/yyyy')">
+              <div class="fmt-label">DD/MM/YYYY</div>
+              <div class="fmt-example">e.g. 19/05/2026</div>
+            </div>
+            <div class="date-option" data-fmt="mm/dd/yyyy" onclick="setDateFormat('mm/dd/yyyy')">
+              <div class="fmt-label">MM/DD/YYYY</div>
+              <div class="fmt-example">e.g. 05/19/2026</div>
+            </div>
+            <div class="date-option" data-fmt="yyyy-mm-dd" onclick="setDateFormat('yyyy-mm-dd')">
+              <div class="fmt-label">YYYY-MM-DD</div>
+              <div class="fmt-example">e.g. 2026-05-19</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Theme -->
+        <div class="pref-card">
+          <h3>🎨 Theme</h3>
+          <div class="theme-options">
+
+            <div class="theme-swatch" data-theme="default" onclick="setTheme('default')">
+              <div class="theme-preview" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <div class="theme-preview-nav" style="background: rgba(30,58,95,0.9);"></div>
+                <div class="theme-preview-body" style="background: rgba(255,255,255,0.15);"></div>
+                <div class="theme-preview-card" style="background: rgba(255,255,255,0.85);"></div>
+              </div>
+              <div class="theme-name">Default</div>
+            </div>
+
+            <div class="theme-swatch" data-theme="dark" onclick="setTheme('dark')">
+              <div class="theme-preview" style="background: linear-gradient(135deg, #0f172a, #1e293b);">
+                <div class="theme-preview-nav" style="background: rgba(30,58,95,0.95);"></div>
+                <div class="theme-preview-body" style="background: rgba(15,23,42,0.8);"></div>
+                <div class="theme-preview-card" style="background: rgba(30,41,59,0.9);"></div>
+              </div>
+              <div class="theme-name">Dark</div>
+            </div>
+
+            <div class="theme-swatch" data-theme="light" onclick="setTheme('light')">
+              <div class="theme-preview" style="background: #f0f4f8;">
+                <div class="theme-preview-nav" style="background: #1e3a5f;"></div>
+                <div class="theme-preview-body" style="background: #e2e8f0;"></div>
+                <div class="theme-preview-card" style="background: white;"></div>
+              </div>
+              <div class="theme-name">Light</div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    function logout() {
+      Auth.logout();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      ensureAuthed();
+
+      const user = Auth.getUser();
+      if (user) {
+        const name = user.name || user.username || 'User';
+        document.getElementById('userName').textContent = name;
+        document.getElementById('userFullName').textContent = name;
+        document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+        const roleMap = { admin: 'Administrator', supervisor: 'Supervisor', operator: 'Operator' };
+        const roleLabel = roleMap[user.role] || (user.level ? `Level ${user.level}` : user.role || '—');
+        document.getElementById('userRoleLabel').textContent = roleLabel;
+      }
+
+      // Apply current date format
+      const fmt = localStorage.getItem('cnc_date_format') || 'dd/mm/yyyy';
+      applyDateFormatUI(fmt);
+
+      // Apply current theme
+      const theme = localStorage.getItem('cnc_theme') || 'default';
+      applyThemeUI(theme);
+    });
+
+    function setDateFormat(fmt) {
+      localStorage.setItem('cnc_date_format', fmt);
+      applyDateFormatUI(fmt);
+      showSaved();
+    }
+
+    function applyDateFormatUI(fmt) {
+      document.querySelectorAll('.date-option').forEach(el => {
+        el.classList.toggle('active', el.dataset.fmt === fmt);
+      });
+    }
+
+    function setTheme(theme) {
+      localStorage.setItem('cnc_theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+      applyThemeUI(theme);
+      showSaved();
+    }
+
+    function applyThemeUI(theme) {
+      document.querySelectorAll('.theme-swatch').forEach(el => {
+        el.classList.toggle('active', el.dataset.theme === theme);
+      });
+    }
+
+    function showSaved() {
+      const el = document.getElementById('savedIndicator');
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('show'), 2000);
+    }
+  </script>
+</body>
+</html>

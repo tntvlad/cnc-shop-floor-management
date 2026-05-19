@@ -1,3 +1,9 @@
+// Apply saved theme immediately (before DOMContentLoaded) to prevent flash
+(function () {
+  const t = localStorage.getItem('cnc_theme') || 'default';
+  document.documentElement.setAttribute('data-theme', t);
+}());
+
 // ---- Date Formatting Utility (global, used by all pages) ----
 // Reads user preference from localStorage key 'cnc_date_format'
 // Supported formats: 'dd/mm/yyyy' (default), 'mm/dd/yyyy', 'yyyy-mm-dd'

@@ -32,18 +32,9 @@ document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   checkPageAccess();
   loadCurrentUser();  // Must be before loadOrders so currentUser is set
-  initUserMenu();
   loadOrders();
   loadStats();
   setupEventListeners();
-
-  // Close user menu when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.user-menu-wrapper')) {
-      const menu = document.getElementById('userMenuDropdown');
-      if (menu) menu.classList.remove('open');
-    }
-  });
 
   // Refresh every 30 seconds
   setInterval(() => {
@@ -481,26 +472,7 @@ function updateSortArrows() {
   }
 }
 
-// ========== User Menu / Date Format ==========
-function toggleUserMenu(e) {
-  e.stopPropagation();
-  const menu = document.getElementById('userMenuDropdown');
-  if (menu) menu.classList.toggle('open');
-}
-
-function setDateFormat(fmt) {
-  localStorage.setItem('cnc_date_format', fmt);
-  applyFilters();
-  const menu = document.getElementById('userMenuDropdown');
-  if (menu) menu.classList.remove('open');
-}
-
-function initUserMenu() {
-  const fmt = localStorage.getItem('cnc_date_format') || 'dd/mm/yyyy';
-  document.querySelectorAll('input[name="dateFormat"]').forEach(r => {
-    r.checked = r.value === fmt;
-  });
-}
+// ========== Edit Order Functions ==========
 let editingOrderId = null;
 let editingOrderParts = [];
 let allCustomers = [];
