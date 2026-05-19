@@ -922,6 +922,196 @@
       margin-bottom: 0.5rem;
       font-weight: 500;
     }
+
+    /* ========== DARK THEME OVERRIDES ========== */
+    html[data-theme="dark"] .machine-lane {
+      background: #1e293b !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    html[data-theme="dark"] .machine-body {
+      background: #0f172a !important;
+    }
+    html[data-theme="dark"] .machine-lane.drag-over .machine-body {
+      background: #1e3a5f !important;
+    }
+    html[data-theme="dark"] .part-chip {
+      background: #1e293b !important;
+    }
+    html[data-theme="dark"] .part-chip-name {
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .part-chip-info {
+      color: #94a3b8 !important;
+    }
+    html[data-theme="dark"] .part-chip.gantt .part-info-section {
+      background: #1e293b !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .part-chip.vertical.unknown {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+    }
+    html[data-theme="dark"] .part-chip.vertical.unknown .part-name,
+    html[data-theme="dark"] .part-chip.vertical.unknown .part-details,
+    html[data-theme="dark"] .part-chip.vertical.unknown .part-time {
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .empty-lane {
+      color: #64748b !important;
+    }
+    html[data-theme="dark"] .queue-summary {
+      background: rgba(255,255,255,0.05) !important;
+      color: #94a3b8 !important;
+      border-top-color: #334155 !important;
+    }
+    /* Tabs */
+    html[data-theme="dark"] .tab-container {
+      border-bottom-color: #334155 !important;
+    }
+    html[data-theme="dark"] .tab-btn {
+      color: #94a3b8 !important;
+      background: transparent !important;
+    }
+    html[data-theme="dark"] .tab-btn:hover {
+      color: #f1f5f9 !important;
+      background: rgba(255,255,255,0.05) !important;
+    }
+    html[data-theme="dark"] .tab-btn.active {
+      color: #818cf8 !important;
+      border-bottom-color: #818cf8 !important;
+    }
+    /* View toggle buttons */
+    html[data-theme="dark"] .view-toggle button {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .view-toggle button:hover:not(.active) {
+      background: #334155 !important;
+    }
+    /* Time legend */
+    html[data-theme="dark"] .time-legend {
+      background: #1e293b !important;
+      color: #f1f5f9 !important;
+    }
+    /* Timeline view */
+    html[data-theme="dark"] .timeline-container {
+      background: #0f172a !important;
+    }
+    html[data-theme="dark"] .timeline-header {
+      background: #1e293b !important;
+      border-bottom-color: #334155 !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .timeline-grid {
+      background: #0f172a !important;
+    }
+    html[data-theme="dark"] .timeline-sidebar {
+      background: #1e293b !important;
+      border-right-color: #334155 !important;
+    }
+    html[data-theme="dark"] .machine-row {
+      border-bottom-color: #334155 !important;
+    }
+    html[data-theme="dark"] .machine-label {
+      background: #1e293b !important;
+      border-right-color: #334155 !important;
+    }
+    html[data-theme="dark"] .machine-name-text {
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .machine-status-badge.available {
+      background: #0f2d1e !important;
+      color: #86efac !important;
+    }
+    html[data-theme="dark"] .machine-status-badge.busy {
+      background: #2d2010 !important;
+      color: #fcd34d !important;
+    }
+    html[data-theme="dark"] .time-cell:hover {
+      background: #1e293b !important;
+    }
+    html[data-theme="dark"] .task-card {
+      background: #1e293b !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .task-card.short { background: #0f2d1e !important; }
+    html[data-theme="dark"] .task-card.medium { background: #2d1f0a !important; }
+    html[data-theme="dark"] .task-card.long { background: #2d0f0f !important; }
+    html[data-theme="dark"] .task-card.unknown { background: #1e293b !important; }
+    html[data-theme="dark"] .task-card-title { color: #f1f5f9 !important; }
+    html[data-theme="dark"] .task-card-info,
+    html[data-theme="dark"] .task-card-time { color: #94a3b8 !important; }
+    html[data-theme="dark"] .timeline-legend {
+      background: #1e293b !important;
+      border-top-color: #334155 !important;
+    }
+    html[data-theme="dark"] .date-nav-btn {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .date-nav-btn:hover {
+      background: #667eea !important;
+      border-color: #667eea !important;
+      color: white !important;
+    }
+    html[data-theme="dark"] .current-date {
+      background: #0f172a !important;
+      color: #f1f5f9 !important;
+    }
+    /* Time scale view */
+    html[data-theme="dark"] .time-scale-lane {
+      border-right-color: #334155 !important;
+    }
+    html[data-theme="dark"] .time-scale-body {
+      background: linear-gradient(180deg,
+        transparent 0px, transparent 59px, #334155 59px, #334155 60px
+      ) !important;
+      background-size: 100% 60px !important;
+    }
+    html[data-theme="dark"] .time-ruler {
+      background: #1e293b !important;
+      border-right-color: #334155 !important;
+    }
+    html[data-theme="dark"] .time-ruler-mark {
+      color: #64748b !important;
+      border-bottom-color: #334155 !important;
+    }
+    html[data-theme="dark"] .time-scale-header {
+      background: #1e293b !important;
+      border-bottom-color: #334155 !important;
+      color: #94a3b8 !important;
+    }
+    html[data-theme="dark"] .time-slot {
+      border-right-color: #334155 !important;
+      color: #94a3b8 !important;
+    }
+    html[data-theme="dark"] .time-slot.current {
+      background: #2d2010 !important;
+    }
+    html[data-theme="dark"] .total-time-indicator {
+      background: rgba(255,255,255,0.05) !important;
+      color: #94a3b8 !important;
+    }
+    /* Modal */
+    html[data-theme="dark"] .modal-content {
+      background: #1e293b !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .modal-footer {
+      border-top-color: #334155 !important;
+    }
+    html[data-theme="dark"] .modal-body { color: #f1f5f9; }
+    html[data-theme="dark"] .detail-row {
+      background: #0f172a !important;
+      color: #f1f5f9 !important;
+    }
+    html[data-theme="dark"] .detail-label { color: #94a3b8 !important; }
+    html[data-theme="dark"] .detail-value { color: #f1f5f9 !important; }
+    /* General page text */
+    html[data-theme="dark"] .section-header h2 { color: #f1f5f9 !important; }
+    html[data-theme="dark"] .section > p { color: #94a3b8 !important; }
   </style>
 </head>
 <body>
