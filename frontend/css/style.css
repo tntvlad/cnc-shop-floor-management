@@ -1480,12 +1480,32 @@ html[data-theme="dark"] th {
     color: #94a3b8 !important;
     border-color: #334155 !important;
 }
+html[data-theme="dark"] tbody tr {
+    background: #1e293b;
+}
+html[data-theme="dark"] tr.priority-normal,
+html[data-theme="dark"] tr.priority-low,
+html[data-theme="dark"] tr.priority-high,
+html[data-theme="dark"] tr.priority-urgent {
+    background: #1e293b !important;
+}
 html[data-theme="dark"] td {
     border-color: #334155 !important;
     color: #f1f5f9 !important;
+    background: transparent;
+}
+/* Force inline-styled child elements inside cells to inherit dark text */
+html[data-theme="dark"] td div,
+html[data-theme="dark"] td strong,
+html[data-theme="dark"] td small {
+    color: inherit !important;
 }
 html[data-theme="dark"] tbody tr:hover td {
     background: #334155 !important;
+}
+html[data-theme="dark"] tbody tr:hover td div,
+html[data-theme="dark"] tbody tr:hover td strong {
+    color: #f1f5f9 !important;
 }
 html[data-theme="dark"] input:not([type="radio"]):not([type="checkbox"]),
 html[data-theme="dark"] select,
