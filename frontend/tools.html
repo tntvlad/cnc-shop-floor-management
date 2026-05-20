@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tool Storage - CNC Shop Floor</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .tools-container { max-width: 1400px; margin: 0 auto; }
+
+    /* ── Tabs ── */
+    .tool-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tool-tab-btn {
+      padding: 0.6rem 1.2rem; border: none; border-radius: 6px;
+      background: #e2e8f0; color: #475569; cursor: pointer;
+      font-size: 0.95rem; font-weight: 600; transition: all 0.2s;
+    }
+    .tool-tab-btn.active { background: #667eea; color: #fff; }
+    .tool-tab-btn:hover:not(.active) { background: #cbd5e1; }
+    .tool-tab-content { display: none; }
+    .tool-tab-content.active { display: block; }
+
+    /* ── Stats Row ── */
+    .tool-stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .tool-stat-card {
+      background: #fff; border-radius: 8px; padding: 1rem 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08); flex: 1; min-width: 130px;
+      text-align: center;
+    }
+    .tool-stat-card .stat-num { font-size: 2rem; font-weight: 700; color: #667eea; }
+    .tool-stat-card .stat-lbl { font-size: 0.8rem; color: #64748b; margin-top: 0.2rem; }
+    .tool-stat-card.danger .stat-num { color: #dc2626; }
+    .tool-stat-card.warn   .stat-num { color: #d97706; }
+    .tool-stat-card.success .stat-num { color: #16a34a; }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display: flex; gap: 0.75rem; flex-wrap: wrap;
+      align-items: center; margin-bottom: 1.25rem;
+    }
+    .filter-bar input, .filter-bar select {
+      padding: 0.55rem 0.75rem; border: 1px solid #ddd;
+      border-radius: 6px; font-size: 0.9rem; background: #fff;
+    }
+    .filter-bar input { min-width: 220px; }
+    .filter-bar select { min-width: 150px; }
+
+    /* ── Table ── */
+    .tools-table-wrap { overflow-x: auto; }
+    .tools-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .tools-table thead { background: #f8f9fa; }
+    .tools-table th {
+      padding: 0.75rem 1rem; text-align: left; font-weight: 600;
+      color: #374151; border-bottom: 2px solid #e2e8f0; white-space: nowrap;
+    }
+    .tools-table td {
+      padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    .tools-table tbody tr { cursor: pointer; transition: background 0.15s; }
+    .tools-table tbody tr:hover { background: #f0f4ff; }
+
+    /* ── Status badges ── */
+    .tool-status {
+      display: inline-block; padding: 0.2rem 0.55rem; border-radius: 12px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .ts-available  { background: #d1fae5; color: #065f46; }
+    .ts-in_use     { background: #dbeafe; color: #1e40af; }
+    .ts-sharpening { background: #fef3c7; color: #92400e; }
+    .ts-worn       { background: #fee2e2; color: #991b1b; }
+    .ts-retired    { background: #f1f5f9; color: #64748b; }
+
+    /* Stock level indicator */
+    .stock-level { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+    .stock-bar { width: 48px; height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+    .stock-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .stock-ok   .stock-bar-fill { background: #16a34a; }
+    .stock-low  .stock-bar-fill { background: #d97706; }
+    .stock-out  .stock-bar-fill { background: #dc2626; }
+
+    /* ── Modal ── */
+    .modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #fff; border-radius: 10px; padding: 2rem;
+      max-width: 720px; width: 95%; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal-content.sm { max-width: 420px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-header h2 { margin: 0; font-size: 1.25rem; color: #1e293b; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; padding: 0; line-height: 1; }
+    .modal-close:hover { color: #1e293b; }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+
+    /* ── Detail panels inside modal ── */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; margin-bottom: 1.5rem; }
+    .detail-item { display: flex; flex-direction: column; }
+    .detail-label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
+    .detail-value { font-size: 0.95rem; color: #1e293b; }
+    .detail-section-title { font-weight: 700; color: #475569; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 1.2rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid #e2e8f0; }
+
+    /* ── Price history ── */
+    .price-history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .price-history-table th, .price-history-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    .price-history-table th { font-weight: 600; color: #475569; background: #f8f9fa; }
+    .price-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .price-bar { height: 8px; border-radius: 4px; background: #667eea; min-width: 4px; }
+
+    /* ── Form grid ── */
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem 1rem; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 0.3rem; }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 0.6rem 0.75rem; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 0.9rem; font-family: inherit; background: #fff; color: #1e293b;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-full { grid-column: 1 / -1; }
+
+    /* ── Low stock alert ── */
+    .low-stock-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .low-stock-table th, .low-stock-table td { padding: 0.65rem 1rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    .low-stock-table th { background: #fef9c3; font-weight: 600; color: #713f12; }
+    .low-stock-table tr:hover td { background: #fefce8; }
+
+    /* ── Brands/Cabinets table ── */
+    .ref-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 2rem; }
+    .ref-table th, .ref-table td { padding: 0.65rem 1rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    .ref-table thead { background: #f8f9fa; }
+    .ref-table th { font-weight: 600; color: #374151; }
+    .ref-table tbody tr:hover td { background: #f8faff; }
+
+    /* ── Action buttons ── */
+    .btn-primary   { padding: 0.6rem 1.25rem; background: #667eea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-primary:hover { background: #5568d3; }
+    .btn-success   { padding: 0.6rem 1.25rem; background: #16a34a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning   { padding: 0.6rem 1.25rem; background: #d97706; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-danger    { padding: 0.6rem 1.25rem; background: #dc2626; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-secondary { padding: 0.6rem 1.25rem; background: #64748b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-sm { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+
+    /* ── Section header ── */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .section-header h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 3rem; color: #94a3b8; }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+
+    /* ===== DARK THEME ===== */
+    html[data-theme="dark"] .tool-stat-card { background: #1e293b; }
+    html[data-theme="dark"] .tool-stat-card .stat-lbl { color: #94a3b8; }
+    html[data-theme="dark"] .tool-tab-btn { background: #334155; color: #94a3b8; }
+    html[data-theme="dark"] .tool-tab-btn.active { background: #667eea; color: #fff; }
+    html[data-theme="dark"] .tool-tab-btn:hover:not(.active) { background: #475569; color: #f1f5f9; }
+    html[data-theme="dark"] .filter-bar input,
+    html[data-theme="dark"] .filter-bar select { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    html[data-theme="dark"] .tools-table thead { background: #0f172a; }
+    html[data-theme="dark"] .tools-table th { color: #f1f5f9; border-bottom-color: #334155; }
+    html[data-theme="dark"] .tools-table td { border-bottom-color: #1e293b; color: #f1f5f9; }
+    html[data-theme="dark"] .tools-table tbody tr:hover { background: #334155; }
+    html[data-theme="dark"] .modal-content { background: #1e293b; }
+    html[data-theme="dark"] .modal-header h2 { color: #f1f5f9; }
+    html[data-theme="dark"] .modal-close { color: #94a3b8; }
+    html[data-theme="dark"] .modal-close:hover { color: #f1f5f9; }
+    html[data-theme="dark"] .modal-footer { border-top-color: #334155; }
+    html[data-theme="dark"] .detail-label { color: #94a3b8; }
+    html[data-theme="dark"] .detail-value { color: #f1f5f9; }
+    html[data-theme="dark"] .detail-section-title { color: #94a3b8; border-bottom-color: #334155; }
+    html[data-theme="dark"] .price-history-table th { background: #0f172a; color: #94a3b8; }
+    html[data-theme="dark"] .price-history-table td { color: #f1f5f9; border-bottom-color: #1e293b; }
+    html[data-theme="dark"] .form-group label { color: #cbd5e1; }
+    html[data-theme="dark"] .form-group input,
+    html[data-theme="dark"] .form-group select,
+    html[data-theme="dark"] .form-group textarea { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    html[data-theme="dark"] .ref-table thead { background: #0f172a; }
+    html[data-theme="dark"] .ref-table th { color: #f1f5f9; }
+    html[data-theme="dark"] .ref-table td { color: #f1f5f9; border-bottom-color: #1e293b; }
+    html[data-theme="dark"] .ref-table tbody tr:hover td { background: #334155; }
+    html[data-theme="dark"] .low-stock-table th { background: #422006; color: #fcd34d; }
+    html[data-theme="dark"] .low-stock-table td { color: #f1f5f9; border-bottom-color: #1e293b; }
+    html[data-theme="dark"] .low-stock-table tr:hover td { background: #3d2e0a; }
+    html[data-theme="dark"] .section-header h3 { color: #f1f5f9; }
+    html[data-theme="dark"] .stock-bar { background: #334155; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <nav class="navbar">
+    <div class="nav-left">
+      <h1>🔧 Tool Storage</h1>
+    </div>
+    <div class="nav-right">
+      <button class="btn-nav" onclick="navigateTo('index.html')">← Dashboard</button>
+      <span class="user-btn" id="user-btn" onclick="navigateTo('user-preferences.html')" style="cursor:pointer"></span>
+      <button class="btn-nav" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="tools-container">
+
+      <!-- Stats -->
+      <div class="tool-stats" id="tool-stats">
+        <div class="tool-stat-card"><div class="stat-num" id="stat-total">—</div><div class="stat-lbl">Total Active</div></div>
+        <div class="tool-stat-card success"><div class="stat-num" id="stat-available">—</div><div class="stat-lbl">Available</div></div>
+        <div class="tool-stat-card"><div class="stat-num" id="stat-in-use">—</div><div class="stat-lbl">In Use</div></div>
+        <div class="tool-stat-card warn"><div class="stat-num" id="stat-low">—</div><div class="stat-lbl">Low Stock</div></div>
+        <div class="tool-stat-card danger"><div class="stat-num" id="stat-out">—</div><div class="stat-lbl">Out of Stock</div></div>
+        <div class="tool-stat-card"><div class="stat-num" id="stat-value">—</div><div class="stat-lbl">Total Value</div></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tool-tabs">
+        <button class="tool-tab-btn active" onclick="switchTab('inventory')">📋 Inventory</button>
+        <button class="tool-tab-btn" onclick="switchTab('low-stock')">⚠️ Low Stock</button>
+        <button class="tool-tab-btn" onclick="switchTab('brands')">🏷️ Brands</button>
+        <button class="tool-tab-btn" onclick="switchTab('cabinets')">🗄️ Cabinets</button>
+      </div>
+
+      <!-- ── Inventory Tab ── -->
+      <div class="tool-tab-content active" id="tab-inventory">
+        <div class="section-header">
+          <h3>Tool Inventory</h3>
+          <button class="btn-primary" onclick="openAddToolModal()" id="btn-add-tool">+ Add Tool</button>
+        </div>
+        <div class="filter-bar">
+          <input type="text" id="search-input" placeholder="Search by code, type, brand…" oninput="debounceLoad()">
+          <select id="filter-category" onchange="loadInventory()">
+            <option value="">All Categories</option>
+          </select>
+          <select id="filter-brand" onchange="loadInventory()">
+            <option value="">All Brands</option>
+          </select>
+          <select id="filter-status" onchange="loadInventory()">
+            <option value="">All Statuses</option>
+            <option value="available">Available</option>
+            <option value="in_use">In Use</option>
+            <option value="sharpening">Sharpening</option>
+            <option value="worn">Worn</option>
+            <option value="retired">Retired</option>
+          </select>
+        </div>
+        <div class="tools-table-wrap">
+          <table class="tools-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Category</th>
+                <th>Type / Description</th>
+                <th>Brand</th>
+                <th>Ø (mm)</th>
+                <th>Coating</th>
+                <th>Stock</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Cost</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tools-tbody">
+              <tr><td colspan="11" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="inventory-pagination" style="margin-top:1rem;text-align:center;color:#64748b;font-size:0.85rem;"></div>
+      </div>
+
+      <!-- ── Low Stock Tab ── -->
+      <div class="tool-tab-content" id="tab-low-stock">
+        <div class="section-header"><h3>⚠️ Low Stock Alerts</h3></div>
+        <table class="low-stock-table" id="low-stock-table">
+          <thead>
+            <tr>
+              <th>Code</th><th>Type</th><th>Brand</th>
+              <th>Available</th><th>Minimum</th><th>Shortage</th>
+              <th>Supplier</th><th>Cost/Unit</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="low-stock-tbody">
+            <tr><td colspan="9" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Brands Tab ── -->
+      <div class="tool-tab-content" id="tab-brands">
+        <div class="section-header">
+          <h3>Tool Brands</h3>
+          <button class="btn-primary" onclick="openAddBrandModal()">+ Add Brand</button>
+        </div>
+        <table class="ref-table">
+          <thead>
+            <tr><th>Brand</th><th>Country</th><th>Website</th><th>Tools</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="brands-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Cabinets Tab ── -->
+      <div class="tool-tab-content" id="tab-cabinets">
+        <div class="section-header">
+          <h3>Storage Cabinets</h3>
+          <button class="btn-primary" onclick="openAddCabinetModal()">+ Add Cabinet</button>
+        </div>
+        <table class="ref-table">
+          <thead>
+            <tr><th>Code</th><th>Name</th><th>Location</th><th>Drawers</th><th>Tools Stored</th><th>Notes</th></tr>
+          </thead>
+          <tbody id="cabinets-tbody">
+            <tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /.tools-container -->
+  </main>
+</div>
+
+<!-- ══════════════ TOOL DETAIL MODAL ══════════════ -->
+<div class="modal" id="tool-detail-modal">
+  <div class="modal-content" style="max-width:800px;">
+    <div class="modal-header">
+      <h2 id="detail-modal-title">Tool Details</h2>
+      <button class="modal-close" onclick="closeModal('tool-detail-modal')">×</button>
+    </div>
+    <div id="tool-detail-body">Loading…</div>
+    <div class="modal-footer" id="detail-modal-footer">
+      <button class="btn-success" id="detail-stock-in-btn"  onclick="openStockModal('in')">Stock In</button>
+      <button class="btn-warning" id="detail-stock-out-btn" onclick="openStockModal('out')">Stock Out</button>
+      <button class="btn-primary" id="detail-add-price-btn" onclick="openAddPriceModal()">+ Price Record</button>
+      <button class="btn-primary" id="detail-edit-btn"      onclick="openEditToolModal()">Edit</button>
+      <button class="btn-danger"  id="detail-retire-btn"    onclick="retireTool()">Retire</button>
+      <button class="btn-secondary" onclick="closeModal('tool-detail-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ADD / EDIT TOOL MODAL ══════════════ -->
+<div class="modal" id="tool-form-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="tool-form-title">Add Tool</h2>
+      <button class="modal-close" onclick="closeModal('tool-form-modal')">×</button>
+    </div>
+    <form id="tool-form" onsubmit="saveToolForm(event)">
+      <p style="font-size:0.8rem;color:#94a3b8;margin-top:0;">Fields marked * are required</p>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Tool Number / Code *</label>
+          <input type="text" id="f-tool-number" required placeholder="e.g. EM-10-4F-TiAlN">
+        </div>
+        <div class="form-group">
+          <label>Tool Type / Name *</label>
+          <input type="text" id="f-tool-type" required placeholder="e.g. 4-Flute End Mill Ø10">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="f-category"><option value="">— Select —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Brand</label>
+          <select id="f-brand"><option value="">— Select —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Supplier</label>
+          <select id="f-supplier"><option value="">— Select —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Internal Code</label>
+          <input type="text" id="f-internal-code" placeholder="Your shop sticker/code">
+        </div>
+      </div>
+
+      <div style="margin:1rem 0 0.5rem;font-weight:700;font-size:0.85rem;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Dimensions</div>
+      <div class="form-grid-3">
+        <div class="form-group"><label>Diameter (mm)</label><input type="number" id="f-diameter" step="0.001" placeholder="10.000"></div>
+        <div class="form-group"><label>Overall Length (mm)</label><input type="number" id="f-overall-length" step="0.01"></div>
+        <div class="form-group"><label>Cutting Length (mm)</label><input type="number" id="f-cutting-length" step="0.01"></div>
+        <div class="form-group"><label>Shank Diameter (mm)</label><input type="number" id="f-shank-diameter" step="0.01"></div>
+        <div class="form-group"><label>Flute Count</label><input type="number" id="f-flute-count" min="1" max="20" step="1"></div>
+      </div>
+
+      <div style="margin:1rem 0 0.5rem;font-weight:700;font-size:0.85rem;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Material &amp; Coating</div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Tool Material</label>
+          <select id="f-tool-material">
+            <option value="">— Select —</option>
+            <option>HSS</option><option>Solid Carbide</option><option>Carbide Tipped</option>
+            <option>Ceramic</option><option>CBN</option><option>PCD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Coating</label>
+          <select id="f-coating">
+            <option value="">— Select —</option>
+            <option>Uncoated</option><option>TiN</option><option>TiCN</option>
+            <option>TiAlN</option><option>AlTiN</option><option>DLC</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Resharpenable?</label>
+          <select id="f-resharpable"><option value="false">No</option><option value="true">Yes</option></select>
+        </div>
+        <div class="form-group">
+          <label>Expected Tool Life (parts)</label>
+          <input type="number" id="f-tool-life" min="1" placeholder="e.g. 500">
+        </div>
+      </div>
+
+      <div style="margin:1rem 0 0.5rem;font-weight:700;font-size:0.85rem;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Stock &amp; Storage</div>
+      <div class="form-grid-3">
+        <div class="form-group"><label>Quantity Available</label><input type="number" id="f-qty" min="0" value="0"></div>
+        <div class="form-group"><label>Minimum Quantity</label><input type="number" id="f-min-qty" min="0" value="1"></div>
+        <div class="form-group">
+          <label>Unit Cost (RON)</label>
+          <input type="number" id="f-cost" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Cabinet</label>
+          <select id="f-cabinet"><option value="">— None —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Drawer / Slot</label>
+          <input type="text" id="f-drawer-slot" placeholder="e.g. D3-S7">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:0.75rem;">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Additional notes…"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('tool-form-modal')">Cancel</button>
+        <button type="submit" class="btn-primary" id="tool-form-submit-btn">Save Tool</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════ STOCK IN/OUT MODAL ══════════════ -->
+<div class="modal" id="stock-modal">
+  <div class="modal-content sm">
+    <div class="modal-header">
+      <h2 id="stock-modal-title">Stock In</h2>
+      <button class="modal-close" onclick="closeModal('stock-modal')">×</button>
+    </div>
+    <form onsubmit="submitStock(event)">
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Quantity *</label>
+        <input type="number" id="stock-qty" min="1" value="1" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Notes</label>
+        <input type="text" id="stock-notes" placeholder="Optional notes">
+      </div>
+      <div id="stock-out-extra" style="display:none">
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <label>Condition</label>
+          <select id="stock-condition">
+            <option value="good">Good</option>
+            <option value="worn">Worn</option>
+            <option value="damaged">Damaged</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('stock-modal')">Cancel</button>
+        <button type="submit" class="btn-primary" id="stock-submit-btn">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════ ADD PRICE RECORD MODAL ══════════════ -->
+<div class="modal" id="price-modal">
+  <div class="modal-content sm" style="max-width:500px;">
+    <div class="modal-header">
+      <h2>Add Price Record</h2>
+      <button class="modal-close" onclick="closeModal('price-modal')">×</button>
+    </div>
+    <form onsubmit="submitPriceRecord(event)">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Price (RON) *</label>
+          <input type="number" id="pr-price" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Purchase Date *</label>
+          <input type="date" id="pr-date" required>
+        </div>
+        <div class="form-group">
+          <label>Supplier</label>
+          <select id="pr-supplier"><option value="">— Select —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Quantity Purchased</label>
+          <input type="number" id="pr-qty" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label>PO Number</label>
+          <input type="text" id="pr-po" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label>Invoice Number</label>
+          <input type="text" id="pr-invoice" placeholder="Optional">
+        </div>
+        <div class="form-group form-full">
+          <label>Notes</label>
+          <input type="text" id="pr-notes" placeholder="Optional">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('price-modal')">Cancel</button>
+        <button type="submit" class="btn-primary">Save Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════ ADD BRAND MODAL ══════════════ -->
+<div class="modal" id="brand-modal">
+  <div class="modal-content sm">
+    <div class="modal-header">
+      <h2 id="brand-modal-title">Add Brand</h2>
+      <button class="modal-close" onclick="closeModal('brand-modal')">×</button>
+    </div>
+    <form onsubmit="saveBrandForm(event)">
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Brand Name *</label>
+        <input type="text" id="brand-name" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Country</label>
+        <input type="text" id="brand-country">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Website</label>
+        <input type="url" id="brand-website" placeholder="https://…">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Notes</label>
+        <textarea id="brand-notes" rows="2"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('brand-modal')">Cancel</button>
+        <button type="submit" class="btn-primary">Save Brand</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════ ADD CABINET MODAL ══════════════ -->
+<div class="modal" id="cabinet-modal">
+  <div class="modal-content sm">
+    <div class="modal-header">
+      <h2>Add Cabinet</h2>
+      <button class="modal-close" onclick="closeModal('cabinet-modal')">×</button>
+    </div>
+    <form onsubmit="saveCabinetForm(event)">
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Code *</label>
+        <input type="text" id="cab-code" required placeholder="e.g. CAB-A">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Name *</label>
+        <input type="text" id="cab-name" required placeholder="e.g. Main Tool Cabinet">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Location Description</label>
+        <input type="text" id="cab-location" placeholder="e.g. Near Mill #1">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Number of Drawers</label>
+        <input type="number" id="cab-drawers" min="1" value="10">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Notes</label>
+        <textarea id="cab-notes" rows="2"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('cabinet-modal')">Cancel</button>
+        <button type="submit" class="btn-primary">Save Cabinet</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/tools.js"></script>
+</body>
+</html>
