@@ -76,14 +76,14 @@ async function loadInventory() {
     if (status)  params.set('status', status);
 
     const tbody = document.getElementById('tools-tbody');
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
 
     try {
         const res = await apiGet(`${BASE()}?${params}`);
         if (!res.success) throw new Error(res.error);
         renderInventoryTable(res.tools, res.total);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -98,7 +98,7 @@ function renderInventoryTable(tools, total) {
         total ? `Showing ${tools.length} of ${total} tools` : '';
 
     if (!tools.length) {
-        tbody.innerHTML = `<tr><td colspan="11" class="empty-state">
+        tbody.innerHTML = `<tr><td colspan="12" class="empty-state">
             <div class="empty-icon">🔧</div>No tools found.</td></tr>`;
         return;
     }
@@ -116,6 +116,7 @@ function renderInventoryTable(tools, total) {
             <td>${esc(t.tool_type)}</td>
             <td>${esc(t.brand_name || '—')}</td>
             <td>${t.diameter ? parseFloat(t.diameter).toFixed(3) : '—'}</td>
+            <td>${t.shank_diameter ? parseFloat(t.shank_diameter).toFixed(2) : '—'}</td>
             <td>${t.coating ? `<span style="font-size:0.8rem;padding:0.15rem 0.4rem;background:#e0e7ff;color:#3730a3;border-radius:4px">${esc(t.coating)}</span>` : '—'}</td>
             <td>
               <div class="stock-level ${stockCls}">

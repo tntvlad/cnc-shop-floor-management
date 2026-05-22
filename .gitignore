@@ -53,6 +53,9 @@ Thumbs.db
 
 # IDE
 .vscode/
+
+# Deploy scripts (server-specific, not for version control)
+scripts/deploy/
 .idea/
 *.swp
 *.swo
