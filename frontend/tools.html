@@ -229,6 +229,7 @@
       <div class="tool-tabs">
         <button class="tool-tab-btn active" onclick="switchTab('inventory')">📋 Inventory</button>
         <button class="tool-tab-btn" onclick="switchTab('low-stock')">⚠️ Low Stock</button>
+        <button class="tool-tab-btn" onclick="switchTab('checkouts')">🧰 Checkouts</button>
         <button class="tool-tab-btn" onclick="switchTab('brands')">🏷️ Brands</button>
         <button class="tool-tab-btn" onclick="switchTab('cabinets')">🗄️ Cabinets</button>
       </div>
@@ -313,6 +314,34 @@
             <tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
           </tbody>
         </table>
+      </div>
+
+      </div>
+
+      <!-- ── Checkouts Tab ── -->
+      <div class="tool-tab-content" id="tab-checkouts">
+        <div class="section-header">
+          <h3>🧰 Tool Checkouts</h3>
+          <button class="btn-secondary btn-sm" onclick="loadCheckouts()">↺ Refresh</button>
+        </div>
+        <div class="tools-table-wrap">
+          <table class="tools-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Tool</th>
+                <th>Qty</th>
+                <th>Given To</th>
+                <th>By</th>
+                <th>Condition</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="checkouts-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ── Cabinets Tab ── -->
@@ -475,6 +504,12 @@
         <input type="text" id="stock-notes" placeholder="Optional notes">
       </div>
       <div id="stock-out-extra" style="display:none">
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <label>Given To (Workshop User)</label>
+          <select id="stock-given-to">
+            <option value="">— Select user (optional) —</option>
+          </select>
+        </div>
         <div class="form-group" style="margin-bottom:0.75rem;">
           <label>Condition</label>
           <select id="stock-condition">

@@ -260,7 +260,9 @@ const stockOut = async (req, res) => {
         if (!qty || qty <= 0) {
             return res.status(400).json({ success: false, error: 'Valid quantity required' });
         }
-        const newQty = await Tool.stockOut(req.params.id, qty, req.user.id, req.body);
+        const data = { ...req.body };
+        if (data.given_to) data.given_to = parseInt(data.given_to);
+        const newQty = await Tool.stockOut(req.params.id, qty, req.user.id, data);
         res.json({ success: true, quantity_available: newQty, message: `${qty} tools removed from stock` });
     } catch (error) {
         if (error.message.includes('Insufficient stock')) {
@@ -271,11 +273,24 @@ const stockOut = async (req, res) => {
     }
 };
 
+// GET /api/tools/checkouts
+const getCheckouts = async (req, res) => {
+    try {
+        const limit  = req.query.limit  ? parseInt(req.query.limit)  : 200;
+        const offset = req.query.offset ? parseInt(req.query.offset) : 0;
+        const checkouts = await Tool.getCheckouts(limit, offset);
+        res.json({ success: true, checkouts });
+    } catch (error) {
+        console.error('getCheckouts error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 module.exports = {
     getTools, getStats, getLowStock,
     getCategories, getBrands, createBrand, updateBrand,
     getCabinets, createCabinet,
     getToolById, createTool, updateTool, retireTool,
     getPriceHistory, addPriceRecord,
-    getTransactions, stockIn, stockOut
+    getTransactions, stockIn, stockOut, getCheckouts
 };

@@ -11,6 +11,7 @@ let suppliersCache  = [];
 let categoriesCache = [];
 let brandsCache     = [];
 let cabinetsCache   = [];
+let usersCache      = [];
 let searchDebounce  = null;
 
 // ── Init ─────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ function switchTab(name) {
     if (name === 'low-stock') loadLowStock();
     if (name === 'brands')    renderBrandsTable();
     if (name === 'cabinets')  renderCabinetsTable();
+    if (name === 'checkouts') loadCheckouts();
 }
 
 // ── Stats ────────────────────────────────────────────────────
@@ -249,18 +251,37 @@ function openStockModal(direction) {
     document.getElementById('stock-out-extra').style.display = direction === 'out' ? '' : 'none';
     document.getElementById('stock-qty').value = 1;
     document.getElementById('stock-notes').value = '';
+    if (direction === 'out') populateUsersSelect('stock-given-to');
     document.getElementById('stock-modal').classList.add('active');
+}
+
+async function populateUsersSelect(selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    try {
+        if (!usersCache.length) {
+            const data = await API.users.list();
+            usersCache = data.users || [];
+        }
+        const current = sel.value;
+        sel.innerHTML = '<option value="">— Select user (optional) —</option>' +
+            usersCache.map(u => `<option value="${u.id}">${esc(u.name || u.employee_id)}</option>`).join('');
+        sel.value = current;
+    } catch (e) { /* silently ignore */ }
 }
 
 async function submitStock(e) {
     e.preventDefault();
-    const qty    = parseInt(document.getElementById('stock-qty').value);
-    const notes  = document.getElementById('stock-notes').value;
-    const cond   = document.getElementById('stock-condition').value;
-    const url    = `${BASE()}/${currentToolId}/stock-${stockDirection}`;
+    const qty     = parseInt(document.getElementById('stock-qty').value);
+    const notes   = document.getElementById('stock-notes').value;
+    const cond    = document.getElementById('stock-condition').value;
+    const givenTo = document.getElementById('stock-given-to')?.value || null;
+    const url     = `${BASE()}/${currentToolId}/stock-${stockDirection}`;
 
     try {
-        const res = await apiPost(url, { quantity: qty, notes, condition: cond });
+        const payload = { quantity: qty, notes, condition: cond };
+        if (stockDirection === 'out' && givenTo) payload.given_to = parseInt(givenTo);
+        const res = await apiPost(url, payload);
         if (!res.success) throw new Error(res.error);
         closeModal('stock-modal');
         loadStats();
@@ -270,6 +291,36 @@ async function submitStock(e) {
         }
     } catch (e) {
         alert('Error: ' + e.message);
+    }
+}
+
+// ── Checkouts ─────────────────────────────────────────────────
+async function loadCheckouts() {
+    const tbody = document.getElementById('checkouts-tbody');
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
+    try {
+        const data = await apiGet(`${BASE()}/checkouts`);
+        const rows = data.checkouts || [];
+        if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-icon">🧰</div>No checkouts yet.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = rows.map(r => {
+            const d = new Date(r.created_at);
+            const dateStr = d.toLocaleDateString('ro-RO');
+            const timeStr = d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+            return `<tr onclick="openToolDetail(${r.tool_id})" style="cursor:pointer">
+                <td>${dateStr}<br><small style="color:#94a3b8">${timeStr}</small></td>
+                <td><strong>${esc(r.tool_number)}</strong><br><small style="color:#94a3b8">${esc(r.tool_type)}</small></td>
+                <td>${r.quantity}</td>
+                <td>${r.given_to_name ? `<strong>${esc(r.given_to_name)}</strong>` : '<span style="color:#94a3b8">—</span>'}</td>
+                <td>${esc(r.performed_by_name || '—')}</td>
+                <td><span style="font-size:0.75rem;padding:0.15rem 0.4rem;background:#e2e8f0;border-radius:4px">${esc(r.condition || 'good')}</span></td>
+                <td>${esc(r.notes || '—')}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
     }
 }
 

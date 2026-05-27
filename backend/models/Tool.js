@@ -312,11 +312,11 @@ class Tool {
         await db.query(`
             INSERT INTO tool_transactions
                 (tool_id, transaction_type, quantity, quantity_after,
-                 part_id, order_id, machine_id, performed_by, condition, notes)
-            VALUES ($1, 'stock_out', $2, $3, $4, $5, $6, $7, $8, $9)
+                 part_id, order_id, machine_id, performed_by, given_to, condition, notes)
+            VALUES ($1, 'stock_out', $2, $3, $4, $5, $6, $7, $8, $9, $10)
         `, [toolId, quantity, newQty,
             data.part_id || null, data.order_id || null, data.machine_id || null,
-            userId, data.condition || 'good', data.notes || null]);
+            userId, data.given_to || null, data.condition || 'good', data.notes || null]);
 
         return newQty;
     }
@@ -327,16 +327,38 @@ class Tool {
     static async getTransactions(toolId) {
         const result = await db.query(`
             SELECT tt.*, u.name AS performed_by_name,
+                g.name AS given_to_name,
                 p.part_name, p.part_number,
                 m.machine_name
             FROM tool_transactions tt
             LEFT JOIN users u ON tt.performed_by = u.id
+            LEFT JOIN users g ON tt.given_to = g.id
             LEFT JOIN parts p ON tt.part_id = p.id
             LEFT JOIN machines m ON tt.machine_id = m.id
             WHERE tt.tool_id = $1
             ORDER BY tt.created_at DESC
             LIMIT 100
         `, [toolId]);
+        return result.rows;
+    }
+
+    /**
+     * All stock_out checkouts across all tools
+     */
+    static async getCheckouts(limit = 100, offset = 0) {
+        const result = await db.query(`
+            SELECT tt.id, tt.created_at, tt.quantity, tt.notes, tt.condition,
+                   t.id AS tool_id, t.tool_number, t.tool_type,
+                   performer.name AS performed_by_name,
+                   recipient.name AS given_to_name
+            FROM tool_transactions tt
+            JOIN tools t ON tt.tool_id = t.id
+            LEFT JOIN users performer ON tt.performed_by = performer.id
+            LEFT JOIN users recipient ON tt.given_to = recipient.id
+            WHERE tt.transaction_type = 'stock_out'
+            ORDER BY tt.created_at DESC
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
         return result.rows;
     }
 

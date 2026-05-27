@@ -6,6 +6,7 @@ const tc = require('../controllers/toolsController');
 // Stats & lookup (no :id collision risk — must be before /:id)
 router.get('/stats',      authMiddleware, tc.getStats);
 router.get('/low-stock',  authMiddleware, tc.getLowStock);
+router.get('/checkouts',  authMiddleware, tc.getCheckouts);
 router.get('/categories', authMiddleware, tc.getCategories);
 router.get('/brands',     authMiddleware, tc.getBrands);
 router.post('/brands',    authMiddleware, tc.createBrand);
