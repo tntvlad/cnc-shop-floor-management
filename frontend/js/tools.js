@@ -593,6 +593,15 @@ function renderCabinetsTable() {
     </tr>`).join('');
 }
 
+function openAddCabinetModal() {
+    document.getElementById('cab-code').value     = '';
+    document.getElementById('cab-name').value     = '';
+    document.getElementById('cab-location').value = '';
+    document.getElementById('cab-drawers').value  = 10;
+    document.getElementById('cab-notes').value    = '';
+    document.getElementById('cabinet-modal').classList.add('active');
+}
+
 async function saveCabinetForm(e) {
     e.preventDefault();
     const data = {
