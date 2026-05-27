@@ -267,7 +267,9 @@ class Tool {
     static async stockIn(toolId, quantity, userId, notes) {
         const result = await db.query(`
             UPDATE tools
-            SET quantity_available = quantity_available + $1, updated_at = NOW()
+            SET quantity_available = quantity_available + $1,
+                status = CASE WHEN status = 'in_use' THEN 'available' ELSE status END,
+                updated_at = NOW()
             WHERE id = $2
             RETURNING quantity_available
         `, [quantity, toolId]);
@@ -302,10 +304,11 @@ class Tool {
                 quantity_available = quantity_available - $1,
                 parts_produced_total = parts_produced_total + $2,
                 parts_since_sharpen = parts_since_sharpen + $2,
+                status = CASE WHEN $3 IS NOT NULL THEN 'in_use' ELSE status END,
                 updated_at = NOW()
-            WHERE id = $3
+            WHERE id = $4
             RETURNING quantity_available
-        `, [quantity, data.parts_produced || 0, toolId]);
+        `, [quantity, data.parts_produced || 0, data.given_to || null, toolId]);
 
         const newQty = result.rows[0]?.quantity_available;
 
