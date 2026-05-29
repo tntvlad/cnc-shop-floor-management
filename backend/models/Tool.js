@@ -14,12 +14,15 @@ class Tool {
                 tb.country AS brand_country,
                 s.name AS supplier_name,
                 cab.code AS cabinet_code,
-                cab.name AS cabinet_name
+                cab.name AS cabinet_name,
+                at.name AS application_type_name,
+                at.color AS application_type_color
             FROM tools t
             LEFT JOIN tool_categories tc ON t.category_id = tc.id
             LEFT JOIN tool_brands tb ON t.brand_id = tb.id
             LEFT JOIN suppliers s ON t.supplier_id = s.id
             LEFT JOIN tool_cabinets cab ON t.cabinet_id = cab.id
+            LEFT JOIN tool_application_types at ON t.application_type_id = at.id
             WHERE 1=1
         `;
         const values = [];
@@ -102,12 +105,15 @@ class Tool {
                 s.email AS supplier_email,
                 cab.code AS cabinet_code,
                 cab.name AS cabinet_name,
-                cab.location_description AS cabinet_location
+                cab.location_description AS cabinet_location,
+                at.name AS application_type_name,
+                at.color AS application_type_color
             FROM tools t
             LEFT JOIN tool_categories tc ON t.category_id = tc.id
             LEFT JOIN tool_brands tb ON t.brand_id = tb.id
             LEFT JOIN suppliers s ON t.supplier_id = s.id
             LEFT JOIN tool_cabinets cab ON t.cabinet_id = cab.id
+            LEFT JOIN tool_application_types at ON t.application_type_id = at.id
             WHERE t.id = $1
         `, [id]);
         return result.rows[0] || null;
@@ -125,7 +131,7 @@ class Tool {
             quantity_available = 0, minimum_quantity = 1,
             is_resharpable = false, expected_tool_life,
             current_cost, cost_per_tool,
-            location, notes
+            location, notes, application_type_id
         } = data;
 
         const result = await db.query(`
@@ -137,7 +143,7 @@ class Tool {
                 quantity_available, minimum_quantity,
                 is_resharpable, expected_tool_life,
                 current_cost, cost_per_tool,
-                location, notes, status,
+                location, notes, application_type_id, status,
                 created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5,
@@ -147,7 +153,7 @@ class Tool {
                 $18, $19,
                 $20, $21,
                 $22, $23,
-                $24, $25, 'available',
+                $24, $25, $26, 'available',
                 NOW(), NOW()
             )
             RETURNING *
@@ -159,7 +165,7 @@ class Tool {
             quantity_available, minimum_quantity,
             is_resharpable, expected_tool_life,
             current_cost, cost_per_tool,
-            location, notes
+            location, notes, application_type_id || null
         ]);
         return result.rows[0];
     }
@@ -178,7 +184,8 @@ class Tool {
             'diameter', 'length', 'shank_diameter', 'cutting_length', 'overall_length',
             'flute_count', 'tool_material', 'coating', 'material',
             'minimum_quantity', 'is_resharpable', 'expected_tool_life',
-            'current_cost', 'cost_per_tool', 'location', 'notes', 'status', 'image_path'
+            'current_cost', 'cost_per_tool', 'location', 'notes', 'status', 'image_path',
+            'application_type_id'
         ];
 
         for (const key of allowed) {

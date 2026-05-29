@@ -11,6 +11,7 @@ let suppliersCache  = [];
 let categoriesCache = [];
 let brandsCache     = [];
 let cabinetsCache   = [];
+let appTypesCache   = [];
 let usersCache      = [];
 let searchDebounce  = null;
 
@@ -32,6 +33,7 @@ window.addEventListener('DOMContentLoaded', () => {
     loadBrands();
     loadCabinets();
     loadSuppliers();
+    loadAppTypes();
     initPriceDate();
 });
 
@@ -46,6 +48,7 @@ function switchTab(name) {
     if (name === 'brands')    renderBrandsTable();
     if (name === 'cabinets')  renderCabinetsTable();
     if (name === 'checkouts') loadCheckouts();
+    if (name === 'application-types') renderAppTypesTable();
 }
 
 // ── Stats ────────────────────────────────────────────────────
@@ -78,14 +81,14 @@ async function loadInventory() {
     if (status)  params.set('status', status);
 
     const tbody = document.getElementById('tools-tbody');
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
 
     try {
         const res = await apiGet(`${BASE()}?${params}`);
         if (!res.success) throw new Error(res.error);
         renderInventoryTable(res.tools, res.total);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -100,7 +103,7 @@ function renderInventoryTable(tools, total) {
         total ? `Showing ${tools.length} of ${total} tools` : '';
 
     if (!tools.length) {
-        tbody.innerHTML = `<tr><td colspan="12" class="empty-state">
+        tbody.innerHTML = `<tr><td colspan="13" class="empty-state">
             <div class="empty-icon">🔧</div>No tools found.</td></tr>`;
         return;
     }
@@ -120,6 +123,7 @@ function renderInventoryTable(tools, total) {
             <td>${t.diameter ? parseFloat(t.diameter).toFixed(3) : '—'}</td>
             <td>${t.shank_diameter ? parseFloat(t.shank_diameter).toFixed(2) : '—'}</td>
             <td>${t.coating ? `<span style="font-size:0.8rem;padding:0.15rem 0.4rem;background:#e0e7ff;color:#3730a3;border-radius:4px">${esc(t.coating)}</span>` : '—'}</td>
+            <td>${t.application_type_name ? `<span style="font-size:0.78rem;padding:0.15rem 0.5rem;border-radius:12px;font-weight:600;color:#fff;background:${esc(t.application_type_color || '#6b7280')}">${esc(t.application_type_name)}</span>` : '—'}</td>
             <td>
               <div class="stock-level ${stockCls}">
                 <span>${availQty}/${minQty}</span>
@@ -367,6 +371,7 @@ function openAddToolModal() {
     populateBrandSelect('f-brand');
     populateCabinetSelect('f-cabinet');
     populateSupplierSelect('f-supplier');
+    populateAppTypeSelect('f-application-type');
     document.getElementById('tool-form-modal').classList.add('active');
 }
 
@@ -378,6 +383,7 @@ async function openEditToolModal() {
     populateBrandSelect('f-brand');
     populateCabinetSelect('f-cabinet');
     populateSupplierSelect('f-supplier');
+    populateAppTypeSelect('f-application-type');
 
     try {
         const res = await apiGet(`${BASE()}/${currentToolId}`);
@@ -404,6 +410,7 @@ async function openEditToolModal() {
         document.getElementById('f-cabinet').value        = t.cabinet_id || '';
         document.getElementById('f-drawer-slot').value    = t.drawer_slot || '';
         document.getElementById('f-notes').value          = t.notes || '';
+        document.getElementById('f-application-type').value = t.application_type_id || '';
     } catch (e) { console.error(e); }
 
     document.getElementById('tool-detail-modal').classList.remove('active');
@@ -434,7 +441,8 @@ async function saveToolForm(e) {
         cost_per_tool:     document.getElementById('f-cost').value || null,
         cabinet_id:        document.getElementById('f-cabinet').value || null,
         drawer_slot:       document.getElementById('f-drawer-slot').value || null,
-        notes:             document.getElementById('f-notes').value || null
+        notes:             document.getElementById('f-notes').value || null,
+        application_type_id: document.getElementById('f-application-type').value || null
     };
 
     try {
@@ -498,6 +506,102 @@ async function loadLowStock() {
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="9" style="color:#dc2626;text-align:center">${e.message}</td></tr>`;
     }
+}
+
+// ── Application Types Tab ─────────────────────────────────────
+let editingAppTypeId = null;
+
+async function loadAppTypes() {
+    try {
+        const res = await apiGet(`${BASE()}/application-types`);
+        if (res.success) { appTypesCache = res.appTypes; }
+    } catch (e) { console.error('loadAppTypes', e); }
+}
+
+function renderAppTypesTable() {
+    const tbody = document.getElementById('apptypes-tbody');
+    if (!appTypesCache.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">No types yet</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = appTypesCache.map(a => `<tr>
+        <td><span style="display:inline-block;width:28px;height:28px;border-radius:50%;background:${esc(a.color)};border:2px solid rgba(0,0,0,0.1)"></span></td>
+        <td><strong style="color:${esc(a.color)}">${esc(a.name)}</strong></td>
+        <td style="color:#64748b;font-size:0.85rem">${esc(a.description || '—')}</td>
+        <td>${a.tool_count || 0}</td>
+        <td><button class="btn-secondary btn-sm" onclick="openEditAppTypeModal(${a.id})">Edit</button></td>
+    </tr>`).join('');
+}
+
+function openAddAppTypeModal() {
+    editingAppTypeId = null;
+    document.getElementById('apptype-modal-title').textContent = 'Add Tool Type';
+    document.getElementById('at-name').value        = '';
+    document.getElementById('at-color').value       = '#3b82f6';
+    document.getElementById('at-description').value = '';
+    document.getElementById('at-delete-btn').style.display = 'none';
+    document.getElementById('apptype-modal').classList.add('active');
+}
+
+function openEditAppTypeModal(id) {
+    const t = appTypesCache.find(a => a.id === id);
+    if (!t) return;
+    editingAppTypeId = id;
+    document.getElementById('apptype-modal-title').textContent = 'Edit Tool Type';
+    document.getElementById('at-name').value        = t.name;
+    document.getElementById('at-color').value       = t.color || '#6b7280';
+    document.getElementById('at-description').value = t.description || '';
+    document.getElementById('at-delete-btn').style.display = '';
+    document.getElementById('apptype-modal').classList.add('active');
+}
+
+async function saveAppTypeForm(e) {
+    e.preventDefault();
+    const data = {
+        name:        document.getElementById('at-name').value.trim(),
+        color:       document.getElementById('at-color').value,
+        description: document.getElementById('at-description').value.trim() || null
+    };
+    try {
+        let res;
+        if (editingAppTypeId) {
+            res = await apiPut(`${BASE()}/application-types/${editingAppTypeId}`, data);
+        } else {
+            res = await apiPost(`${BASE()}/application-types`, data);
+        }
+        if (!res.success) throw new Error(res.error);
+        closeModal('apptype-modal');
+        await loadAppTypes();
+        renderAppTypesTable();
+        // Refresh inventory so color badges update
+        populateAppTypeSelect('f-application-type');
+        loadInventory();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteAppType() {
+    if (!editingAppTypeId) return;
+    if (!confirm('Delete this application type? Tools assigned to it will be unlinked.')) return;
+    try {
+        const res = await apiDelete(`${BASE()}/application-types/${editingAppTypeId}`);
+        if (!res.success) throw new Error(res.error);
+        closeModal('apptype-modal');
+        await loadAppTypes();
+        renderAppTypesTable();
+        loadInventory();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function populateAppTypeSelect(id) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— None —</option>' + appTypesCache.map(a =>
+        `<option value="${a.id}" style="color:${esc(a.color)}">${esc(a.name)}</option>`
+    ).join('');
 }
 
 // ── Brands Tab ────────────────────────────────────────────────
@@ -718,3 +822,4 @@ async function apiDelete(url) {
     const r = await fetch(url, { method: 'DELETE', headers: authHeader() });
     return r.json();
 }
+

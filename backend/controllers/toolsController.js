@@ -286,11 +286,69 @@ const getCheckouts = async (req, res) => {
     }
 };
 
+// ── Application Types CRUD ────────────────────────────────────
+const db = require('../config/database');
+
+const getAppTypes = async (req, res) => {
+    try {
+        const result = await db.query(
+            'SELECT at.*, (SELECT COUNT(*) FROM tools t WHERE t.application_type_id = at.id) AS tool_count FROM tool_application_types at ORDER BY at.name'
+        );
+        res.json({ success: true, appTypes: result.rows });
+    } catch (error) {
+        console.error('getAppTypes error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const createAppType = async (req, res) => {
+    try {
+        const { name, color, description } = req.body;
+        if (!name) return res.status(400).json({ success: false, error: 'Name is required' });
+        const result = await db.query(
+            'INSERT INTO tool_application_types (name, color, description) VALUES ($1, $2, $3) RETURNING *',
+            [name.trim(), color || '#6b7280', description || null]
+        );
+        res.json({ success: true, appType: result.rows[0] });
+    } catch (error) {
+        console.error('createAppType error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const updateAppType = async (req, res) => {
+    try {
+        const { name, color, description } = req.body;
+        const result = await db.query(
+            'UPDATE tool_application_types SET name=$1, color=$2, description=$3 WHERE id=$4 RETURNING *',
+            [name, color || '#6b7280', description || null, req.params.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ success: false, error: 'Not found' });
+        res.json({ success: true, appType: result.rows[0] });
+    } catch (error) {
+        console.error('updateAppType error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const deleteAppType = async (req, res) => {
+    try {
+        // Unlink tools first (set to NULL)
+        await db.query('UPDATE tools SET application_type_id = NULL WHERE application_type_id = $1', [req.params.id]);
+        await db.query('DELETE FROM tool_application_types WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('deleteAppType error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 module.exports = {
     getTools, getStats, getLowStock,
     getCategories, getBrands, createBrand, updateBrand,
     getCabinets, createCabinet,
     getToolById, createTool, updateTool, retireTool,
     getPriceHistory, addPriceRecord,
-    getTransactions, stockIn, stockOut, getCheckouts
+    getTransactions, stockIn, stockOut, getCheckouts,
+    getAppTypes, createAppType, updateAppType, deleteAppType
 };
