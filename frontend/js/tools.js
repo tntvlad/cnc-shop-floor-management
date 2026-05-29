@@ -301,21 +301,25 @@ async function submitStock(e) {
 // ── Checkouts ─────────────────────────────────────────────────
 async function loadCheckouts() {
     const tbody = document.getElementById('checkouts-tbody');
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>`;
     try {
         const data = await apiGet(`${BASE()}/checkouts`);
         const rows = data.checkouts || [];
         if (!rows.length) {
-            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-icon">🧰</div>No checkouts yet.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state"><div class="empty-icon">🧰</div>No checkouts yet.</td></tr>`;
             return;
         }
         tbody.innerHTML = rows.map(r => {
             const d = new Date(r.created_at);
             const dateStr = d.toLocaleDateString('ro-RO');
             const timeStr = d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+            const matBadge = r.application_type_name
+                ? `<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:4px;background:${esc(r.application_type_color)}22;color:${esc(r.application_type_color)};border:1px solid ${esc(r.application_type_color)}66;font-weight:600">${esc(r.application_type_name)}</span>`
+                : '<span style="color:#94a3b8">—</span>';
             return `<tr onclick="openToolDetail(${r.tool_id})" style="cursor:pointer">
                 <td>${dateStr}<br><small style="color:#94a3b8">${timeStr}</small></td>
                 <td><strong>${esc(r.tool_number)}</strong><br><small style="color:#94a3b8">${esc(r.tool_type)}</small></td>
+                <td>${matBadge}</td>
                 <td>${r.quantity}</td>
                 <td>${r.given_to_name ? `<strong>${esc(r.given_to_name)}</strong>` : '<span style="color:#94a3b8">—</span>'}</td>
                 <td>${esc(r.performed_by_name || '—')}</td>
@@ -324,7 +328,7 @@ async function loadCheckouts() {
             </tr>`;
         }).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#dc2626;">Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -483,16 +487,20 @@ async function loadLowStock() {
         if (!res.success) throw new Error(res.error);
         const tools = res.tools;
         if (!tools.length) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:#16a34a;">✓ All tools have sufficient stock</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#16a34a;">✓ All tools have sufficient stock</td></tr>`;
             return;
         }
         tbody.innerHTML = tools.map(t => {
             const cost = t.current_cost || t.cost_per_tool;
             const shortage = (t.minimum_quantity || 0) - (t.quantity_available || 0);
+            const matBadge = t.application_type_name
+                ? `<span style="font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:4px;background:${esc(t.application_type_color)}22;color:${esc(t.application_type_color)};border:1px solid ${esc(t.application_type_color)}66;font-weight:600">${esc(t.application_type_name)}</span>`
+                : '<span style="color:#94a3b8">—</span>';
             return `<tr onclick="openToolDetail(${t.id})" style="cursor:pointer">
                 <td><strong>${esc(t.tool_number)}</strong></td>
                 <td>${esc(t.tool_type)}</td>
                 <td>${esc(t.brand_name || '—')}</td>
+                <td>${matBadge}</td>
                 <td style="color:${t.quantity_available === 0 ? '#dc2626' : '#d97706'};font-weight:700">${t.quantity_available}</td>
                 <td>${t.minimum_quantity}</td>
                 <td style="color:#dc2626;font-weight:700">−${shortage}</td>
@@ -504,7 +512,7 @@ async function loadLowStock() {
             </tr>`;
         }).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="9" style="color:#dc2626;text-align:center">${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="color:#dc2626;text-align:center">${e.message}</td></tr>`;
     }
 }
 

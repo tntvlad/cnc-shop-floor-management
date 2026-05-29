@@ -360,11 +360,14 @@ class Tool {
             SELECT tt.id, tt.created_at, tt.quantity, tt.notes, tt.condition,
                    t.id AS tool_id, t.tool_number, t.tool_type,
                    performer.name AS performed_by_name,
-                   recipient.name AS given_to_name
+                   recipient.name AS given_to_name,
+                   at.name AS application_type_name,
+                   at.color AS application_type_color
             FROM tool_transactions tt
             JOIN tools t ON tt.tool_id = t.id
             LEFT JOIN users performer ON tt.performed_by = performer.id
             LEFT JOIN users recipient ON tt.given_to = recipient.id
+            LEFT JOIN tool_application_types at ON t.application_type_id = at.id
             WHERE tt.transaction_type = 'stock_out'
             ORDER BY tt.created_at DESC
             LIMIT $1 OFFSET $2
@@ -404,11 +407,14 @@ class Tool {
                 tc.name AS category_name,
                 tb.name AS brand_name,
                 s.name AS supplier_name,
-                s.phone AS supplier_phone
+                s.phone AS supplier_phone,
+                at.name AS application_type_name,
+                at.color AS application_type_color
             FROM tools t
             LEFT JOIN tool_categories tc ON t.category_id = tc.id
             LEFT JOIN tool_brands tb ON t.brand_id = tb.id
             LEFT JOIN suppliers s ON t.supplier_id = s.id
+            LEFT JOIN tool_application_types at ON t.application_type_id = at.id
             WHERE t.quantity_available <= t.minimum_quantity
               AND t.status != 'retired'
             ORDER BY (t.minimum_quantity - t.quantity_available) DESC, t.tool_number ASC
