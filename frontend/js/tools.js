@@ -11,9 +11,17 @@ let suppliersCache  = [];
 let categoriesCache = [];
 let brandsCache     = [];
 let cabinetsCache   = [];
+let locationsCache  = [];
+let shelvesCache    = [];
+let boxesCache      = [];
 let appTypesCache   = [];
 let usersCache      = [];
 let searchDebounce  = null;
+// editing IDs for storage entities
+let editingLocationId = null;
+let editingCabinetId  = null;
+let editingShelfId    = null;
+let editingBoxId      = null;
 
 // ── Init ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -32,6 +40,9 @@ window.addEventListener('DOMContentLoaded', () => {
     loadCategories();
     loadBrands();
     loadCabinets();
+    loadLocations();
+    loadShelves();
+    loadBoxes();
     loadSuppliers();
     loadAppTypes();
     initPriceDate();
@@ -46,9 +57,15 @@ function switchTab(name) {
 
     if (name === 'low-stock') loadLowStock();
     if (name === 'brands')    renderBrandsTable();
-    if (name === 'cabinets')  renderCabinetsTable();
+    if (name === 'cabinets')  { renderLocationsTable(); renderCabinetsTable(); renderShelvesTable(); renderBoxesTable(); }
     if (name === 'checkouts') loadCheckouts();
     if (name === 'application-types') renderAppTypesTable();
+}
+
+function switchStorageTab(sub) {
+    document.querySelectorAll('.storage-sub-btn').forEach(b => b.classList.toggle('active', b.dataset.sub === sub));
+    document.querySelectorAll('.storage-sub-content').forEach(c => c.style.display = 'none');
+    document.getElementById(`storage-sub-${sub}`).style.display = 'block';
 }
 
 // ── Stats ────────────────────────────────────────────────────
@@ -130,7 +147,10 @@ function renderInventoryTable(tools, total) {
                 <div class="stock-bar"><div class="stock-bar-fill" style="width:${stockPct}%"></div></div>
               </div>
             </td>
-            <td>${t.cabinet_code ? `${esc(t.cabinet_code)}${t.drawer_slot ? ` · ${esc(t.drawer_slot)}` : ''}` : (esc(t.location || '—'))}</td>
+            <td>${(() => {
+                const parts = [t.location_code, t.cabinet_code, t.shelf_code, t.box_code].filter(Boolean);
+                return parts.length ? `<code style="font-size:0.78rem;background:#f1f5f9;padding:0.1rem 0.4rem;border-radius:4px">${esc(parts.join('-'))}</code>` : (esc(t.location || '—'));
+            })()}</td>
             <td><span class="tool-status ts-${t.status || 'available'}">${(t.status || 'available').replace('_', ' ')}</span></td>
             <td>${cost ? parseFloat(cost).toFixed(2) + ' RON' : '—'}</td>
             <td onclick="event.stopPropagation()">
@@ -197,7 +217,8 @@ async function openToolDetail(id) {
           <div class="detail-item"><span class="detail-label">Available</span><span class="detail-value" style="font-size:1.3rem;font-weight:700">${t.quantity_available}</span></div>
           <div class="detail-item"><span class="detail-label">Minimum</span><span class="detail-value">${t.minimum_quantity}</span></div>
           <div class="detail-item"><span class="detail-label">Cabinet</span><span class="detail-value">${t.cabinet_code ? `${esc(t.cabinet_code)} — ${esc(t.cabinet_name)}` : '—'}</span></div>
-          <div class="detail-item"><span class="detail-label">Drawer / Slot</span><span class="detail-value">${esc(t.drawer_slot || '—')}</span></div>
+          <div class="detail-item"><span class="detail-label">Shelf</span><span class="detail-value">${esc(t.shelf_code || '—')}${t.shelf_name ? ` — ${esc(t.shelf_name)}` : ''}</span></div>
+          <div class="detail-item"><span class="detail-label">Box</span><span class="detail-value">${esc(t.box_code || '—')}${t.box_name ? ` — ${esc(t.box_name)}` : ''}</span></div>
           <div class="detail-item"><span class="detail-label">Current Cost</span><span class="detail-value">${cost ? parseFloat(cost).toFixed(2) + ' RON' : '—'}</span></div>
           <div class="detail-item"><span class="detail-label">Parts Produced (total)</span><span class="detail-value">${t.parts_produced_total || 0}</span></div>
           <div class="detail-item"><span class="detail-label">Parts Since Sharpen</span><span class="detail-value">${t.parts_since_sharpen || 0}</span></div>
@@ -373,9 +394,13 @@ function openAddToolModal() {
     document.getElementById('tool-form').reset();
     populateCategorySelect('f-category');
     populateBrandSelect('f-brand');
-    populateCabinetSelect('f-cabinet');
     populateSupplierSelect('f-supplier');
     populateAppTypeSelect('f-application-type');
+    populateLocationSelect('f-location');
+    populateCabinetSelectFiltered('f-cabinet', null);
+    document.getElementById('f-shelf').innerHTML = '<option value="">— None —</option>';
+    document.getElementById('f-box').innerHTML   = '<option value="">— None —</option>';
+    document.getElementById('f-location-code').value = '';
     document.getElementById('tool-form-modal').classList.add('active');
 }
 
@@ -385,9 +410,9 @@ async function openEditToolModal() {
     document.getElementById('tool-form-submit-btn').textContent = 'Save Changes';
     populateCategorySelect('f-category');
     populateBrandSelect('f-brand');
-    populateCabinetSelect('f-cabinet');
     populateSupplierSelect('f-supplier');
     populateAppTypeSelect('f-application-type');
+    populateLocationSelect('f-location');
 
     try {
         const res = await apiGet(`${BASE()}/${currentToolId}`);
@@ -411,10 +436,18 @@ async function openEditToolModal() {
         document.getElementById('f-qty').value            = t.quantity_available || 0;
         document.getElementById('f-min-qty').value        = t.minimum_quantity || 1;
         document.getElementById('f-cost').value           = t.current_cost || t.cost_per_tool || '';
-        document.getElementById('f-cabinet').value        = t.cabinet_id || '';
-        document.getElementById('f-drawer-slot').value    = t.drawer_slot || '';
         document.getElementById('f-notes').value          = t.notes || '';
         document.getElementById('f-application-type').value = t.application_type_id || '';
+        // Set location cascade
+        const locId = t.cabinet_id ? (cabinetsCache.find(c => c.id === t.cabinet_id)?.location_id || '') : '';
+        document.getElementById('f-location').value = locId || '';
+        populateCabinetSelectFiltered('f-cabinet', locId || null);
+        document.getElementById('f-cabinet').value = t.cabinet_id || '';
+        populateShelfSelectFiltered('f-shelf', t.cabinet_id || null);
+        document.getElementById('f-shelf').value = t.shelf_id || '';
+        populateBoxSelectFiltered('f-box', t.shelf_id || null);
+        document.getElementById('f-box').value = t.box_id || '';
+        updateLocationCodePreview();
     } catch (e) { console.error(e); }
 
     document.getElementById('tool-detail-modal').classList.remove('active');
@@ -444,7 +477,8 @@ async function saveToolForm(e) {
         current_cost:      document.getElementById('f-cost').value || null,
         cost_per_tool:     document.getElementById('f-cost').value || null,
         cabinet_id:        document.getElementById('f-cabinet').value || null,
-        drawer_slot:       document.getElementById('f-drawer-slot').value || null,
+        shelf_id:          document.getElementById('f-shelf').value   || null,
+        box_id:            document.getElementById('f-box').value     || null,
         notes:             document.getElementById('f-notes').value || null,
         application_type_id: document.getElementById('f-application-type').value || null
     };
@@ -514,6 +548,266 @@ async function loadLowStock() {
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="10" style="color:#dc2626;text-align:center">${e.message}</td></tr>`;
     }
+}
+
+// ── Locations CRUD ────────────────────────────────────────────
+
+async function loadLocations() {
+    try {
+        const res = await apiGet(`${BASE()}/locations`);
+        if (res.success) { locationsCache = res.locations; renderLocationsTable(); }
+    } catch (e) { console.error('loadLocations', e); }
+}
+
+function renderLocationsTable() {
+    const tbody = document.getElementById('locations-tbody');
+    if (!tbody) return;
+    if (!locationsCache.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">No locations yet</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = locationsCache.map(l => `<tr>
+        <td><strong>${esc(l.code)}</strong></td>
+        <td>${esc(l.name)}</td>
+        <td style="color:#64748b;font-size:0.85rem">${esc(l.description || '—')}</td>
+        <td>${l.cabinet_count || 0}</td>
+        <td><button class="btn-secondary btn-sm" onclick="openEditLocationModal(${l.id})">Edit</button></td>
+    </tr>`).join('');
+}
+
+function openLocationModal() {
+    editingLocationId = null;
+    document.getElementById('location-modal-title').textContent = 'Add Location';
+    document.getElementById('loc-code').value = '';
+    document.getElementById('loc-name').value = '';
+    document.getElementById('loc-desc').value = '';
+    document.getElementById('loc-delete-btn').style.display = 'none';
+    document.getElementById('location-modal').classList.add('active');
+}
+
+function openEditLocationModal(id) {
+    const l = locationsCache.find(x => x.id === id);
+    if (!l) return;
+    editingLocationId = id;
+    document.getElementById('location-modal-title').textContent = 'Edit Location';
+    document.getElementById('loc-code').value = l.code;
+    document.getElementById('loc-name').value = l.name;
+    document.getElementById('loc-desc').value = l.description || '';
+    document.getElementById('loc-delete-btn').style.display = 'inline-block';
+    document.getElementById('location-modal').classList.add('active');
+}
+
+async function saveLocationForm(e) {
+    e.preventDefault();
+    const data = {
+        code:        document.getElementById('loc-code').value.trim(),
+        name:        document.getElementById('loc-name').value.trim(),
+        description: document.getElementById('loc-desc').value.trim() || null
+    };
+    try {
+        let res;
+        if (editingLocationId) {
+            res = await apiPut(`${BASE()}/locations/${editingLocationId}`, data);
+        } else {
+            res = await apiPost(`${BASE()}/locations`, data);
+        }
+        if (!res.success) throw new Error(res.error);
+        closeModal('location-modal');
+        await loadLocations();
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function deleteLocation() {
+    if (!confirm('Delete this location? Cabinets will be unlinked.')) return;
+    try {
+        const res = await apiDelete(`${BASE()}/locations/${editingLocationId}`);
+        if (!res.success) throw new Error(res.error);
+        closeModal('location-modal');
+        await loadLocations();
+        await loadCabinets();
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── Shelves CRUD ──────────────────────────────────────────────
+
+async function loadShelves() {
+    try {
+        const res = await apiGet(`${BASE()}/shelves`);
+        if (res.success) { shelvesCache = res.shelves; renderShelvesTable(); }
+    } catch (e) { console.error('loadShelves', e); }
+}
+
+function renderShelvesTable() {
+    const tbody = document.getElementById('shelves-tbody');
+    if (!tbody) return;
+    const filterCabId = document.getElementById('shelf-filter-cabinet')?.value;
+    // Populate cabinet filter
+    const filterSel = document.getElementById('shelf-filter-cabinet');
+    if (filterSel) {
+        const cur = filterSel.value;
+        filterSel.innerHTML = '<option value="">All Cabinets</option>' +
+            cabinetsCache.map(c => `<option value="${c.id}"${String(c.id)===cur?' selected':''}>${esc(c.code)} — ${esc(c.name)}</option>`).join('');
+    }
+    const rows = filterCabId ? shelvesCache.filter(s => String(s.cabinet_id) === filterCabId) : shelvesCache;
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8">No shelves yet</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(s => `<tr>
+        <td>${esc(s.cabinet_code)} — ${esc(s.cabinet_name)}</td>
+        <td><strong>${esc(s.code)}</strong></td>
+        <td>${esc(s.name || '—')}</td>
+        <td>${s.box_count || 0}</td>
+        <td>${s.tool_count || 0}</td>
+        <td><button class="btn-secondary btn-sm" onclick="openEditShelfModal(${s.id})">Edit</button></td>
+    </tr>`).join('');
+}
+
+function openShelfModal() {
+    editingShelfId = null;
+    document.getElementById('shelf-modal-title').textContent = 'Add Shelf';
+    document.getElementById('shelf-code').value = '';
+    document.getElementById('shelf-name').value = '';
+    document.getElementById('shelf-delete-btn').style.display = 'none';
+    const sel = document.getElementById('shelf-cabinet-id');
+    sel.innerHTML = '<option value="">— Select Cabinet —</option>' +
+        cabinetsCache.map(c => `<option value="${c.id}">${esc(c.code)} — ${esc(c.name)}</option>`).join('');
+    document.getElementById('shelf-modal').classList.add('active');
+}
+
+function openEditShelfModal(id) {
+    const s = shelvesCache.find(x => x.id === id);
+    if (!s) return;
+    editingShelfId = id;
+    document.getElementById('shelf-modal-title').textContent = 'Edit Shelf';
+    const sel = document.getElementById('shelf-cabinet-id');
+    sel.innerHTML = '<option value="">— Select Cabinet —</option>' +
+        cabinetsCache.map(c => `<option value="${c.id}"${c.id===s.cabinet_id?' selected':''}>${esc(c.code)} — ${esc(c.name)}</option>`).join('');
+    document.getElementById('shelf-code').value = s.code;
+    document.getElementById('shelf-name').value = s.name || '';
+    document.getElementById('shelf-delete-btn').style.display = 'inline-block';
+    document.getElementById('shelf-modal').classList.add('active');
+}
+
+async function saveShelfForm(e) {
+    e.preventDefault();
+    const data = {
+        cabinet_id: parseInt(document.getElementById('shelf-cabinet-id').value),
+        code:       document.getElementById('shelf-code').value.trim(),
+        name:       document.getElementById('shelf-name').value.trim() || null
+    };
+    try {
+        let res;
+        if (editingShelfId) {
+            res = await apiPut(`${BASE()}/shelves/${editingShelfId}`, data);
+        } else {
+            res = await apiPost(`${BASE()}/shelves`, data);
+        }
+        if (!res.success) throw new Error(res.error);
+        closeModal('shelf-modal');
+        await loadShelves();
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function deleteShelf() {
+    if (!confirm('Delete this shelf? Boxes and tool assignments will be removed.')) return;
+    try {
+        const res = await apiDelete(`${BASE()}/shelves/${editingShelfId}`);
+        if (!res.success) throw new Error(res.error);
+        closeModal('shelf-modal');
+        await loadShelves();
+        await loadBoxes();
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── Boxes CRUD ────────────────────────────────────────────────
+
+async function loadBoxes() {
+    try {
+        const res = await apiGet(`${BASE()}/boxes`);
+        if (res.success) { boxesCache = res.boxes; renderBoxesTable(); }
+    } catch (e) { console.error('loadBoxes', e); }
+}
+
+function renderBoxesTable() {
+    const tbody = document.getElementById('boxes-tbody');
+    if (!tbody) return;
+    const filterShelfId = document.getElementById('box-filter-shelf')?.value;
+    // Populate shelf filter
+    const filterSel = document.getElementById('box-filter-shelf');
+    if (filterSel) {
+        const cur = filterSel.value;
+        filterSel.innerHTML = '<option value="">All Shelves</option>' +
+            shelvesCache.map(s => `<option value="${s.id}"${String(s.id)===cur?' selected':''}>${esc(s.cabinet_code)}-${esc(s.code)}</option>`).join('');
+    }
+    const rows = filterShelfId ? boxesCache.filter(b => String(b.shelf_id) === filterShelfId) : boxesCache;
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">No boxes yet</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(b => `<tr>
+        <td>${esc(b.cabinet_code)}-${esc(b.shelf_code)}${b.shelf_name ? ' — ' + esc(b.shelf_name) : ''}</td>
+        <td><strong>${esc(b.code)}</strong></td>
+        <td>${esc(b.name || '—')}</td>
+        <td>${b.tool_count || 0}</td>
+        <td><button class="btn-secondary btn-sm" onclick="openEditBoxModal(${b.id})">Edit</button></td>
+    </tr>`).join('');
+}
+
+function openBoxModal() {
+    editingBoxId = null;
+    document.getElementById('box-modal-title').textContent = 'Add Box';
+    document.getElementById('box-code').value = '';
+    document.getElementById('box-name').value = '';
+    document.getElementById('box-delete-btn').style.display = 'none';
+    const sel = document.getElementById('box-shelf-id');
+    sel.innerHTML = '<option value="">— Select Shelf —</option>' +
+        shelvesCache.map(s => `<option value="${s.id}">${esc(s.cabinet_code)}-${esc(s.code)}</option>`).join('');
+    document.getElementById('box-modal').classList.add('active');
+}
+
+function openEditBoxModal(id) {
+    const b = boxesCache.find(x => x.id === id);
+    if (!b) return;
+    editingBoxId = id;
+    document.getElementById('box-modal-title').textContent = 'Edit Box';
+    const sel = document.getElementById('box-shelf-id');
+    sel.innerHTML = '<option value="">— Select Shelf —</option>' +
+        shelvesCache.map(s => `<option value="${s.id}"${s.id===b.shelf_id?' selected':''}>${esc(s.cabinet_code)}-${esc(s.code)}</option>`).join('');
+    document.getElementById('box-code').value = b.code;
+    document.getElementById('box-name').value = b.name || '';
+    document.getElementById('box-delete-btn').style.display = 'inline-block';
+    document.getElementById('box-modal').classList.add('active');
+}
+
+async function saveBoxForm(e) {
+    e.preventDefault();
+    const data = {
+        shelf_id: parseInt(document.getElementById('box-shelf-id').value),
+        code:     document.getElementById('box-code').value.trim(),
+        name:     document.getElementById('box-name').value.trim() || null
+    };
+    try {
+        let res;
+        if (editingBoxId) {
+            res = await apiPut(`${BASE()}/boxes/${editingBoxId}`, data);
+        } else {
+            res = await apiPost(`${BASE()}/boxes`, data);
+        }
+        if (!res.success) throw new Error(res.error);
+        closeModal('box-modal');
+        await loadBoxes();
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function deleteBox() {
+    if (!confirm('Delete this box? Tool assignments will be removed.')) return;
+    try {
+        const res = await apiDelete(`${BASE()}/boxes/${editingBoxId}`);
+        if (!res.success) throw new Error(res.error);
+        closeModal('box-modal');
+        await loadBoxes();
+    } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ── Application Types Tab ─────────────────────────────────────
@@ -691,6 +985,7 @@ async function loadCabinets() {
 
 function renderCabinetsTable() {
     const tbody = document.getElementById('cabinets-tbody');
+    if (!tbody) return;
     if (!cabinetsCache.length) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8">No cabinets yet</td></tr>`;
         return;
@@ -698,19 +993,42 @@ function renderCabinetsTable() {
     tbody.innerHTML = cabinetsCache.map(c => `<tr>
         <td><strong>${esc(c.code)}</strong></td>
         <td>${esc(c.name)}</td>
-        <td>${esc(c.location_description || '—')}</td>
+        <td>${c.location_code ? `<span style="font-size:0.8rem;padding:0.15rem 0.4rem;background:#ede9fe;color:#5b21b6;border-radius:4px">${esc(c.location_code)}</span> ${esc(c.location_name || '')}` : esc(c.location_description || '—')}</td>
         <td>${c.total_drawers || '—'}</td>
         <td>${c.tool_count || 0}</td>
-        <td style="color:#64748b;font-size:0.85rem">${esc(c.notes || '')}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-secondary btn-sm" onclick="openEditCabinetModal(${c.id})">Edit</button>
+        </td>
     </tr>`).join('');
 }
 
 function openAddCabinetModal() {
-    document.getElementById('cab-code').value     = '';
-    document.getElementById('cab-name').value     = '';
-    document.getElementById('cab-location').value = '';
-    document.getElementById('cab-drawers').value  = 10;
-    document.getElementById('cab-notes').value    = '';
+    editingCabinetId = null;
+    document.getElementById('cabinet-modal-title').textContent = 'Add Cabinet';
+    document.getElementById('cab-code').value        = '';
+    document.getElementById('cab-name').value        = '';
+    document.getElementById('cab-location').value    = '';
+    document.getElementById('cab-drawers').value     = 10;
+    document.getElementById('cab-notes').value       = '';
+    document.getElementById('cab-delete-btn').style.display = 'none';
+    populateLocationSelect('cab-location-id');
+    document.getElementById('cab-location-id').value = '';
+    document.getElementById('cabinet-modal').classList.add('active');
+}
+
+function openEditCabinetModal(id) {
+    const c = cabinetsCache.find(x => x.id === id);
+    if (!c) return;
+    editingCabinetId = id;
+    document.getElementById('cabinet-modal-title').textContent = 'Edit Cabinet';
+    populateLocationSelect('cab-location-id');
+    document.getElementById('cab-location-id').value = c.location_id || '';
+    document.getElementById('cab-code').value        = c.code;
+    document.getElementById('cab-name').value        = c.name;
+    document.getElementById('cab-location').value    = c.location_description || '';
+    document.getElementById('cab-drawers').value     = c.total_drawers || 1;
+    document.getElementById('cab-notes').value       = c.notes || '';
+    document.getElementById('cab-delete-btn').style.display = 'inline-block';
     document.getElementById('cabinet-modal').classList.add('active');
 }
 
@@ -719,18 +1037,36 @@ async function saveCabinetForm(e) {
     const data = {
         code:                 document.getElementById('cab-code').value.trim(),
         name:                 document.getElementById('cab-name').value.trim(),
+        location_id:          document.getElementById('cab-location-id').value || null,
         location_description: document.getElementById('cab-location').value.trim() || null,
         total_drawers:        parseInt(document.getElementById('cab-drawers').value) || 1,
         notes:                document.getElementById('cab-notes').value.trim() || null
     };
     try {
-        const res = await apiPost(`${BASE()}/cabinets`, data);
+        let res;
+        if (editingCabinetId) {
+            res = await apiPut(`${BASE()}/cabinets/${editingCabinetId}`, data);
+        } else {
+            res = await apiPost(`${BASE()}/cabinets`, data);
+        }
         if (!res.success) throw new Error(res.error);
         closeModal('cabinet-modal');
         await loadCabinets();
     } catch (e) {
         alert('Error: ' + e.message);
     }
+}
+
+async function deleteCabinet() {
+    if (!confirm('Delete this cabinet? All tools inside will be unlinked.')) return;
+    try {
+        const res = await apiDelete(`${BASE()}/cabinets/${editingCabinetId}`);
+        if (!res.success) throw new Error(res.error);
+        closeModal('cabinet-modal');
+        await loadCabinets();
+        await loadShelves();
+        await loadBoxes();
+    } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ── Reference data helpers ────────────────────────────────────
@@ -776,6 +1112,91 @@ function populateCabinetSelect(id) {
     sel.innerHTML = '<option value="">— None —</option>' + cabinetsCache.map(c =>
         `<option value="${c.id}">${esc(c.code)} — ${esc(c.name)}</option>`
     ).join('');
+}
+
+function populateLocationSelect(id) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— None —</option>' + locationsCache.map(l =>
+        `<option value="${l.id}">${esc(l.code)} — ${esc(l.name)}</option>`
+    ).join('');
+}
+
+function populateCabinetSelectFiltered(id, locationId) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const filtered = locationId
+        ? cabinetsCache.filter(c => String(c.location_id) === String(locationId))
+        : cabinetsCache;
+    sel.innerHTML = '<option value="">— None —</option>' + filtered.map(c =>
+        `<option value="${c.id}">${esc(c.code)} — ${esc(c.name)}</option>`
+    ).join('');
+}
+
+function populateShelfSelectFiltered(id, cabinetId) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const filtered = cabinetId
+        ? shelvesCache.filter(s => String(s.cabinet_id) === String(cabinetId))
+        : [];
+    sel.innerHTML = '<option value="">— None —</option>' + filtered.map(s =>
+        `<option value="${s.id}">${esc(s.code)}${s.name ? ' — ' + esc(s.name) : ''}</option>`
+    ).join('');
+}
+
+function populateBoxSelectFiltered(id, shelfId) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const filtered = shelfId
+        ? boxesCache.filter(b => String(b.shelf_id) === String(shelfId))
+        : [];
+    sel.innerHTML = '<option value="">— None —</option>' + filtered.map(b =>
+        `<option value="${b.id}">${esc(b.code)}${b.name ? ' — ' + esc(b.name) : ''}</option>`
+    ).join('');
+}
+
+function onStorageCascade(level) {
+    if (level === 'location') {
+        const locId = document.getElementById('f-location').value;
+        populateCabinetSelectFiltered('f-cabinet', locId || null);
+        document.getElementById('f-shelf').innerHTML = '<option value="">— None —</option>';
+        document.getElementById('f-box').innerHTML   = '<option value="">— None —</option>';
+    } else if (level === 'cabinet') {
+        const cabId = document.getElementById('f-cabinet').value;
+        populateShelfSelectFiltered('f-shelf', cabId || null);
+        document.getElementById('f-box').innerHTML = '<option value="">— None —</option>';
+    } else if (level === 'shelf') {
+        const shelfId = document.getElementById('f-shelf').value;
+        populateBoxSelectFiltered('f-box', shelfId || null);
+    }
+    updateLocationCodePreview();
+}
+
+function updateLocationCodePreview() {
+    const locSel   = document.getElementById('f-location');
+    const cabSel   = document.getElementById('f-cabinet');
+    const shelfSel = document.getElementById('f-shelf');
+    const boxSel   = document.getElementById('f-box');
+    const preview  = document.getElementById('f-location-code');
+    if (!preview) return;
+    const parts = [];
+    if (locSel?.value) {
+        const loc = locationsCache.find(l => String(l.id) === locSel.value);
+        if (loc) parts.push(loc.code);
+    }
+    if (cabSel?.value) {
+        const cab = cabinetsCache.find(c => String(c.id) === cabSel.value);
+        if (cab) parts.push(cab.code);
+    }
+    if (shelfSel?.value) {
+        const sh = shelvesCache.find(s => String(s.id) === shelfSel.value);
+        if (sh) parts.push(sh.code);
+    }
+    if (boxSel?.value) {
+        const bx = boxesCache.find(b => String(b.id) === boxSel.value);
+        if (bx) parts.push(bx.code);
+    }
+    preview.value = parts.join('-');
 }
 
 function populateSupplierSelect(id) {

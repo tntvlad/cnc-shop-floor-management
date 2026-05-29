@@ -13,8 +13,14 @@ class Tool {
                 tb.name AS brand_name,
                 tb.country AS brand_country,
                 s.name AS supplier_name,
+                loc.code AS location_code,
+                loc.name AS location_name,
                 cab.code AS cabinet_code,
                 cab.name AS cabinet_name,
+                sh.code  AS shelf_code,
+                sh.name  AS shelf_name,
+                bx.code  AS box_code,
+                bx.name  AS box_name,
                 at.name AS application_type_name,
                 at.color AS application_type_color
             FROM tools t
@@ -22,6 +28,9 @@ class Tool {
             LEFT JOIN tool_brands tb ON t.brand_id = tb.id
             LEFT JOIN suppliers s ON t.supplier_id = s.id
             LEFT JOIN tool_cabinets cab ON t.cabinet_id = cab.id
+            LEFT JOIN tool_locations loc ON cab.location_id = loc.id
+            LEFT JOIN tool_shelves sh ON t.shelf_id = sh.id
+            LEFT JOIN tool_boxes bx ON t.box_id = bx.id
             LEFT JOIN tool_application_types at ON t.application_type_id = at.id
             WHERE 1=1
         `;
@@ -103,9 +112,15 @@ class Tool {
                 s.contact_person AS supplier_contact,
                 s.phone AS supplier_phone,
                 s.email AS supplier_email,
+                loc.code AS location_code,
+                loc.name AS location_name,
                 cab.code AS cabinet_code,
                 cab.name AS cabinet_name,
                 cab.location_description AS cabinet_location,
+                sh.code  AS shelf_code,
+                sh.name  AS shelf_name,
+                bx.code  AS box_code,
+                bx.name  AS box_name,
                 at.name AS application_type_name,
                 at.color AS application_type_color
             FROM tools t
@@ -113,6 +128,9 @@ class Tool {
             LEFT JOIN tool_brands tb ON t.brand_id = tb.id
             LEFT JOIN suppliers s ON t.supplier_id = s.id
             LEFT JOIN tool_cabinets cab ON t.cabinet_id = cab.id
+            LEFT JOIN tool_locations loc ON cab.location_id = loc.id
+            LEFT JOIN tool_shelves sh ON t.shelf_id = sh.id
+            LEFT JOIN tool_boxes bx ON t.box_id = bx.id
             LEFT JOIN tool_application_types at ON t.application_type_id = at.id
             WHERE t.id = $1
         `, [id]);
@@ -125,7 +143,7 @@ class Tool {
     static async create(data) {
         const {
             tool_number, tool_type, category_id, brand_id, supplier_id,
-            cabinet_id, drawer_slot, internal_code,
+            cabinet_id, shelf_id, box_id, drawer_slot, internal_code,
             diameter, length, shank_diameter, cutting_length, overall_length,
             flute_count, tool_material, coating, material,
             quantity_available = 0, minimum_quantity = 1,
@@ -137,7 +155,7 @@ class Tool {
         const result = await db.query(`
             INSERT INTO tools (
                 tool_number, tool_type, category_id, brand_id, supplier_id,
-                cabinet_id, drawer_slot, internal_code,
+                cabinet_id, shelf_id, box_id, drawer_slot, internal_code,
                 diameter, length, shank_diameter, cutting_length, overall_length,
                 flute_count, tool_material, coating, material,
                 quantity_available, minimum_quantity,
@@ -147,19 +165,19 @@ class Tool {
                 created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5,
-                $6, $7, $8,
-                $9, $10, $11, $12, $13,
-                $14, $15, $16, $17,
-                $18, $19,
-                $20, $21,
-                $22, $23,
-                $24, $25, $26, 'available',
+                $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15,
+                $16, $17, $18, $19, $20,
+                $21, $22,
+                $23, $24,
+                $25, $26,
+                $27, $28, $29, 'available',
                 NOW(), NOW()
             )
             RETURNING *
         `, [
             tool_number, tool_type, category_id, brand_id, supplier_id,
-            cabinet_id, drawer_slot, internal_code,
+            cabinet_id || null, shelf_id || null, box_id || null, drawer_slot, internal_code,
             diameter, length, shank_diameter, cutting_length, overall_length,
             flute_count, tool_material, coating, material,
             quantity_available, minimum_quantity,
@@ -180,7 +198,7 @@ class Tool {
 
         const allowed = [
             'tool_number', 'tool_type', 'category_id', 'brand_id', 'supplier_id',
-            'cabinet_id', 'drawer_slot', 'internal_code',
+            'cabinet_id', 'shelf_id', 'box_id', 'drawer_slot', 'internal_code',
             'diameter', 'length', 'shank_diameter', 'cutting_length', 'overall_length',
             'flute_count', 'tool_material', 'coating', 'material',
             'minimum_quantity', 'is_resharpable', 'expected_tool_life',
@@ -486,30 +504,203 @@ class Tool {
     /**
      * Get all cabinets
      */
-    static async getCabinets() {
+    static async getCabinets(locationId) {
+        const values = [];
+        let where = 'WHERE cab.is_active = true';
+        if (locationId) { where += ' AND cab.location_id = $1'; values.push(locationId); }
         const result = await db.query(`
             SELECT cab.*,
+                loc.code AS location_code,
+                loc.name AS location_name,
                 COUNT(t.id) FILTER (WHERE t.status != 'retired') AS tool_count
             FROM tool_cabinets cab
+            LEFT JOIN tool_locations loc ON cab.location_id = loc.id
             LEFT JOIN tools t ON t.cabinet_id = cab.id
-            WHERE cab.is_active = true
-            GROUP BY cab.id
+            ${where}
+            GROUP BY cab.id, loc.code, loc.name
             ORDER BY cab.code ASC
+        `, values);
+        return result.rows;
+    }
+
+    static async createCabinet(data) {
+        const { code, name, location_id, location_description, total_drawers = 1, notes } = data;
+        const result = await db.query(`
+            INSERT INTO tool_cabinets (code, name, location_id, location_description, total_drawers, notes)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `, [code, name, location_id || null, location_description, total_drawers, notes]);
+        return result.rows[0];
+    }
+
+    static async updateCabinet(id, data) {
+        const { code, name, location_id, location_description, total_drawers, notes, is_active } = data;
+        const result = await db.query(`
+            UPDATE tool_cabinets
+            SET code = COALESCE($1, code),
+                name = COALESCE($2, name),
+                location_id = $3,
+                location_description = $4,
+                total_drawers = COALESCE($5, total_drawers),
+                notes = $6,
+                is_active = COALESCE($7, is_active)
+            WHERE id = $8
+            RETURNING *
+        `, [code, name, location_id || null, location_description, total_drawers, notes, is_active, id]);
+        return result.rows[0];
+    }
+
+    static async deleteCabinet(id) {
+        await db.query('UPDATE tools SET cabinet_id = NULL, shelf_id = NULL, box_id = NULL WHERE cabinet_id = $1', [id]);
+        await db.query('DELETE FROM tool_cabinets WHERE id = $1', [id]);
+    }
+
+    // ── Locations ─────────────────────────────────────────────
+
+    static async getLocations() {
+        const result = await db.query(`
+            SELECT loc.*,
+                COUNT(cab.id) FILTER (WHERE cab.is_active = true) AS cabinet_count
+            FROM tool_locations loc
+            LEFT JOIN tool_cabinets cab ON cab.location_id = loc.id
+            WHERE loc.is_active = true
+            GROUP BY loc.id
+            ORDER BY loc.code ASC
         `);
         return result.rows;
     }
 
-    /**
-     * Create a cabinet
-     */
-    static async createCabinet(data) {
-        const { code, name, location_description, total_drawers = 1, notes } = data;
+    static async createLocation(data) {
+        const { code, name, description } = data;
         const result = await db.query(`
-            INSERT INTO tool_cabinets (code, name, location_description, total_drawers, notes)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO tool_locations (code, name, description)
+            VALUES ($1, $2, $3)
             RETURNING *
-        `, [code, name, location_description, total_drawers, notes]);
+        `, [code, name, description || null]);
         return result.rows[0];
+    }
+
+    static async updateLocation(id, data) {
+        const { code, name, description, is_active } = data;
+        const result = await db.query(`
+            UPDATE tool_locations
+            SET code = COALESCE($1, code),
+                name = COALESCE($2, name),
+                description = $3,
+                is_active = COALESCE($4, is_active)
+            WHERE id = $5
+            RETURNING *
+        `, [code, name, description, is_active, id]);
+        return result.rows[0];
+    }
+
+    static async deleteLocation(id) {
+        await db.query('UPDATE tool_cabinets SET location_id = NULL WHERE location_id = $1', [id]);
+        await db.query('DELETE FROM tool_locations WHERE id = $1', [id]);
+    }
+
+    // ── Shelves ───────────────────────────────────────────────
+
+    static async getShelves(cabinetId) {
+        const values = [];
+        let where = 'WHERE sh.is_active = true';
+        if (cabinetId) { where += ' AND sh.cabinet_id = $1'; values.push(cabinetId); }
+        const result = await db.query(`
+            SELECT sh.*,
+                cab.code AS cabinet_code,
+                cab.name AS cabinet_name,
+                COUNT(bx.id) FILTER (WHERE bx.is_active = true) AS box_count,
+                COUNT(t.id) FILTER (WHERE t.status != 'retired') AS tool_count
+            FROM tool_shelves sh
+            JOIN tool_cabinets cab ON sh.cabinet_id = cab.id
+            LEFT JOIN tool_boxes bx ON bx.shelf_id = sh.id
+            LEFT JOIN tools t ON t.shelf_id = sh.id
+            ${where}
+            GROUP BY sh.id, cab.code, cab.name
+            ORDER BY cab.code ASC, sh.code ASC
+        `, values);
+        return result.rows;
+    }
+
+    static async createShelf(data) {
+        const { cabinet_id, code, name } = data;
+        const result = await db.query(`
+            INSERT INTO tool_shelves (cabinet_id, code, name)
+            VALUES ($1, $2, $3)
+            RETURNING *
+        `, [cabinet_id, code, name || null]);
+        return result.rows[0];
+    }
+
+    static async updateShelf(id, data) {
+        const { code, name, cabinet_id, is_active } = data;
+        const result = await db.query(`
+            UPDATE tool_shelves
+            SET code = COALESCE($1, code),
+                name = $2,
+                cabinet_id = COALESCE($3, cabinet_id),
+                is_active = COALESCE($4, is_active)
+            WHERE id = $5
+            RETURNING *
+        `, [code, name, cabinet_id, is_active, id]);
+        return result.rows[0];
+    }
+
+    static async deleteShelf(id) {
+        await db.query('UPDATE tools SET shelf_id = NULL, box_id = NULL WHERE shelf_id = $1', [id]);
+        await db.query('DELETE FROM tool_shelves WHERE id = $1', [id]);
+    }
+
+    // ── Boxes ─────────────────────────────────────────────────
+
+    static async getBoxes(shelfId) {
+        const values = [];
+        let where = 'WHERE bx.is_active = true';
+        if (shelfId) { where += ' AND bx.shelf_id = $1'; values.push(shelfId); }
+        const result = await db.query(`
+            SELECT bx.*,
+                sh.code AS shelf_code,
+                sh.name AS shelf_name,
+                cab.code AS cabinet_code,
+                COUNT(t.id) FILTER (WHERE t.status != 'retired') AS tool_count
+            FROM tool_boxes bx
+            JOIN tool_shelves sh ON bx.shelf_id = sh.id
+            JOIN tool_cabinets cab ON sh.cabinet_id = cab.id
+            LEFT JOIN tools t ON t.box_id = bx.id
+            ${where}
+            GROUP BY bx.id, sh.code, sh.name, cab.code
+            ORDER BY cab.code ASC, sh.code ASC, bx.code ASC
+        `, values);
+        return result.rows;
+    }
+
+    static async createBox(data) {
+        const { shelf_id, code, name } = data;
+        const result = await db.query(`
+            INSERT INTO tool_boxes (shelf_id, code, name)
+            VALUES ($1, $2, $3)
+            RETURNING *
+        `, [shelf_id, code, name || null]);
+        return result.rows[0];
+    }
+
+    static async updateBox(id, data) {
+        const { code, name, shelf_id, is_active } = data;
+        const result = await db.query(`
+            UPDATE tool_boxes
+            SET code = COALESCE($1, code),
+                name = $2,
+                shelf_id = COALESCE($3, shelf_id),
+                is_active = COALESCE($4, is_active)
+            WHERE id = $5
+            RETURNING *
+        `, [code, name, shelf_id, is_active, id]);
+        return result.rows[0];
+    }
+
+    static async deleteBox(id) {
+        await db.query('UPDATE tools SET box_id = NULL WHERE box_id = $1', [id]);
+        await db.query('DELETE FROM tool_boxes WHERE id = $1', [id]);
     }
 }
 

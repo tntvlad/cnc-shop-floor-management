@@ -128,6 +128,159 @@ const createCabinet = async (req, res) => {
     }
 };
 
+// PUT /api/tools/cabinets/:id
+const updateCabinet = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const cabinet = await Tool.updateCabinet(req.params.id, req.body);
+        res.json({ success: true, cabinet });
+    } catch (error) {
+        console.error('updateCabinet error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// DELETE /api/tools/cabinets/:id
+const deleteCabinet = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        await Tool.deleteCabinet(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('deleteCabinet error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// ── Locations ────────────────────────────────────────────────────
+
+const getLocations = async (req, res) => {
+    try {
+        const locations = await Tool.getLocations();
+        res.json({ success: true, locations });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const createLocation = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const { code, name } = req.body;
+        if (!code || !name) return res.status(400).json({ success: false, error: 'Code and name are required' });
+        const location = await Tool.createLocation(req.body);
+        res.status(201).json({ success: true, location });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const updateLocation = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const location = await Tool.updateLocation(req.params.id, req.body);
+        res.json({ success: true, location });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const deleteLocation = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        await Tool.deleteLocation(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// ── Shelves ──────────────────────────────────────────────────────
+
+const getShelves = async (req, res) => {
+    try {
+        const shelves = await Tool.getShelves(req.query.cabinet_id ? parseInt(req.query.cabinet_id) : null);
+        res.json({ success: true, shelves });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const createShelf = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const { cabinet_id, code } = req.body;
+        if (!cabinet_id || !code) return res.status(400).json({ success: false, error: 'cabinet_id and code are required' });
+        const shelf = await Tool.createShelf(req.body);
+        res.status(201).json({ success: true, shelf });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const updateShelf = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const shelf = await Tool.updateShelf(req.params.id, req.body);
+        res.json({ success: true, shelf });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const deleteShelf = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        await Tool.deleteShelf(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// ── Boxes ────────────────────────────────────────────────────────
+
+const getBoxes = async (req, res) => {
+    try {
+        const boxes = await Tool.getBoxes(req.query.shelf_id ? parseInt(req.query.shelf_id) : null);
+        res.json({ success: true, boxes });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const createBox = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const { shelf_id, code } = req.body;
+        if (!shelf_id || !code) return res.status(400).json({ success: false, error: 'shelf_id and code are required' });
+        const box = await Tool.createBox(req.body);
+        res.status(201).json({ success: true, box });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const updateBox = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        const box = await Tool.updateBox(req.params.id, req.body);
+        res.json({ success: true, box });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+const deleteBox = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor level required' });
+        await Tool.deleteBox(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 // GET /api/tools/:id
 const getToolById = async (req, res) => {
     try {
@@ -346,7 +499,10 @@ const deleteAppType = async (req, res) => {
 module.exports = {
     getTools, getStats, getLowStock,
     getCategories, getBrands, createBrand, updateBrand,
-    getCabinets, createCabinet,
+    getCabinets, createCabinet, updateCabinet, deleteCabinet,
+    getLocations, createLocation, updateLocation, deleteLocation,
+    getShelves, createShelf, updateShelf, deleteShelf,
+    getBoxes, createBox, updateBox, deleteBox,
     getToolById, createTool, updateTool, retireTool,
     getPriceHistory, addPriceRecord,
     getTransactions, stockIn, stockOut, getCheckouts,
