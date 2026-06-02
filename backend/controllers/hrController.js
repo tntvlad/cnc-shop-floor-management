@@ -1,9 +1,9 @@
-const db = require('../config/database');
+﻿const db = require('../config/database');
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
- * Count working days (Mon–Fri) between two dates inclusive,
+ * Count working days (Monâ€“Fri) between two dates inclusive,
  * excluding public holidays.
  */
 async function countWorkingDays(dateFrom, dateTo) {
@@ -40,7 +40,7 @@ async function ensureBalance(userId, year) {
     );
 }
 
-// ── Leave Types ────────────────────────────────────────────────────────────
+// â”€â”€ Leave Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/leave-types
 const getLeaveTypes = async (req, res) => {
@@ -53,7 +53,7 @@ const getLeaveTypes = async (req, res) => {
     }
 };
 
-// ── Public Holidays ────────────────────────────────────────────────────────
+// â”€â”€ Public Holidays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/public-holidays?year=2026
 const getPublicHolidays = async (req, res) => {
@@ -131,7 +131,7 @@ const deletePublicHoliday = async (req, res) => {
     }
 };
 
-// ── Leave Balances ─────────────────────────────────────────────────────────
+// â”€â”€ Leave Balances â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/balances?year=2026  (supervisor+)
 const getBalances = async (req, res) => {
@@ -198,7 +198,7 @@ const updateBalance = async (req, res) => {
     }
 };
 
-// ── Leave Requests ─────────────────────────────────────────────────────────
+// â”€â”€ Leave Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/leaves?year=&user_id=&status=  (supervisor+)
 const getLeaves = async (req, res) => {
@@ -422,7 +422,7 @@ const cancelLeave = async (req, res) => {
     }
 };
 
-// ── Work Hours ─────────────────────────────────────────────────────────────
+// â”€â”€ Work Hours â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/hours?user_id=&month=YYYY-MM  (supervisor+)
 const getHours = async (req, res) => {
@@ -559,7 +559,7 @@ const deleteHours = async (req, res) => {
     }
 };
 
-// ── Summary ────────────────────────────────────────────────────────────────
+// â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/summary?month=YYYY-MM  (supervisor+)
 const getSummary = async (req, res) => {
@@ -618,7 +618,7 @@ const getSummary = async (req, res) => {
     }
 };
 
-// ── Export: EVIDENTA ORELOR DE MUNCA (ExcelJS – full formatting) ──────────
+// â”€â”€ Export: EVIDENTA ORELOR DE MUNCA (ExcelJS â€“ full formatting) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const LEAVE_CODE_MAP = {
     annual:   'Co',
@@ -665,9 +665,9 @@ const exportAttendance = async (req, res) => {
         const RO_MONTHS = ['IANUARIE','FEBRUARIE','MARTIE','APRILIE','MAI','IUNIE',
                            'IULIE','AUGUST','SEPTEMBRIE','OCTOMBRIE','NOIEMBRIE','DECEMBRIE'];
         const monthName = RO_MONTHS[month - 1];
-        const RO_DOW    = ['Du','Lu','Ma','Mi','Jo','Vi','Sâ'];
+        const RO_DOW    = ['Du','Lu','Ma','Mi','Jo','Vi','SÃ¢'];
 
-        // ── DB queries ────────────────────────────────────────────────────────────
+        // â”€â”€ DB queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const empRes = await db.query(`SELECT id, name FROM users WHERE level >= 100 ORDER BY name`);
         const employees = empRes.rows;
 
@@ -712,15 +712,15 @@ const exportAttendance = async (req, res) => {
         );
         const holidayDays = new Set(holRes.rows.map(r => new Date(r.holiday_date).getUTCDate()));
 
-        // ── Workbook setup ────────────────────────────────────────────────────────
+        // â”€â”€ Workbook setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const wb = new ExcelJS.Workbook();
         wb.creator = 'CNC Shop Floor';
         const ws = wb.addWorksheet('FERO', { pageSetup: { orientation: 'landscape' } });
 
         // Column layout: A=Nr, B=Nume, C=Data/Ora, D..AH=days1-31+subtotal16, AI..AQ=totals+leave
-        // Col index (1-based): 1=Nr, 2=Nume, 3=Ora, 4=day1 … 18=day15, 19=subtotal1-15, 20=day16 … 35=day31, 36=total_ore, 37=ore_sup, 38=ore_noapte, 39=total_neluc, 40=OI, 41=Co-Zlp, 42=Bo, 43=Am, 44=ST, 45=Cfp, 46=O, 47=N, 48=Ef
+        // Col index (1-based): 1=Nr, 2=Nume, 3=Ora, 4=day1 â€¦ 18=day15, 19=subtotal1-15, 20=day16 â€¦ 35=day31, 36=total_ore, 37=ore_sup, 38=ore_noapte, 39=total_neluc, 40=OI, 41=Co-Zlp, 42=Bo, 43=Am, 44=ST, 45=Cfp, 46=O, 47=N, 48=Ef
 
-        // Map day d (1-31) → column index
+        // Map day d (1-31) â†’ column index
         const dayCol = (d) => d <= 15 ? d + 3 : d + 4; // +4 because subtotal col sits after day15
         const SUBTOTAL_COL = 19;
         const TOT_COL      = 36;
@@ -746,7 +746,7 @@ const exportAttendance = async (req, res) => {
         ws.getColumn(SUBTOTAL_COL).width = 8;
         for (let c = TOT_COL; c <= LAST_COL; c++) ws.getColumn(c).width = 7;
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
+        // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const fill = (hex) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: hex } });
         const border = (style = 'thin') => ({
             top: { style }, bottom: { style }, left: { style }, right: { style }
@@ -770,18 +770,18 @@ const exportAttendance = async (req, res) => {
             return `${p[0]}.${p[1] || '00'}`;
         };
 
-        // ── Row 1: blank ──────────────────────────────────────────────────────────
+        // â”€â”€ Row 1: blank â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.addRow([]);
         ws.getRow(1).height = 10;
 
-        // ── Row 2: Company name ───────────────────────────────────────────────────
+        // â”€â”€ Row 2: Company name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.addRow([]);
         ws.getRow(2).height = 14;
         const compCell = ws.getCell('B2');
         compCell.value = 'SC FERO - PACT SRL';
         compCell.font  = font({ size: 11, bold: true });
 
-        // ── Rows 2-7: Legend (right side) ────────────────────────────────────────
+        // â”€â”€ Rows 2-7: Legend (right side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Legend starts at col AH (34) roughly, mimic original: cols ~34..48
         const LEG_START = 34; // column index for legend
         LEGEND.forEach((entry, i) => {
@@ -803,7 +803,7 @@ const exportAttendance = async (req, res) => {
             cRDesc.value = rDesc; styleCell(cRDesc, { fill: rBg, h: 'left', font: { size: 8 } });
         });
 
-        // ── Row 8: Main title ─────────────────────────────────────────────────────
+        // â”€â”€ Row 8: Main title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.addRow([]); ws.addRow([]); ws.addRow([]); ws.addRow([]); ws.addRow([]); ws.addRow([]);
         // rows 3-7 blank (already pushed via legend height)
         const titleRowNum = 8;
@@ -814,7 +814,7 @@ const exportAttendance = async (req, res) => {
         titleCell.alignment = align('center', 'middle');
         ws.mergeCells(titleRowNum, 16, titleRowNum, 28);
 
-        // ── Row 9: Subtitle ───────────────────────────────────────────────────────
+        // â”€â”€ Row 9: Subtitle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.getRow(9).height = 14;
         const subCell = ws.getCell(9, 16);
         subCell.value = `pentru luna ${monthName} ${year}`;
@@ -822,10 +822,10 @@ const exportAttendance = async (req, res) => {
         subCell.alignment = align('center', 'middle');
         ws.mergeCells(9, 16, 9, 28);
 
-        // ── Row 10: blank ─────────────────────────────────────────────────────────
+        // â”€â”€ Row 10: blank â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.getRow(10).height = 6;
 
-        // ── Rows 11-12: Header ────────────────────────────────────────────────────
+        // â”€â”€ Rows 11-12: Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const HDR_ROW  = 11;
         const DOW_ROW  = 12;
         ws.getRow(HDR_ROW).height = 40;
@@ -876,7 +876,7 @@ const exportAttendance = async (req, res) => {
         setHdr(HDR_ROW, EF_COL,    'Ef');
         for (let c = TOT_COL; c <= LAST_COL; c++) ws.mergeCells(HDR_ROW, c, DOW_ROW, c);
 
-        // ── Employee rows ─────────────────────────────────────────────────────────
+        // â”€â”€ Employee rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let currentRow = DOW_ROW + 1;
 
         employees.forEach((emp, idx) => {
@@ -988,10 +988,10 @@ const exportAttendance = async (req, res) => {
             currentRow += 2;
         });
 
-        // ── Blank row ─────────────────────────────────────────────────────────────
+        // â”€â”€ Blank row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         currentRow++;
 
-        // ── ADMINISTRATOR ─────────────────────────────────────────────────────────
+        // â”€â”€ ADMINISTRATOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.getRow(currentRow).height = 14;
         ws.mergeCells(currentRow, 18, currentRow, 28);
         const adCell = ws.getCell(currentRow, 18);
@@ -1000,7 +1000,7 @@ const exportAttendance = async (req, res) => {
         adCell.alignment = align('center', 'middle');
         currentRow += 3;
 
-        // ── Legal text ────────────────────────────────────────────────────────────
+        // â”€â”€ Legal text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.getRow(currentRow).height = 28;
         ws.mergeCells(currentRow, 1, currentRow, LAST_COL);
         const legalCell = ws.getCell(currentRow, 1);
@@ -1008,7 +1008,7 @@ const exportAttendance = async (req, res) => {
         legalCell.font  = font({ size: 7, italic: true });
         legalCell.alignment = align('left', 'middle', true);
 
-        // ── Send response ─────────────────────────────────────────────────────────
+        // â”€â”€ Send response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="EVIDENTA-${monthName}-${year}.xlsx"`);
         await wb.xlsx.write(res);
@@ -1029,267 +1029,3 @@ module.exports = {
     getSummary, exportAttendance,
 };
 
-    try {
-        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
-
-        const XLSX = require('xlsx');
-
-        // Parse month param (YYYY-MM), default current month
-        const monthStr = req.query.month || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-        const [year, month] = monthStr.split('-').map(Number);
-        const daysInMonth = new Date(year, month, 0).getDate();
-
-        // Romanian month names
-        const RO_MONTHS = ['IANUARIE','FEBRUARIE','MARTIE','APRILIE','MAI','IUNIE',
-                           'IULIE','AUGUST','SEPTEMBRIE','OCTOMBRIE','NOIEMBRIE','DECEMBRIE'];
-        const monthName = RO_MONTHS[month - 1];
-
-        // Romanian day-of-week abbreviations (0=Sun)
-        const RO_DOW = ['Du','Lu','Ma','Mi','Jo','Vi','Sâ'];
-
-        // 1. Get all active employees
-        const empRes = await db.query(
-            `SELECT id, name, employee_id FROM users WHERE level >= 100 ORDER BY name`,
-            []
-        );
-        const employees = empRes.rows;
-
-        // 2. Get all work hours for the month
-        const hoursRes = await db.query(
-            `SELECT user_id, work_date, check_in, check_out, hours_worked, overtime_hours
-             FROM work_hours
-             WHERE work_date >= $1::date AND work_date < $1::date + INTERVAL '1 month'`,
-            [`${year}-${String(month).padStart(2, '0')}-01`]
-        );
-        // hoursMap[userId][dayNum] = record
-        const hoursMap = {};
-        hoursRes.rows.forEach(r => {
-            const day = new Date(r.work_date).getUTCDate();
-            if (!hoursMap[r.user_id]) hoursMap[r.user_id] = {};
-            hoursMap[r.user_id][day] = r;
-        });
-
-        // 3. Get approved leaves for the year
-        const leavesRes = await db.query(
-            `SELECT lr.user_id, lr.date_from, lr.date_to, lt.code AS leave_code
-             FROM leave_requests lr
-             JOIN leave_types lt ON lt.id = lr.leave_type_id
-             WHERE lr.status = 'approved'
-               AND EXTRACT(YEAR FROM lr.date_from) = $1`,
-            [year]
-        );
-        // leaveMap[userId][dayNum] = 'Co'|'Bo'|...
-        const leaveMap = {};
-        leavesRes.rows.forEach(r => {
-            const from = new Date(String(r.date_from).substring(0, 10) + 'T00:00:00');
-            const to   = new Date(String(r.date_to).substring(0, 10)   + 'T00:00:00');
-            const cur  = new Date(from);
-            while (cur <= to) {
-                if (cur.getFullYear() === year && cur.getMonth() + 1 === month) {
-                    const day = cur.getDate();
-                    if (!leaveMap[r.user_id]) leaveMap[r.user_id] = {};
-                    leaveMap[r.user_id][day] = LEAVE_CODE_MAP[r.leave_code] || r.leave_code;
-                }
-                cur.setDate(cur.getDate() + 1);
-            }
-        });
-
-        // 4. Get public holidays this month
-        const holRes = await db.query(
-            `SELECT holiday_date FROM public_holidays
-             WHERE year = $1 AND EXTRACT(MONTH FROM holiday_date) = $2`,
-            [year, month]
-        );
-        const holidayDays = new Set(holRes.rows.map(r => new Date(r.holiday_date).getUTCDate()));
-
-        // ── Build worksheet data ──────────────────────────────────────────────────
-        const rows = [];
-
-        // Row 1: blank
-        rows.push([]);
-
-        // Row 2: company + legend
-        rows.push(['SC FERO - PACT SRL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Co', '', 'conc.odihna', '', 'OI', '', 'ore intrerupere']);
-        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Bo', '', 'conc.boala', '', 'Cfp', '', 'Concediu fara plata']);
-        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Am', '', 'accid.munca', '', 'W', '', 'weekend']);
-        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'M', '', 'maternitate', '', 'N', '', 'abs.nemotivate']);
-        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'S', '', 'sarbatori, zile libere', '', 'Ef', '', 'evenim.fam.']);
-        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'ST', '', 'somaj tehnic', '', 'Zlp', '', 'zile libere platite']);
-
-        // Row 8-9: title
-        const titleRow = new Array(47).fill('');
-        titleRow[15] = 'EVIDENTA ORELOR de MUNCA';
-        rows.push(titleRow);
-        const subtitleRow = new Array(47).fill('');
-        subtitleRow[15] = `pentru luna ${monthName} ${year}`;
-        rows.push(subtitleRow);
-
-        // Row 10: blank
-        rows.push([]);
-
-        // Row 11: column headers
-        const headerRow = ['Nr. crt.', 'Numele si prenumele', 'Data / Ora'];
-        for (let d = 1; d <= 31; d++) {
-            if (d === 16) headerRow.push('total ore  1-15');
-            headerRow.push(d <= daysInMonth ? String(d) : '');
-        }
-        headerRow.push('total ore lucrate', 'ore supliment.', 'ore de noapte', 'total ore nelucrate',
-                        'OI', 'Co - Zlp', 'Bo', 'Am', 'ST', 'Cfp', 'O', 'N', 'Ef');
-        rows.push(headerRow);
-
-        // Row 12: day-of-week names
-        const dowRow = ['', '', ''];
-        for (let d = 1; d <= 31; d++) {
-            if (d === 16) dowRow.push('');
-            if (d <= daysInMonth) {
-                const dow = new Date(year, month - 1, d).getDay();
-                dowRow.push(RO_DOW[dow]);
-            } else {
-                dowRow.push('');
-            }
-        }
-        rows.push(dowRow);
-
-        // Helper: format TIME value as "HH.MM"
-        const fmtTime = (t) => {
-            if (!t) return '';
-            const s = String(t);
-            const parts = s.split(':');
-            return `${parts[0]}.${parts[1] || '00'}`;
-        };
-
-        // Employee rows (2 per employee)
-        employees.forEach((emp, idx) => {
-            const uh = hoursMap[emp.id] || {};
-            const ul = leaveMap[emp.id] || {};
-
-            const incepRow = [idx + 1, emp.name, 'incep.'];
-            const termRow  = ['', '', 'term.'];
-
-            let totalHours1_15 = 0;
-            let totalHoursWorked = 0;
-            let totalOvertime = 0;
-            // Leave type counters
-            const leaveCounts = { Co: 0, Bo: 0, Am: 0, ST: 0, Cfp: 0, N: 0, Ef: 0 };
-
-            for (let d = 1; d <= 31; d++) {
-                if (d === 16) {
-                    incepRow.push(totalHours1_15 > 0 ? totalHours1_15.toFixed(2) : '');
-                    termRow.push('');
-                }
-                if (d > daysInMonth) {
-                    incepRow.push('');
-                    termRow.push('');
-                    continue;
-                }
-
-                const dow = new Date(year, month - 1, d).getDay();
-                const isWeekend = dow === 0 || dow === 6;
-                const isHoliday = holidayDays.has(d);
-                const leaveCode = ul[d];
-                const hoursRec  = uh[d];
-
-                if (isWeekend) {
-                    incepRow.push('');
-                    termRow.push('');
-                } else if (isHoliday && !leaveCode) {
-                    incepRow.push('S');
-                    termRow.push('S');
-                } else if (leaveCode) {
-                    incepRow.push(leaveCode);
-                    termRow.push(leaveCode);
-                    // Count leave days
-                    if (leaveCounts.hasOwnProperty(leaveCode)) leaveCounts[leaveCode]++;
-                    if (d <= 15) totalHours1_15 += 0;
-                } else if (hoursRec) {
-                    const ci = fmtTime(hoursRec.check_in);
-                    const co = fmtTime(hoursRec.check_out);
-                    incepRow.push(ci);
-                    termRow.push(co);
-                    const h = parseFloat(hoursRec.hours_worked) || 0;
-                    const ot = parseFloat(hoursRec.overtime_hours) || 0;
-                    if (d <= 15) totalHours1_15 += h;
-                    totalHoursWorked += h;
-                    totalOvertime    += ot;
-                } else {
-                    // Workday with no data logged — leave blank
-                    incepRow.push('');
-                    termRow.push('');
-                }
-            }
-
-            // Totals
-            incepRow.push(
-                totalHoursWorked > 0 ? totalHoursWorked.toFixed(2) : '',
-                totalOvertime > 0    ? totalOvertime.toFixed(2)    : '',
-                '', // ore de noapte — not tracked
-                '', // total ore nelucrate
-                '', // OI
-                leaveCounts.Co  > 0 ? leaveCounts.Co  : '',
-                leaveCounts.Bo  > 0 ? leaveCounts.Bo  : '',
-                leaveCounts.Am  > 0 ? leaveCounts.Am  : '',
-                leaveCounts.ST  > 0 ? leaveCounts.ST  : '',
-                leaveCounts.Cfp > 0 ? leaveCounts.Cfp : '',
-                '', // O
-                leaveCounts.N   > 0 ? leaveCounts.N   : '',
-                leaveCounts.Ef  > 0 ? leaveCounts.Ef  : ''
-            );
-            termRow.push(...new Array(13).fill(''));
-
-            rows.push(incepRow);
-            rows.push(termRow);
-        });
-
-        // Blank row
-        rows.push([]);
-
-        // ADMINISTRATOR row
-        const adminRow = new Array(47).fill('');
-        adminRow[18] = 'ADMINISTRATOR';
-        rows.push(adminRow);
-
-        rows.push([]);
-        rows.push([]);
-
-        // Legal text
-        rows.push([`Extras din CM-art.119(1) Angajatorul are obligatia de a tine la locul de munca evidenta orelor de munca prestate zilnic de fiecare salariat, cu evidertierea orelor de incepere si de sfarsit ale programului de lucru.`]);
-
-        // ── Create workbook ───────────────────────────────────────────────────────
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-
-        // Set column widths
-        ws['!cols'] = [
-            { wch: 5 },  // Nr.crt
-            { wch: 22 }, // Nume
-            { wch: 7 },  // Data/Ora
-            ...Array(32).fill({ wch: 6 }),  // days + subtotal
-            { wch: 13 }, // total ore lucrate
-            { wch: 10 }, // ore supliment
-            { wch: 10 }, // ore de noapte
-            { wch: 12 }, // total nelucrate
-            ...Array(9).fill({ wch: 5 }),   // leave counters
-        ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'FERO');
-
-        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="EVIDENTA-${monthName}-${year}.xlsx"`);
-        res.send(buf);
-
-    } catch (e) {
-        console.error('exportAttendance', e);
-        res.status(500).json({ success: false, error: e.message });
-    }
-};
-
-module.exports = {
-    getLeaveTypes,
-    getPublicHolidays, createPublicHoliday, updatePublicHoliday, deletePublicHoliday,
-    getBalances, getMyBalance, updateBalance,
-    getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
-    getHours, getMyHours, logHours, updateHours, deleteHours,
-    getSummary, exportAttendance,
-};
