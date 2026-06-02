@@ -164,9 +164,8 @@ const getMyBalance = async (req, res) => {
         const year = new Date().getFullYear();
         await ensureBalance(req.user.id, year);
         const result = await db.query(
-            `SELECT b.*, lt_annual.total_days AS default_annual
+            `SELECT b.*
              FROM employee_leave_balance b
-             LEFT JOIN leave_types lt_annual ON lt_annual.code = 'annual'
              WHERE b.user_id = $1 AND b.year = $2`,
             [req.user.id, year]
         );
@@ -438,8 +437,7 @@ const getHours = async (req, res) => {
         }
         if (req.query.month) {
             params.push(req.query.month + '-01');
-            params.push(req.query.month + '-31');
-            conditions.push(`wh.work_date BETWEEN $${params.length - 1} AND $${params.length}`);
+            conditions.push(`wh.work_date >= $${params.length}::date AND wh.work_date < $${params.length}::date + INTERVAL '1 month'`);
         }
 
         const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -467,8 +465,7 @@ const getMyHours = async (req, res) => {
 
         if (req.query.month) {
             params.push(req.query.month + '-01');
-            params.push(req.query.month + '-31');
-            conditions.push(`wh.work_date BETWEEN $${params.length - 1} AND $${params.length}`);
+            conditions.push(`wh.work_date >= $${params.length}::date AND wh.work_date < $${params.length}::date + INTERVAL '1 month'`);
         }
 
         const result = await db.query(
