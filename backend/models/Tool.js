@@ -329,7 +329,7 @@ class Tool {
                 quantity_available = quantity_available - $1,
                 parts_produced_total = parts_produced_total + $2,
                 parts_since_sharpen = parts_since_sharpen + $2,
-                status = CASE WHEN $3 IS NOT NULL THEN 'in_use' ELSE status END,
+                status = CASE WHEN $3::integer IS NOT NULL THEN 'in_use' ELSE status END,
                 updated_at = NOW()
             WHERE id = $4
             RETURNING quantity_available

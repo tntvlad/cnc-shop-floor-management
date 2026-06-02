@@ -7,12 +7,27 @@ Covers the full lifecycle: purchase → storage → use → sharpening → retir
 
 ---
 
+## Status
+
+| Feature | Status | Commit |
+|---------|--------|--------|
+| Core inventory (tools, brands, categories) | ✅ Done | Initial |
+| Price history & stock transactions | ✅ Done | Initial |
+| Application types | ✅ Done | — |
+| Storage hierarchy (Location > Cabinet > Shelf > Box) | ✅ Done | `81c6c39` |
+| Tool usage log per operation | ⏳ Planned | — |
+| Tool image upload | ⏳ Planned | — |
+| QR code label printing | ⏳ Planned | — |
+
+---
+
 ## Goals
 
 - Track every cutting tool (end mills, drills, taps, inserts, boring bars, etc.)
 - Record brand, supplier, price history (cost over time)
 - Manage stock: quantities, minimum reorder points, low-stock alerts
-- Physical storage location: cabinets, drawers, drawer slots
+- Physical storage location: 4-level hierarchy — Location > Cabinet > Shelf > Box
+- Auto-generated location code from hierarchy codes (e.g. `LOC1-CAB2-SH3-BX1`)
 - Track tool wear: parts produced, expected life, sharpening cycles
 - Provide a complete audit trail (transactions + usage log)
 
@@ -26,7 +41,10 @@ Covers the full lifecycle: purchase → storage → use → sharpening → retir
 |-------|---------|
 | `tool_categories` | Pre-loaded reference: End Mill, Drill, Tap, etc. (16 types) |
 | `tool_brands` | Pre-loaded reference: Sandvik, Kennametal, Iscar, etc. (12 brands) |
-| `tool_cabinets` | Physical storage locations (user-managed) |
+| `tool_locations` | Top-level physical zones (e.g. "Tool Room A") — migration 006 |
+| `tool_cabinets` | Cabinets within a location (linked to `tool_locations`) |
+| `tool_shelves` | Shelves within a cabinet — migration 006 |
+| `tool_boxes` | Boxes/bins within a shelf — migration 006 |
 | `tool_price_history` | Price per purchase event, linked to supplier |
 | `tool_transactions` | Stock movements: in/out/adjust/damaged/to_sharpen/from_sharpen/retired |
 | `tool_usage_log` | Per-operation usage: tool + part + machine + operator + condition |
@@ -38,7 +56,9 @@ Added columns:
 - `brand_id` → FK tool_brands
 - `supplier_id` → FK suppliers (existing table)
 - `cabinet_id` → FK tool_cabinets
-- `drawer_slot` (VARCHAR) — e.g. "D3-S7"
+- `shelf_id` → FK tool_shelves *(migration 006)*
+- `box_id` → FK tool_boxes *(migration 006)*
+- `drawer_slot` (VARCHAR) — legacy, replaced by shelf/box hierarchy
 - `internal_code` — shop sticker / label
 - `tool_material` — HSS / Solid Carbide / Carbide Tipped / Ceramic / CBN / PCD
 - `coating` — Uncoated / TiN / TiCN / TiAlN / AlTiN / DLC / Other
@@ -57,10 +77,11 @@ Added columns:
 
 ```
 backend/
-  db/migrations/003_tool_manager.sql   ← one-time DDL migration
-  models/Tool.js                        ← data access layer
-  controllers/toolsController.js        ← request handlers
-  routes/tools.js                       ← Express router
+  db/migrations/003_tool_manager.sql        ← core DDL (tools, brands, categories, etc.)
+  db/migrations/006_storage_hierarchy.sql   ← Location > Cabinet > Shelf > Box hierarchy
+  models/Tool.js                             ← data access layer (all CRUD + hierarchy methods)
+  controllers/toolsController.js             ← request handlers
+  routes/tools.js                            ← Express router
 ```
 
 ### server.js changes
@@ -82,8 +103,22 @@ app.use('/api/tools', toolsRoutes);
 | GET | /api/tools/brands | 100+ | Brand list |
 | POST | /api/tools/brands | 400+ | Create brand |
 | PUT | /api/tools/brands/:id | 400+ | Update brand |
-| GET | /api/tools/cabinets | 100+ | Cabinet list |
+| GET | /api/tools/locations | 100+ | Location list |
+| POST | /api/tools/locations | 400+ | Create location |
+| PUT | /api/tools/locations/:id | 400+ | Update location |
+| DELETE | /api/tools/locations/:id | 400+ | Delete location |
+| GET | /api/tools/cabinets | 100+ | Cabinet list (filterable by ?location_id=) |
 | POST | /api/tools/cabinets | 400+ | Create cabinet |
+| PUT | /api/tools/cabinets/:id | 400+ | Update cabinet |
+| DELETE | /api/tools/cabinets/:id | 400+ | Delete cabinet |
+| GET | /api/tools/shelves | 100+ | Shelf list (filterable by ?cabinet_id=) |
+| POST | /api/tools/shelves | 400+ | Create shelf |
+| PUT | /api/tools/shelves/:id | 400+ | Update shelf |
+| DELETE | /api/tools/shelves/:id | 400+ | Delete shelf |
+| GET | /api/tools/boxes | 100+ | Box list (filterable by ?shelf_id=) |
+| POST | /api/tools/boxes | 400+ | Create box |
+| PUT | /api/tools/boxes/:id | 400+ | Update box |
+| DELETE | /api/tools/boxes/:id | 400+ | Delete box |
 | GET | /api/tools/:id | 100+ | Full tool detail |
 | PUT | /api/tools/:id | 400+ | Update tool |
 | DELETE | /api/tools/:id | 400+ | Retire tool (soft delete) |
@@ -114,18 +149,25 @@ frontend/
 
 1. **Stats row** — Total Active, Available, In Use, Low Stock, Out of Stock, Total Value
 2. **Tabs**
-   - Inventory — searchable/filterable table with all tools
+   - Inventory — searchable/filterable table with all tools; location column shows full hierarchy code (e.g. `LOC1-CAB2-SH3-BX1`)
    - Low Stock — alert table showing tools below minimum
    - Brands — reference table with edit
-   - Cabinets — storage cabinet reference with add
+   - Storage — 4 sub-tabs:
+     - **Locations** — top-level zones (code, name, description, cabinet count)
+     - **Cabinets** — cabinets per location (code, name, location badge, shelf count, tool count)
+     - **Shelves** — shelves per cabinet (filterable by cabinet; code, name, box count, tool count)
+     - **Boxes** — boxes per shelf (filterable by shelf; code, name, tool count)
 
 3. **Modals**
    - Tool Detail — full info + price history chart + transaction log
-   - Add/Edit Tool — all fields in organized grid sections
+   - Add/Edit Tool — cascade selects: Location → Cabinet → Shelf → Box; live Location Code preview
    - Stock In/Out — simple quantity + notes form
    - Add Price Record — date, price, supplier, PO/invoice
    - Add/Edit Brand — name, country, website
-   - Add Cabinet — code, name, location, drawers
+   - Add/Edit Location — code, name, description
+   - Add/Edit Cabinet — code, name, location (select)
+   - Add/Edit Shelf — code, name, cabinet (select)
+   - Add/Edit Box — code, name, shelf (select)
 
 ---
 
@@ -180,20 +222,25 @@ frontend/
 
 ## Migration
 
-Run once on server after deployment:
+Run migrations in order after each deployment:
 
 ```bash
-docker exec cnc-postgres psql -U cnc_user -d cnc_db \
-  -f /DATA/AppData/cnc-shop-floor-management/backend/db/migrations/003_tool_manager.sql
+# Migration 003 — core tool manager (run once at initial setup)
+docker exec cnc-postgres psql -U postgres -d cnc_shop_floor \
+  -f /tmp/003_tool_manager.sql
+
+# Migration 006 — storage hierarchy (Location > Cabinet > Shelf > Box)
+docker cp backend/db/migrations/006_storage_hierarchy.sql cnc-postgres:/tmp/006.sql
+docker exec cnc-postgres psql -U postgres -d cnc_shop_floor -f /tmp/006.sql
 ```
 
 ---
 
 ## Future Enhancements
 
-- Tool image upload (image_path column ready)
-- QR code label printing for cabinet drawers
-- Usage logging per operation (tool_usage_log table already created)
+- Tool image upload (`image_path` column ready)
+- QR code label printing for cabinet drawers / shelf labels
+- Usage logging per operation (`tool_usage_log` table already created)
 - Tool life percentage gauge in inventory table
 - Export to CSV / PDF for procurement
 - Supplier comparison chart (price over time by supplier)
