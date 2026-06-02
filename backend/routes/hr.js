@@ -8,7 +8,8 @@ router.get('/leave-types', authMiddleware, hr.getLeaveTypes);
 
 // Public holidays
 router.get('/public-holidays',      authMiddleware, hr.getPublicHolidays);
-router.post('/public-holidays',     authMiddleware, hr.createPublicHoliday);
+router.post('/public-holidays',       authMiddleware, hr.createPublicHoliday);
+router.put('/public-holidays/:id',    authMiddleware, hr.updatePublicHoliday);
 router.delete('/public-holidays/:id', authMiddleware, hr.deletePublicHoliday);
 
 // Leave balances

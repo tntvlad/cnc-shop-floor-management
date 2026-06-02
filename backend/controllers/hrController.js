@@ -88,6 +88,37 @@ const createPublicHoliday = async (req, res) => {
     }
 };
 
+// PUT /api/hr/public-holidays/:id  (admin only)
+const updatePublicHoliday = async (req, res) => {
+    try {
+        if (req.user.level < 500) return res.status(403).json({ success: false, error: 'Admin required' });
+        const { holiday_date, name } = req.body;
+        if (!holiday_date && !name) return res.status(400).json({ success: false, error: 'holiday_date or name required' });
+        const fields = [];
+        const params = [];
+        if (holiday_date) {
+            params.push(holiday_date);
+            fields.push(`holiday_date = $${params.length}`);
+            params.push(new Date(holiday_date).getFullYear());
+            fields.push(`year = $${params.length}`);
+        }
+        if (name) {
+            params.push(name);
+            fields.push(`name = $${params.length}`);
+        }
+        params.push(req.params.id);
+        const result = await db.query(
+            `UPDATE public_holidays SET ${fields.join(', ')} WHERE id = $${params.length} RETURNING *`,
+            params
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Not found' });
+        res.json({ success: true, holiday: result.rows[0] });
+    } catch (e) {
+        console.error('updatePublicHoliday', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+};
+
 // DELETE /api/hr/public-holidays/:id  (admin only)
 const deletePublicHoliday = async (req, res) => {
     try {
@@ -592,7 +623,7 @@ const getSummary = async (req, res) => {
 
 module.exports = {
     getLeaveTypes,
-    getPublicHolidays, createPublicHoliday, deletePublicHoliday,
+    getPublicHolidays, createPublicHoliday, updatePublicHoliday, deletePublicHoliday,
     getBalances, getMyBalance, updateBalance,
     getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
     getHours, getMyHours, logHours, updateHours, deleteHours,

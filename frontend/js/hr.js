@@ -20,6 +20,7 @@ let summaryCache     = null;
 let _reviewAction    = null; // {action:'approve'|'reject', leaveId}
 let _activeDayTab    = 'hours';
 let _selectedDate    = null;
+let _editHolidayId   = null;
 
 // ── Bootstrap ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -216,8 +217,21 @@ function openHoursModal() {
     document.getElementById('hours-modal').classList.add('active');
 }
 function openHolidayModal() {
+    _editHolidayId = null;
+    document.getElementById('ph-modal-title').textContent = 'Add Public Holiday';
+    document.getElementById('ph-save-btn').textContent = 'Add';
     document.getElementById('ph-date').value = '';
     document.getElementById('ph-name').value = '';
+    document.getElementById('holiday-modal').classList.add('active');
+}
+
+function openHolidayEdit(id, date, name) {
+    _editHolidayId = id;
+    document.getElementById('ph-modal-title').textContent = 'Edit Public Holiday';
+    document.getElementById('ph-save-btn').textContent = 'Save';
+    // date comes as ISO string e.g. "2026-01-01T00:00:00.000Z" — strip to date part
+    document.getElementById('ph-date').value = date.split('T')[0];
+    document.getElementById('ph-name').value = name;
     document.getElementById('holiday-modal').classList.add('active');
 }
 
@@ -595,8 +609,9 @@ async function renderHolidays() {
         tbody.innerHTML = holidaysCache.map(h => `<tr>
             <td>${fmtDate(h.holiday_date)}</td>
             <td>${escapeHtml(h.name)}</td>
-            <td>
-              <button class="btn-icon btn-danger btn-sm" onclick="deleteHoliday(${h.id})" title="Delete">🗑</button>
+            <td style="white-space:nowrap;">
+              <button class="btn-icon" onclick="openHolidayEdit(${h.id},'${h.holiday_date}','${escapeHtml(h.name).replace(/'/g, '&#39;')}')" title="Edit">✏️</button>
+              <button class="btn-icon" onclick="deleteHoliday(${h.id})" title="Delete" style="color:#dc2626;">🗑</button>
             </td>
         </tr>`).join('');
     } catch (e) {
@@ -609,10 +624,17 @@ async function saveHoliday() {
     const name = document.getElementById('ph-name').value.trim();
     if (!date || !name) { alert('Date and name are required'); return; }
     try {
-        await apiFetch('/public-holidays', {
-            method: 'POST',
-            body: JSON.stringify({ holiday_date: date, name })
-        });
+        if (_editHolidayId) {
+            await apiFetch(`/public-holidays/${_editHolidayId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ holiday_date: date, name })
+            });
+        } else {
+            await apiFetch('/public-holidays', {
+                method: 'POST',
+                body: JSON.stringify({ holiday_date: date, name })
+            });
+        }
         closeModal('holiday-modal');
         renderHolidays();
     } catch (e) {
