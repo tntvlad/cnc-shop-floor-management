@@ -618,11 +618,280 @@ const getSummary = async (req, res) => {
     }
 };
 
+// ── Export: EVIDENTA ORELOR DE MUNCA ───────────────────────────────────────
+
+// Maps leave_type code → Romanian attendance sheet code
+const LEAVE_CODE_MAP = {
+    annual:   'Co',
+    sick:     'Bo',
+    unpaid:   'Cfp',
+    personal: 'Ef',
+    holiday:  'S',
+    training: 'ST',
+};
+
+const exportAttendance = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
+
+        const XLSX = require('xlsx');
+
+        // Parse month param (YYYY-MM), default current month
+        const monthStr = req.query.month || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        const [year, month] = monthStr.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // Romanian month names
+        const RO_MONTHS = ['IANUARIE','FEBRUARIE','MARTIE','APRILIE','MAI','IUNIE',
+                           'IULIE','AUGUST','SEPTEMBRIE','OCTOMBRIE','NOIEMBRIE','DECEMBRIE'];
+        const monthName = RO_MONTHS[month - 1];
+
+        // Romanian day-of-week abbreviations (0=Sun)
+        const RO_DOW = ['Du','Lu','Ma','Mi','Jo','Vi','Sâ'];
+
+        // 1. Get all active employees
+        const empRes = await db.query(
+            `SELECT id, name, employee_id FROM users WHERE level >= 100 ORDER BY name`,
+            []
+        );
+        const employees = empRes.rows;
+
+        // 2. Get all work hours for the month
+        const hoursRes = await db.query(
+            `SELECT user_id, work_date, check_in, check_out, hours_worked, overtime_hours
+             FROM work_hours
+             WHERE work_date >= $1::date AND work_date < $1::date + INTERVAL '1 month'`,
+            [`${year}-${String(month).padStart(2, '0')}-01`]
+        );
+        // hoursMap[userId][dayNum] = record
+        const hoursMap = {};
+        hoursRes.rows.forEach(r => {
+            const day = new Date(r.work_date).getUTCDate();
+            if (!hoursMap[r.user_id]) hoursMap[r.user_id] = {};
+            hoursMap[r.user_id][day] = r;
+        });
+
+        // 3. Get approved leaves for the year
+        const leavesRes = await db.query(
+            `SELECT lr.user_id, lr.date_from, lr.date_to, lt.code AS leave_code
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             WHERE lr.status = 'approved'
+               AND EXTRACT(YEAR FROM lr.date_from) = $1`,
+            [year]
+        );
+        // leaveMap[userId][dayNum] = 'Co'|'Bo'|...
+        const leaveMap = {};
+        leavesRes.rows.forEach(r => {
+            const from = new Date(String(r.date_from).substring(0, 10) + 'T00:00:00');
+            const to   = new Date(String(r.date_to).substring(0, 10)   + 'T00:00:00');
+            const cur  = new Date(from);
+            while (cur <= to) {
+                if (cur.getFullYear() === year && cur.getMonth() + 1 === month) {
+                    const day = cur.getDate();
+                    if (!leaveMap[r.user_id]) leaveMap[r.user_id] = {};
+                    leaveMap[r.user_id][day] = LEAVE_CODE_MAP[r.leave_code] || r.leave_code;
+                }
+                cur.setDate(cur.getDate() + 1);
+            }
+        });
+
+        // 4. Get public holidays this month
+        const holRes = await db.query(
+            `SELECT holiday_date FROM public_holidays
+             WHERE year = $1 AND EXTRACT(MONTH FROM holiday_date) = $2`,
+            [year, month]
+        );
+        const holidayDays = new Set(holRes.rows.map(r => new Date(r.holiday_date).getUTCDate()));
+
+        // ── Build worksheet data ──────────────────────────────────────────────────
+        const rows = [];
+
+        // Row 1: blank
+        rows.push([]);
+
+        // Row 2: company + legend
+        rows.push(['SC FERO - PACT SRL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Co', '', 'conc.odihna', '', 'OI', '', 'ore intrerupere']);
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Bo', '', 'conc.boala', '', 'Cfp', '', 'Concediu fara plata']);
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Am', '', 'accid.munca', '', 'W', '', 'weekend']);
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'M', '', 'maternitate', '', 'N', '', 'abs.nemotivate']);
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'S', '', 'sarbatori, zile libere', '', 'Ef', '', 'evenim.fam.']);
+        rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'ST', '', 'somaj tehnic', '', 'Zlp', '', 'zile libere platite']);
+
+        // Row 8-9: title
+        const titleRow = new Array(47).fill('');
+        titleRow[15] = 'EVIDENTA ORELOR de MUNCA';
+        rows.push(titleRow);
+        const subtitleRow = new Array(47).fill('');
+        subtitleRow[15] = `pentru luna ${monthName} ${year}`;
+        rows.push(subtitleRow);
+
+        // Row 10: blank
+        rows.push([]);
+
+        // Row 11: column headers
+        const headerRow = ['Nr. crt.', 'Numele si prenumele', 'Data / Ora'];
+        for (let d = 1; d <= 31; d++) {
+            if (d === 16) headerRow.push('total ore  1-15');
+            headerRow.push(d <= daysInMonth ? String(d) : '');
+        }
+        headerRow.push('total ore lucrate', 'ore supliment.', 'ore de noapte', 'total ore nelucrate',
+                        'OI', 'Co - Zlp', 'Bo', 'Am', 'ST', 'Cfp', 'O', 'N', 'Ef');
+        rows.push(headerRow);
+
+        // Row 12: day-of-week names
+        const dowRow = ['', '', ''];
+        for (let d = 1; d <= 31; d++) {
+            if (d === 16) dowRow.push('');
+            if (d <= daysInMonth) {
+                const dow = new Date(year, month - 1, d).getDay();
+                dowRow.push(RO_DOW[dow]);
+            } else {
+                dowRow.push('');
+            }
+        }
+        rows.push(dowRow);
+
+        // Helper: format TIME value as "HH.MM"
+        const fmtTime = (t) => {
+            if (!t) return '';
+            const s = String(t);
+            const parts = s.split(':');
+            return `${parts[0]}.${parts[1] || '00'}`;
+        };
+
+        // Employee rows (2 per employee)
+        employees.forEach((emp, idx) => {
+            const uh = hoursMap[emp.id] || {};
+            const ul = leaveMap[emp.id] || {};
+
+            const incepRow = [idx + 1, emp.name, 'incep.'];
+            const termRow  = ['', '', 'term.'];
+
+            let totalHours1_15 = 0;
+            let totalHoursWorked = 0;
+            let totalOvertime = 0;
+            // Leave type counters
+            const leaveCounts = { Co: 0, Bo: 0, Am: 0, ST: 0, Cfp: 0, N: 0, Ef: 0 };
+
+            for (let d = 1; d <= 31; d++) {
+                if (d === 16) {
+                    incepRow.push(totalHours1_15 > 0 ? totalHours1_15.toFixed(2) : '');
+                    termRow.push('');
+                }
+                if (d > daysInMonth) {
+                    incepRow.push('');
+                    termRow.push('');
+                    continue;
+                }
+
+                const dow = new Date(year, month - 1, d).getDay();
+                const isWeekend = dow === 0 || dow === 6;
+                const isHoliday = holidayDays.has(d);
+                const leaveCode = ul[d];
+                const hoursRec  = uh[d];
+
+                if (isWeekend) {
+                    incepRow.push('');
+                    termRow.push('');
+                } else if (isHoliday && !leaveCode) {
+                    incepRow.push('S');
+                    termRow.push('S');
+                } else if (leaveCode) {
+                    incepRow.push(leaveCode);
+                    termRow.push(leaveCode);
+                    // Count leave days
+                    if (leaveCounts.hasOwnProperty(leaveCode)) leaveCounts[leaveCode]++;
+                    if (d <= 15) totalHours1_15 += 0;
+                } else if (hoursRec) {
+                    const ci = fmtTime(hoursRec.check_in);
+                    const co = fmtTime(hoursRec.check_out);
+                    incepRow.push(ci);
+                    termRow.push(co);
+                    const h = parseFloat(hoursRec.hours_worked) || 0;
+                    const ot = parseFloat(hoursRec.overtime_hours) || 0;
+                    if (d <= 15) totalHours1_15 += h;
+                    totalHoursWorked += h;
+                    totalOvertime    += ot;
+                } else {
+                    // Workday with no data logged — leave blank
+                    incepRow.push('');
+                    termRow.push('');
+                }
+            }
+
+            // Totals
+            incepRow.push(
+                totalHoursWorked > 0 ? totalHoursWorked.toFixed(2) : '',
+                totalOvertime > 0    ? totalOvertime.toFixed(2)    : '',
+                '', // ore de noapte — not tracked
+                '', // total ore nelucrate
+                '', // OI
+                leaveCounts.Co  > 0 ? leaveCounts.Co  : '',
+                leaveCounts.Bo  > 0 ? leaveCounts.Bo  : '',
+                leaveCounts.Am  > 0 ? leaveCounts.Am  : '',
+                leaveCounts.ST  > 0 ? leaveCounts.ST  : '',
+                leaveCounts.Cfp > 0 ? leaveCounts.Cfp : '',
+                '', // O
+                leaveCounts.N   > 0 ? leaveCounts.N   : '',
+                leaveCounts.Ef  > 0 ? leaveCounts.Ef  : ''
+            );
+            termRow.push(...new Array(13).fill(''));
+
+            rows.push(incepRow);
+            rows.push(termRow);
+        });
+
+        // Blank row
+        rows.push([]);
+
+        // ADMINISTRATOR row
+        const adminRow = new Array(47).fill('');
+        adminRow[18] = 'ADMINISTRATOR';
+        rows.push(adminRow);
+
+        rows.push([]);
+        rows.push([]);
+
+        // Legal text
+        rows.push([`Extras din CM-art.119(1) Angajatorul are obligatia de a tine la locul de munca evidenta orelor de munca prestate zilnic de fiecare salariat, cu evidertierea orelor de incepere si de sfarsit ale programului de lucru.`]);
+
+        // ── Create workbook ───────────────────────────────────────────────────────
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+
+        // Set column widths
+        ws['!cols'] = [
+            { wch: 5 },  // Nr.crt
+            { wch: 22 }, // Nume
+            { wch: 7 },  // Data/Ora
+            ...Array(32).fill({ wch: 6 }),  // days + subtotal
+            { wch: 13 }, // total ore lucrate
+            { wch: 10 }, // ore supliment
+            { wch: 10 }, // ore de noapte
+            { wch: 12 }, // total nelucrate
+            ...Array(9).fill({ wch: 5 }),   // leave counters
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'FERO');
+
+        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="EVIDENTA-${monthName}-${year}.xlsx"`);
+        res.send(buf);
+
+    } catch (e) {
+        console.error('exportAttendance', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+};
+
 module.exports = {
     getLeaveTypes,
     getPublicHolidays, createPublicHoliday, updatePublicHoliday, deletePublicHoliday,
     getBalances, getMyBalance, updateBalance,
     getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
     getHours, getMyHours, logHours, updateHours, deleteHours,
-    getSummary,
+    getSummary, exportAttendance,
 };

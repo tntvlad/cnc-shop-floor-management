@@ -35,4 +35,7 @@ router.delete('/hours/:id', authMiddleware, hr.deleteHours);
 // Summary
 router.get('/summary', authMiddleware, hr.getSummary);
 
+// Export attendance sheet (EVIDENTA ORELOR DE MUNCA)
+router.get('/export', authMiddleware, hr.exportAttendance);
+
 module.exports = router;

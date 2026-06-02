@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentUser.level >= 400) {
         document.getElementById('tab-btn-team').style.display   = '';
         document.getElementById('tab-btn-leaves').style.display = '';
+        document.getElementById('export-btn').style.display     = '';
     }
     if (currentUser.level >= 500) {
         document.getElementById('tab-btn-settings').style.display = '';
@@ -679,4 +680,29 @@ function fmtDate(val) {
     const d = new Date(val);
     if (isNaN(d)) return val;
     return d.toLocaleDateString('default', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// ── Export attendance sheet ────────────────────────────────────
+async function exportAttendanceSheet() {
+    const monthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+    const token = localStorage.getItem('cnc_auth_token');
+    try {
+        const res = await fetch(`${BASE_URL}/export?month=${monthStr}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert('Export failed: ' + (err.error || res.statusText));
+            return;
+        }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `EVIDENTA-${monthStr}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Export error: ' + e.message);
+    }
 }
