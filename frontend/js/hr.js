@@ -112,12 +112,12 @@ async function loadAll() {
             const monthStr = document.getElementById('team-month').value || `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
             const [summRes, usersRes, balRes, allLeavesRes] = await Promise.all([
                 apiFetch(`/summary?month=${monthStr}`),
-                fetch(`http://${location.hostname}:5000/api/admin/users`, { headers: authHeader() }).then(r => r.json()),
+                fetch(`http://${location.hostname}:5000/api/auth/users`, { headers: authHeader() }).then(r => r.json()),
                 apiFetch(`/balances?year=${currentYear}`),
                 apiFetch(`/leaves?year=${currentYear}`),
             ]);
             summaryCache   = summRes.summary || [];
-            allUsers       = (usersRes.users || []).filter(u => u.is_active && u.level >= 100);
+            allUsers       = (usersRes.users || []).filter(u => u.level >= 100);
             balancesCache  = balRes.balances || [];
             allLeavesCache = allLeavesRes.leaves || [];
 
