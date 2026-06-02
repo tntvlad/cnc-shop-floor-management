@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR Attendance - CNC Shop Floor</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .hr-container { max-width: 1400px; margin: 0 auto; }
+
+    /* ── Tabs ── */
+    .hr-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .hr-tab-btn {
+      padding: 0.6rem 1.2rem; border: none; border-radius: 6px;
+      background: #e2e8f0; color: #475569; cursor: pointer;
+      font-size: 0.95rem; font-weight: 600; transition: all 0.2s;
+    }
+    .hr-tab-btn.active { background: #667eea; color: #fff; }
+    .hr-tab-btn:hover:not(.active) { background: #cbd5e1; }
+    .hr-tab-content { display: none; }
+    .hr-tab-content.active { display: block; }
+
+    /* ── Header row ── */
+    .hr-header-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .month-nav { display: flex; align-items: center; gap: 0.5rem; }
+    .month-nav button {
+      background: none; border: 1px solid #cbd5e1; border-radius: 6px;
+      padding: 0.4rem 0.75rem; cursor: pointer; font-size: 1rem; color: #475569;
+    }
+    .month-nav button:hover { background: #e2e8f0; }
+    .month-label { font-size: 1.15rem; font-weight: 700; color: #1e293b; min-width: 160px; text-align: center; }
+
+    /* ── Calendar ── */
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .cal-header {
+      text-align: center; padding: 0.4rem; font-size: 0.8rem;
+      font-weight: 700; color: #64748b; text-transform: uppercase;
+    }
+    .cal-day {
+      min-height: 80px; border-radius: 8px; padding: 0.4rem 0.5rem;
+      background: #fff; border: 1px solid #e2e8f0; cursor: pointer;
+      transition: all 0.15s; position: relative;
+    }
+    .cal-day:hover { border-color: #667eea; background: #f0f4ff; }
+    .cal-day.today { border-color: #667eea; border-width: 2px; }
+    .cal-day.other-month { opacity: 0.35; cursor: default; }
+    .cal-day.other-month:hover { border-color: #e2e8f0; background: #fff; }
+    .cal-day.weekend { background: #f8fafc; }
+    .cal-day.holiday { background: #eff6ff; }
+    .cal-day-num { font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 0.3rem; }
+    .cal-day.today .cal-day-num { color: #667eea; }
+    .cal-chip {
+      display: inline-block; padding: 0.12rem 0.4rem; border-radius: 4px;
+      font-size: 0.7rem; font-weight: 700; margin-bottom: 2px; width: 100%;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .chip-hours { background: #dbeafe; color: #1e40af; }
+    .chip-leave { color: #fff; }
+    .chip-holiday { background: #eff6ff; color: #1d4ed8; }
+
+    /* ── Summary bar ── */
+    .cal-summary {
+      display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+    }
+    .cal-sum-card {
+      background: #fff; border-radius: 8px; padding: 0.75rem 1.25rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.07); flex: 1; min-width: 110px;
+      text-align: center;
+    }
+    .cal-sum-num { font-size: 1.6rem; font-weight: 700; color: #667eea; }
+    .cal-sum-lbl { font-size: 0.75rem; color: #64748b; }
+
+    /* ── Team table ── */
+    .hr-table-wrap { overflow-x: auto; }
+    .hr-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .hr-table thead { background: #f8f9fa; }
+    .hr-table th {
+      padding: 0.75rem 1rem; text-align: left; font-weight: 600;
+      color: #374151; border-bottom: 2px solid #e2e8f0; white-space: nowrap;
+    }
+    .hr-table td {
+      padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+    }
+
+    /* ── Status badges ── */
+    .leave-badge {
+      display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .status-pending   { background: #fef3c7; color: #92400e; }
+    .status-approved  { background: #d1fae5; color: #065f46; }
+    .status-rejected  { background: #fee2e2; color: #991b1b; }
+    .status-cancelled { background: #f1f5f9; color: #64748b; }
+
+    /* ── Modal ── */
+    .modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #fff; border-radius: 10px; padding: 2rem;
+      max-width: 520px; width: 95%; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-header h2 { margin: 0; font-size: 1.2rem; color: #1e293b; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; padding: 0; line-height: 1; }
+    .modal-close:hover { color: #1e293b; }
+    .modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+    .modal-tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border-bottom: 2px solid #e2e8f0; }
+    .modal-tab-btn { padding: 0.5rem 1rem; background: none; border: none; font-size: 0.9rem; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .modal-tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
+
+    /* ── Forms ── */
+    .form-group { display: flex; flex-direction: column; margin-bottom: 0.75rem; }
+    .form-group label { font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 0.3rem; }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 0.6rem 0.75rem; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 0.9rem; font-family: inherit; background: #fff; color: #1e293b;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+    }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+
+    /* ── Buttons ── */
+    .btn-primary   { padding: 0.6rem 1.25rem; background: #667eea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-primary:hover { background: #5568d3; }
+    .btn-success   { padding: 0.6rem 1.25rem; background: #16a34a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger    { padding: 0.6rem 1.25rem; background: #dc2626; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-secondary { padding: 0.6rem 1.25rem; background: #64748b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-sm { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+    .btn-icon { background: none; border: none; cursor: pointer; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 1rem; }
+    .btn-icon:hover { background: #e2e8f0; }
+
+    /* ── Section header ── */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .section-header h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1.25rem; }
+    .filter-bar input, .filter-bar select {
+      padding: 0.55rem 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; background: #fff;
+    }
+
+    /* ── Balance bar ── */
+    .balance-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .balance-bar { height: 8px; width: 80px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+    .balance-bar-fill { height: 100%; border-radius: 4px; }
+    .bal-ok   { background: #16a34a; }
+    .bal-low  { background: #d97706; }
+    .bal-over { background: #dc2626; }
+
+    /* ── Holiday badge ── */
+    .holiday-name { font-size: 0.7rem; color: #1d4ed8; font-style: italic; }
+
+    /* ── DARK THEME ── */
+    html[data-theme="dark"] .cal-day { background: #1e293b; border-color: #334155; }
+    html[data-theme="dark"] .cal-day:hover { background: #334155; }
+    html[data-theme="dark"] .cal-day.weekend { background: #0f172a; }
+    html[data-theme="dark"] .cal-day.holiday { background: #1e3a5f; }
+    html[data-theme="dark"] .cal-day-num { color: #f1f5f9; }
+    html[data-theme="dark"] .cal-sum-card { background: #1e293b; }
+    html[data-theme="dark"] .cal-sum-lbl { color: #94a3b8; }
+    html[data-theme="dark"] .month-label { color: #f1f5f9; }
+    html[data-theme="dark"] .month-nav button { border-color: #334155; color: #94a3b8; }
+    html[data-theme="dark"] .month-nav button:hover { background: #334155; }
+    html[data-theme="dark"] .hr-tab-btn { background: #334155; color: #94a3b8; }
+    html[data-theme="dark"] .hr-tab-btn.active { background: #667eea; color: #fff; }
+    html[data-theme="dark"] .hr-table thead { background: #0f172a; }
+    html[data-theme="dark"] .hr-table th { color: #f1f5f9; border-bottom-color: #334155; }
+    html[data-theme="dark"] .hr-table td { border-bottom-color: #1e293b; color: #f1f5f9; }
+    html[data-theme="dark"] .modal-content { background: #1e293b; }
+    html[data-theme="dark"] .modal-header h2 { color: #f1f5f9; }
+    html[data-theme="dark"] .modal-footer { border-top-color: #334155; }
+    html[data-theme="dark"] .form-group label { color: #cbd5e1; }
+    html[data-theme="dark"] .form-group input,
+    html[data-theme="dark"] .form-group select,
+    html[data-theme="dark"] .form-group textarea { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    html[data-theme="dark"] .section-header h3 { color: #f1f5f9; }
+    html[data-theme="dark"] .filter-bar input,
+    html[data-theme="dark"] .filter-bar select { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    html[data-theme="dark"] .balance-bar { background: #334155; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <nav class="navbar">
+    <div class="nav-left">
+      <h1>👥 HR Attendance</h1>
+    </div>
+    <div class="nav-right">
+      <button class="btn-nav" onclick="navigateTo('index.html')">← Dashboard</button>
+      <span class="user-btn" id="user-btn" onclick="navigateTo('user-preferences.html')" style="cursor:pointer"></span>
+      <button class="btn-nav" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="hr-container">
+
+      <!-- Header row: month nav + actions -->
+      <div class="hr-header-row">
+        <div class="month-nav">
+          <button onclick="prevMonth()">&#8249;</button>
+          <span class="month-label" id="month-label">—</span>
+          <button onclick="nextMonth()">&#8250;</button>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="btn-primary" onclick="openLeaveModal()">+ Request Leave</button>
+          <button class="btn-success" onclick="openHoursModal()">+ Log Hours</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="hr-tabs" id="hr-tabs">
+        <button class="hr-tab-btn active" onclick="switchHrTab('calendar')" id="tab-btn-calendar">📅 My Calendar</button>
+        <button class="hr-tab-btn" onclick="switchHrTab('team')" id="tab-btn-team" style="display:none;">👥 Team Overview</button>
+        <button class="hr-tab-btn" onclick="switchHrTab('leaves')" id="tab-btn-leaves" style="display:none;">📋 Leave Requests</button>
+        <button class="hr-tab-btn" onclick="switchHrTab('settings')" id="tab-btn-settings" style="display:none;">⚙️ Settings</button>
+      </div>
+
+      <!-- ══════════════ TAB 1: My Calendar ══════════════ -->
+      <div class="hr-tab-content active" id="tab-calendar">
+
+        <!-- Summary bar -->
+        <div class="cal-summary" id="cal-summary">
+          <div class="cal-sum-card"><div class="cal-sum-num" id="sum-hours">—</div><div class="cal-sum-lbl">Hours This Month</div></div>
+          <div class="cal-sum-card"><div class="cal-sum-num" id="sum-ot">—</div><div class="cal-sum-lbl">Overtime</div></div>
+          <div class="cal-sum-card"><div class="cal-sum-num" id="sum-days-logged">—</div><div class="cal-sum-lbl">Days Logged</div></div>
+          <div class="cal-sum-card"><div class="cal-sum-num" id="sum-leave-used">—</div><div class="cal-sum-lbl">Annual Used</div></div>
+          <div class="cal-sum-card"><div class="cal-sum-num" id="sum-leave-remaining">—</div><div class="cal-sum-lbl">Annual Remaining</div></div>
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="calendar-grid" id="calendar-grid">
+          <div class="cal-header">Mon</div>
+          <div class="cal-header">Tue</div>
+          <div class="cal-header">Wed</div>
+          <div class="cal-header">Thu</div>
+          <div class="cal-header">Fri</div>
+          <div class="cal-header">Sat</div>
+          <div class="cal-header">Sun</div>
+          <!-- Day cells rendered by JS -->
+        </div>
+
+      </div>
+
+      <!-- ══════════════ TAB 2: Team Overview ══════════════ -->
+      <div class="hr-tab-content" id="tab-team">
+        <div class="filter-bar">
+          <input type="month" id="team-month" onchange="renderTeamOverview()">
+        </div>
+        <div class="hr-table-wrap">
+          <table class="hr-table" id="team-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Days Logged</th>
+                <th>Total Hours</th>
+                <th>Overtime</th>
+                <th>Annual Used</th>
+                <th>Annual Left</th>
+                <th>Sick Days</th>
+                <th>Other Leave</th>
+              </tr>
+            </thead>
+            <tbody id="team-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════ TAB 3: Leave Requests ══════════════ -->
+      <div class="hr-tab-content" id="tab-leaves">
+        <div class="section-header">
+          <h3>Pending Requests</h3>
+          <div class="filter-bar" style="margin:0;">
+            <select id="leave-filter-user" onchange="renderLeaveRequests()">
+              <option value="">All Employees</option>
+            </select>
+            <select id="leave-filter-year" onchange="renderLeaveRequests()">
+            </select>
+          </div>
+        </div>
+        <div class="hr-table-wrap">
+          <table class="hr-table" id="leave-pending-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Days</th>
+                <th>Notes</th>
+                <th>Submitted</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="leave-pending-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-header" style="margin-top:2rem;">
+          <h3>Leave History</h3>
+        </div>
+        <div class="hr-table-wrap">
+          <table class="hr-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th>Reviewed By</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="leave-history-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════ TAB 4: Settings ══════════════ -->
+      <div class="hr-tab-content" id="tab-settings">
+        <div class="section-header">
+          <h3>Leave Allowances</h3>
+        </div>
+        <div class="hr-table-wrap" style="margin-bottom:2rem;">
+          <table class="hr-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Year</th>
+                <th>Total Days</th>
+                <th>Used</th>
+                <th>Carried Over</th>
+                <th>Remaining</th>
+                <th>Edit</th>
+              </tr>
+            </thead>
+            <tbody id="settings-balance-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-header">
+          <h3>Public Holidays</h3>
+          <button class="btn-primary btn-sm" onclick="openHolidayModal()">+ Add Holiday</button>
+        </div>
+        <div class="filter-bar">
+          <select id="holiday-year-filter" onchange="renderHolidays()">
+          </select>
+        </div>
+        <div class="hr-table-wrap">
+          <table class="hr-table">
+            <thead>
+              <tr><th>Date</th><th>Name</th><th></th></tr>
+            </thead>
+            <tbody id="holidays-tbody">
+              <tr><td colspan="3" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- .hr-container -->
+  </main>
+</div>
+
+<!-- ══════════════ MODAL: Day details / Log hours ══════════════ -->
+<div class="modal" id="day-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="day-modal-title">—</h2>
+      <button class="modal-close" onclick="closeModal('day-modal')">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab-btn active" onclick="switchDayTab('hours')" id="day-tab-hours">⏱ Hours</button>
+      <button class="modal-tab-btn" onclick="switchDayTab('leave')" id="day-tab-leave">🏖 Leave</button>
+    </div>
+
+    <!-- Hours sub-form -->
+    <div id="day-hours-form">
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Hours Worked</label>
+          <input type="number" id="dh-hours" min="0" max="24" step="0.5" placeholder="8">
+        </div>
+        <div class="form-group">
+          <label>Overtime Hours</label>
+          <input type="number" id="dh-ot" min="0" max="24" step="0.5" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Check In</label>
+          <input type="time" id="dh-checkin">
+        </div>
+        <div class="form-group">
+          <label>Check Out</label>
+          <input type="time" id="dh-checkout">
+        </div>
+      </div>
+      <div class="form-group" id="dh-user-group" style="display:none;">
+        <label>Employee (supervisor override)</label>
+        <select id="dh-user">
+          <option value="">— My Record —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="dh-notes" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- Leave sub-form -->
+    <div id="day-leave-form" style="display:none;">
+      <div class="form-group">
+        <label>Leave Type</label>
+        <select id="dl-type"></select>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>From</label>
+          <input type="date" id="dl-from">
+        </div>
+        <div class="form-group">
+          <label>To</label>
+          <input type="date" id="dl-to">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="dl-notes" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary btn-sm" onclick="closeModal('day-modal')">Cancel</button>
+      <button class="btn-primary btn-sm" id="day-modal-save" onclick="saveDayModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: Quick Leave Request ══════════════ -->
+<div class="modal" id="leave-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Request Leave</h2>
+      <button class="modal-close" onclick="closeModal('leave-modal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label>Leave Type</label>
+      <select id="lm-type"></select>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>From</label>
+        <input type="date" id="lm-from">
+      </div>
+      <div class="form-group">
+        <label>To</label>
+        <input type="date" id="lm-to">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="lm-notes" rows="2"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('leave-modal')">Cancel</button>
+      <button class="btn-primary" onclick="submitLeaveModal()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: Quick Hours Log ══════════════ -->
+<div class="modal" id="hours-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Log Hours</h2>
+      <button class="modal-close" onclick="closeModal('hours-modal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="hm-date">
+    </div>
+    <div class="form-group" id="hm-user-group" style="display:none;">
+      <label>Employee (supervisor)</label>
+      <select id="hm-user"><option value="">— Me —</option></select>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Hours Worked</label>
+        <input type="number" id="hm-hours" min="0" max="24" step="0.5" value="8">
+      </div>
+      <div class="form-group">
+        <label>Overtime</label>
+        <input type="number" id="hm-ot" min="0" max="24" step="0.5" value="0">
+      </div>
+      <div class="form-group">
+        <label>Check In</label>
+        <input type="time" id="hm-checkin">
+      </div>
+      <div class="form-group">
+        <label>Check Out</label>
+        <input type="time" id="hm-checkout">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="hm-notes" rows="2"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('hours-modal')">Cancel</button>
+      <button class="btn-success" onclick="submitHoursModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: Edit Balance ══════════════ -->
+<div class="modal" id="balance-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Edit Leave Balance</h2>
+      <button class="modal-close" onclick="closeModal('balance-modal')">&times;</button>
+    </div>
+    <input type="hidden" id="bm-user-id">
+    <input type="hidden" id="bm-year">
+    <div class="form-group">
+      <label id="bm-employee-label">Employee</label>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Total Days Allowed</label>
+        <input type="number" id="bm-total" min="0" max="365" step="0.5">
+      </div>
+      <div class="form-group">
+        <label>Carried Over</label>
+        <input type="number" id="bm-carried" min="0" max="100" step="0.5">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('balance-modal')">Cancel</button>
+      <button class="btn-primary" onclick="saveBalance()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: Add Holiday ══════════════ -->
+<div class="modal" id="holiday-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Add Public Holiday</h2>
+      <button class="modal-close" onclick="closeModal('holiday-modal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="ph-date">
+    </div>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="ph-name" placeholder="Holiday name">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('holiday-modal')">Cancel</button>
+      <button class="btn-primary" onclick="saveHoliday()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: Approve/Reject ══════════════ -->
+<div class="modal" id="review-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="review-modal-title">Review Leave</h2>
+      <button class="modal-close" onclick="closeModal('review-modal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label>Review Notes (optional)</label>
+      <textarea id="rm-notes" rows="3"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('review-modal')">Cancel</button>
+      <button class="btn-primary" id="rm-confirm-btn" onclick="confirmReview()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/hr.js"></script>
+</body>
+</html>

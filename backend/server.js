@@ -24,6 +24,8 @@ const customersController = require('./controllers/customersController');
 
 // Tool manager routes
 const toolsRoutes = require('./routes/tools');
+// HR attendance routes
+const hrRoutes = require('./routes/hr');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -425,7 +427,9 @@ app.get('/api/client-folders/suggest', authMiddleware, requireSupervisor(), cust
 // ======================== MACHINES ROUTES ========================
 app.get('/api/machines/:id', authMiddleware, machinesController.getMachine);
 // ======================== TOOLS ROUTES ========================
-app.use('/api/tools', toolsRoutes);app.post('/api/machines', authMiddleware, requireSupervisor(), validateRequest(schemas.createMachine), machinesController.createMachine);
+app.use('/api/tools', toolsRoutes);
+app.use('/api/hr', hrRoutes);
+app.post('/api/machines', authMiddleware, requireSupervisor(), validateRequest(schemas.createMachine), machinesController.createMachine);
 app.put('/api/machines/:id', authMiddleware, requireSupervisor(), validateRequest(schemas.updateMachine), machinesController.updateMachine);
 app.delete('/api/machines/:id', authMiddleware, requireSupervisor(), machinesController.deleteMachine);
 app.post('/api/machines/:id/assign', authMiddleware, requireSupervisor(), validateRequest(schemas.assignMachineJob), machinesController.assignJob);

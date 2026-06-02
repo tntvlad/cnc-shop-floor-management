@@ -41,6 +41,7 @@ function loadUserInfo() {
   const ordersLink = document.getElementById('ordersLink');
   const financialLink = document.getElementById('financialLink');
   const toolsLink = document.getElementById('toolsLink');
+  const hrLink = document.getElementById('hrLink');
   const isSupervisorPlus = (typeof user.level === 'number' && user.level >= 400)
     || (user.role && (user.role === 'admin' || user.role === 'supervisor'));
   if (isSupervisorPlus) {
@@ -49,9 +50,10 @@ function loadUserInfo() {
     if (ordersLink) ordersLink.style.display = 'inline-block';
   }
 
-  // Show tools link for level 100+ (CNC Operator and above)
+  // Show tools and HR links for level 100+ (CNC Operator and above)
   if (user && user.level >= 100) {
     if (toolsLink) toolsLink.style.display = 'inline-block';
+    if (hrLink) hrLink.style.display = 'inline-block';
   }
 
   // Show financial dashboard link for level 500 (Admin) users
