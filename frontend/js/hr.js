@@ -22,6 +22,14 @@ let _activeDayTab    = 'hours';
 let _selectedDate    = null;
 let _editHolidayId   = null;
 
+// ── Date helper (local timezone, avoids UTC-shift bug) ──────────
+function toLocalISO(d) {
+    if (!d) return '';
+    const dt = (d instanceof Date) ? d : new Date(d);
+    if (isNaN(dt)) return String(d).split('T')[0];
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     ensureAuthed();
@@ -200,14 +208,14 @@ function closeModal(id) {
     document.getElementById(id).classList.remove('active');
 }
 function openLeaveModal() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalISO(new Date());
     document.getElementById('lm-from').value = today;
     document.getElementById('lm-to').value   = today;
     document.getElementById('lm-notes').value = '';
     document.getElementById('leave-modal').classList.add('active');
 }
 function openHoursModal() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalISO(new Date());
     document.getElementById('hm-date').value     = today;
     document.getElementById('hm-hours').value    = 8;
     document.getElementById('hm-ot').value       = 0;
@@ -229,8 +237,7 @@ function openHolidayEdit(id, date, name) {
     _editHolidayId = id;
     document.getElementById('ph-modal-title').textContent = 'Edit Public Holiday';
     document.getElementById('ph-save-btn').textContent = 'Save';
-    // date comes as ISO string e.g. "2026-01-01T00:00:00.000Z" — strip to date part
-    document.getElementById('ph-date').value = date.split('T')[0];
+    document.getElementById('ph-date').value = toLocalISO(date);
     document.getElementById('ph-name').value = name;
     document.getElementById('holiday-modal').classList.add('active');
 }
@@ -243,25 +250,25 @@ function renderCalendar() {
 
     const firstDay = new Date(currentYear, currentMonth - 1, 1);
     const lastDay  = new Date(currentYear, currentMonth, 0);
-    const today    = new Date().toISOString().split('T')[0];
+    const today    = toLocalISO(new Date());
 
     // Build lookup maps
     const hoursMap    = {};
-    hoursCache.forEach(h => { hoursMap[h.work_date.split('T')[0]] = h; });
+    hoursCache.forEach(h => { hoursMap[toLocalISO(h.work_date)] = h; });
 
     const leavesMap   = {};
     leavesCache.filter(l => l.status === 'approved').forEach(l => {
-        const from = new Date(l.date_from);
-        const to   = new Date(l.date_to);
+        const from = new Date(toLocalISO(l.date_from) + 'T00:00:00');
+        const to   = new Date(toLocalISO(l.date_to)   + 'T00:00:00');
         const cur  = new Date(from);
         while (cur <= to) {
-            leavesMap[cur.toISOString().split('T')[0]] = l;
+            leavesMap[toLocalISO(cur)] = l;
             cur.setDate(cur.getDate() + 1);
         }
     });
 
     const holidayMap  = {};
-    holidaysCache.forEach(h => { holidayMap[h.holiday_date.split('T')[0]] = h.name; });
+    holidaysCache.forEach(h => { holidayMap[toLocalISO(h.holiday_date)] = h.name; });
 
     // Find Monday before first day (ISO week starts Monday)
     let dow = firstDay.getDay(); // 0=Sun
@@ -273,7 +280,7 @@ function renderCalendar() {
     for (let i = 0; i < 42; i++) {
         const cur  = new Date(startDate);
         cur.setDate(startDate.getDate() + i);
-        const iso  = cur.toISOString().split('T')[0];
+        const iso  = toLocalISO(cur);
         const isCurrentMonth = cur.getMonth() + 1 === currentMonth;
         const isToday   = iso === today;
         const isWeekend = cur.getDay() === 0 || cur.getDay() === 6;
