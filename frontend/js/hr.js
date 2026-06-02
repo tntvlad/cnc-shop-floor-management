@@ -23,7 +23,8 @@ let _selectedDate    = null;
 
 // ── Bootstrap ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    currentUser = await initPage(); // from auth.js – returns user or redirects
+    ensureAuthed();
+    currentUser = getUser();
     if (!currentUser) return;
 
     document.getElementById('user-btn').textContent = currentUser.name || currentUser.username;
