@@ -25,9 +25,14 @@ let _editHolidayId   = null;
 // ── Date helper (local timezone, avoids UTC-shift bug) ──────────
 function toLocalISO(d) {
     if (!d) return '';
-    const dt = (d instanceof Date) ? d : new Date(d);
-    if (isNaN(dt)) return String(d).split('T')[0];
-    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    // JS Date objects: use local time components (avoids UTC-shift)
+    if (d instanceof Date) {
+        if (isNaN(d)) return '';
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    // DB date strings ("2026-06-01" or "2026-06-01T00:00:00.000Z"):
+    // never parse as Date — just take the first 10 chars
+    return String(d).substring(0, 10);
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────
