@@ -552,7 +552,7 @@ async function renderSettingsBalances() {
         balancesCache = res.balances || [];
         const tbody = document.getElementById('settings-balance-tbody');
         if (!balancesCache.length) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
             return;
         }
         tbody.innerHTML = balancesCache.map(b => {
@@ -560,6 +560,7 @@ async function renderSettingsBalances() {
             const remaining = Math.max(0, total - parseFloat(b.used_days));
             const pct = total > 0 ? (parseFloat(b.used_days) / total) * 100 : 0;
             const cls = pct < 50 ? 'bal-ok' : pct < 80 ? 'bal-low' : 'bal-over';
+            const inAtt = b.include_in_attendance !== false;
             return `<tr>
                 <td>${escapeHtml(b.employee_name)}</td>
                 <td>${b.year}</td>
@@ -572,6 +573,11 @@ async function renderSettingsBalances() {
                 </td>
                 <td>${parseFloat(b.carried_over || 0).toFixed(1)}</td>
                 <td>${remaining.toFixed(1)}</td>
+                <td style="text-align:center;">
+                  <button class="btn-icon" title="${inAtt ? 'Included — click to exclude' : 'Excluded — click to include'}"
+                    onclick="toggleAttendance(${b.user_id}, ${inAtt})"
+                    style="font-size:1.1rem;">${inAtt ? '✅' : '🚫'}</button>
+                </td>
                 <td>
                   <button class="btn-icon" title="Edit" onclick="openBalanceEdit(${b.user_id},${b.year},'${escapeHtml(b.employee_name)}',${b.total_days},${b.carried_over || 0})">✏️</button>
                 </td>
@@ -602,6 +608,18 @@ async function saveBalance() {
             body: JSON.stringify({ year: parseInt(year), total_days: total, carried_over: carried })
         });
         closeModal('balance-modal');
+        renderSettingsBalances();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function toggleAttendance(userId, currentValue) {
+    try {
+        await apiFetch(`/employees/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ include_in_attendance: !currentValue })
+        });
         renderSettingsBalances();
     } catch (e) {
         alert('Error: ' + e.message);

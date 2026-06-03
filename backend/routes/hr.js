@@ -38,4 +38,7 @@ router.get('/summary', authMiddleware, hr.getSummary);
 // Export attendance sheet (EVIDENTA ORELOR DE MUNCA)
 router.get('/export', authMiddleware, hr.exportAttendance);
 
+// Employee settings (include_in_attendance etc.)
+router.put('/employees/:id', authMiddleware, hr.updateEmployee);
+
 module.exports = router;

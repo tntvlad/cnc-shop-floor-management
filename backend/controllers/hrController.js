@@ -144,7 +144,7 @@ const getBalances = async (req, res) => {
         for (const u of users.rows) await ensureBalance(u.id, year);
 
         const result = await db.query(
-            `SELECT b.*, u.name AS employee_name, u.employee_id, u.level
+            `SELECT b.*, u.name AS employee_name, u.employee_id, u.level, u.include_in_attendance
              FROM employee_leave_balance b
              JOIN users u ON b.user_id = u.id
              WHERE b.year = $1 AND u.is_active = true
@@ -668,7 +668,7 @@ const exportAttendance = async (req, res) => {
         const RO_DOW    = ['Du','Lu','Ma','Mi','Jo','Vi','Sâ'];
 
         // â”€â”€ DB queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        const empRes = await db.query(`SELECT id, name FROM users WHERE level >= 100 ORDER BY name`);
+        const empRes = await db.query(`SELECT id, name FROM users WHERE level >= 100 AND is_active = true AND include_in_attendance = true ORDER BY name`);
         const employees = empRes.rows;
 
         const hoursRes = await db.query(
@@ -1048,12 +1048,30 @@ const exportAttendance = async (req, res) => {
     }
 };
 
+// PUT /api/hr/employees/:id  — toggle include_in_attendance (supervisor+)
+const updateEmployee = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
+        const { include_in_attendance } = req.body;
+        if (typeof include_in_attendance !== 'boolean') return res.status(400).json({ success: false, error: 'include_in_attendance must be boolean' });
+        const result = await db.query(
+            `UPDATE users SET include_in_attendance = $1 WHERE id = $2 RETURNING id, name, include_in_attendance`,
+            [include_in_attendance, req.params.id]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'User not found' });
+        res.json({ success: true, user: result.rows[0] });
+    } catch (e) {
+        console.error('updateEmployee', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+};
+
 module.exports = {
     getLeaveTypes,
     getPublicHolidays, createPublicHoliday, updatePublicHoliday, deletePublicHoliday,
     getBalances, getMyBalance, updateBalance,
     getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
     getHours, getMyHours, logHours, updateHours, deleteHours,
-    getSummary, exportAttendance,
+    getSummary, exportAttendance, updateEmployee,
 };
 
