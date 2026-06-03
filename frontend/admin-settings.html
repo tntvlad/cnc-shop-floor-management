@@ -782,7 +782,6 @@
             <a href="index.html" class="nav-btn">📊 Dashboard</a>
             <a href="supervisor.html" id="supervisorLink" class="nav-btn">🗂️ Supervisor</a>
             <a href="financial-dashboard.html" id="financialLink" class="nav-btn">💰 Financial</a>
-            <a href="tools.html" id="toolsLink" class="nav-btn">🔧 Tools</a>
             <a href="admin-settings.html" id="adminLink" class="nav-btn active">⚙️ Admin</a>
             <span class="user-btn" onclick="window.location.href='user-preferences.html'" style="cursor:pointer;" title="Preferences">👤 <span id="userName">Loading...</span></span>
             <button class="settings-gear-btn" onclick="openGitSettings()" title="Version Control & Backup">⚙</button>
@@ -1100,15 +1099,13 @@
                 </div>
             </div>
 
-            <!-- TOOLS TAB (Placeholder) -->
+            <!-- TOOLS TAB -->
             <div id="admin-tab-tools" class="admin-tab-content">
-                <div class="settings-card">
-                    <div class="placeholder-content">
-                        <div class="icon">🛠️</div>
-                        <h3>Tools Management</h3>
-                        <p>Coming soon! This section will allow you to manage CNC tools, drill bits, cutters, and other tooling inventory.</p>
-                    </div>
-                </div>
+                <iframe src="tools.html" id="tools-iframe"
+                    style="width:100%; height:calc(100vh - 220px); border:none; border-radius:8px; display:block;"
+                    onload="this.style.opacity=1"
+                    style="opacity:0; transition:opacity .2s;">
+                </iframe>
             </div>
 
             <div style="text-align: center; margin-top: 30px; padding: 20px; background: white; border-radius: 8px;">
