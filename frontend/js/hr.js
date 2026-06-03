@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('tab-btn-leaves').style.display = '';
         document.getElementById('export-btn').style.display     = '';
     }
-    if (currentUser.level >= 500) {
+    if (currentUser.level >= 400) {
         document.getElementById('tab-btn-settings').style.display = '';
     }
     if (currentUser.level >= 400) {
