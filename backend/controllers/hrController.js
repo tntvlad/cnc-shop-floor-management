@@ -640,7 +640,7 @@ const LEGEND = [
 ];
 
 // Day-cell fill colours
-const FILL_WEEKEND  = 'FFFFFF00'; // yellow
+const FILL_WEEKEND  = 'FFFFFFCC'; // light yellow (matches original XLS)
 const FILL_HOLIDAY  = 'FFFFFF00'; // yellow
 const FILL_CO       = 'FF00B0F0'; // blue
 const FILL_BO       = 'FF92D050'; // green
@@ -738,13 +738,17 @@ const exportAttendance = async (req, res) => {
         const EF_COL       = 48;
         const LAST_COL     = 48;
 
-        // Set column widths (narrow to match original 6pt font layout)
-        ws.getColumn(1).width  = 4;   // Nr
-        ws.getColumn(2).width  = 16;  // Nume
-        ws.getColumn(3).width  = 5.5; // Data/Ora
-        for (let c = 4; c <= 35; c++) ws.getColumn(c).width = 3.5; // days
-        ws.getColumn(SUBTOTAL_COL).width = 5;
-        for (let c = TOT_COL; c <= LAST_COL; c++) ws.getColumn(c).width = 5;
+        // Set column widths — exact from original XLS measurement
+        ws.getColumn(1).width  = 2.5;   // Nr
+        ws.getColumn(2).width  = 10.68; // Nume
+        ws.getColumn(3).width  = 5.5;   // Data/Ora
+        for (let c = 4; c <= 35; c++) ws.getColumn(c).width = 2.5; // all day cols
+        ws.getColumn(SUBTOTAL_COL).width = 3.5;
+        ws.getColumn(TOT_COL).width   = 3.5;
+        ws.getColumn(SUPP_COL).width  = 1.82;
+        ws.getColumn(NIGHT_COL).width = 1.82;
+        ws.getColumn(NELUC_COL).width = 3.5;
+        for (let c = OI_COL; c <= LAST_COL; c++) ws.getColumn(c).width = 1.96;
 
         // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const fill = (hex) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: hex } });
@@ -772,14 +776,15 @@ const exportAttendance = async (req, res) => {
 
         // â”€â”€ Row 1: blank â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.addRow([]);
-        ws.getRow(1).height = 10;
+        ws.getRow(1).height = 21;
 
         // â”€â”€ Row 2: Company name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.addRow([]);
-        ws.getRow(2).height = 14;
-        const compCell = ws.getCell('B2');
+        ws.getRow(2).height = 15;
+        const compCell = ws.getCell(2, 1); // col A, not B (matches original)
         compCell.value = 'SC FERO - PACT SRL';
-        compCell.font  = font({ size: 11, bold: true });
+        compCell.font  = font({ size: 12 }); // 12pt, not bold
+        ws.mergeCells(2, 1, 2, 5);
 
         // â”€â”€ Rows 2-7: Legend (right side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Legend starts at col AH (34) roughly, mimic original: cols ~34..48
@@ -788,104 +793,102 @@ const exportAttendance = async (req, res) => {
             const rowNum = i + 2;
             const [code, bg, desc, rCode, rBg, rDesc] = entry;
             const row = ws.getRow(rowNum);
-            row.height = 12;
+            row.height = 15; // exact from original
 
+            // Code cell: merged over 2 cols (34-35), exact fills from original
+            const ORIG_FILLS = [
+                ['FFD4EA6B','FFFFFFFF'], ['FFB4C7DC','FFFFFFFF'],
+                ['FFFFFFFF','FFFFFFCC'], ['FFFFFFFF','FFFF0000'],
+                ['FFFFFF00','FFFFFFFF'], ['FFFFFFFF','FFFFFFFF'],
+            ];
+            const [bgOrig, rBgOrig] = ORIG_FILLS[i] || [bg, rBg];
             const cCode = row.getCell(LEG_START);
-            cCode.value = code; styleCell(cCode, { fill: bg, font: { bold: true, size: 8 } });
+            cCode.value = code;
+            cCode.font = font({ size: 8 }); cCode.alignment = align('center', 'middle');
+            if (bgOrig !== 'FFFFFFFF') cCode.fill = fill(bgOrig);
+            ws.mergeCells(rowNum, LEG_START, rowNum, LEG_START + 1);
 
-            const cDesc = row.getCell(LEG_START + 1);
-            cDesc.value = desc; styleCell(cDesc, { fill: bg, h: 'left', font: { size: 8 } });
+            const cDesc = row.getCell(LEG_START + 2); // col 36
+            cDesc.value = desc; cDesc.font = font({ size: 8 }); cDesc.alignment = align('left', 'middle');
 
-            const cRCode = row.getCell(LEG_START + 3);
-            cRCode.value = rCode; styleCell(cRCode, { fill: rBg, font: { bold: true, size: 8 } });
+            // Right code: merged over 2 cols (40-41)
+            const cRCode = row.getCell(LEG_START + 6); // col 40
+            cRCode.value = rCode;
+            cRCode.font = font({ size: 8 }); cRCode.alignment = align('center', 'middle');
+            if (rBgOrig !== 'FFFFFFFF') cRCode.fill = fill(rBgOrig);
+            ws.mergeCells(rowNum, LEG_START + 6, rowNum, LEG_START + 7);
 
-            const cRDesc = row.getCell(LEG_START + 4);
-            cRDesc.value = rDesc; styleCell(cRDesc, { fill: rBg, h: 'left', font: { size: 8 } });
+            const cRDesc = row.getCell(LEG_START + 8); // col 42
+            cRDesc.value = rDesc; cRDesc.font = font({ size: 8 }); cRDesc.alignment = align('left', 'middle');
         });
 
         // â”€â”€ Row 8: Main title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ws.addRow([]); ws.addRow([]); ws.addRow([]); ws.addRow([]); ws.addRow([]); ws.addRow([]);
         // rows 3-7 blank (already pushed via legend height)
         const titleRowNum = 8;
-        ws.getRow(titleRowNum).height = 16;
-        const titleCell = ws.getCell(titleRowNum, 16);
+        ws.getRow(titleRowNum).height = 15.75;
+        const titleCell = ws.getCell(titleRowNum, 17); // col 17 (matches original)
         titleCell.value = 'EVIDENTA ORELOR de MUNCA';
-        titleCell.font  = font({ size: 14, bold: true, color: { argb: 'FF800000' } });
+        titleCell.font  = font({ size: 12 }); // 12pt, not bold, no dark red (matches original)
         titleCell.alignment = align('center', 'middle');
-        ws.mergeCells(titleRowNum, 16, titleRowNum, 28);
+        ws.mergeCells(titleRowNum, 17, titleRowNum, 28);
 
         // â”€â”€ Row 9: Subtitle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        ws.getRow(9).height = 14;
-        const subCell = ws.getCell(9, 16);
+        ws.getRow(9).height = 18.75;
+        const subCell = ws.getCell(9, 17); // col 17 (matches original)
         subCell.value = `pentru luna ${monthName} ${year}`;
-        subCell.font  = font({ size: 11, italic: true });
+        subCell.font  = font({ size: 10 }); // 10pt (matches original)
         subCell.alignment = align('center', 'middle');
-        ws.mergeCells(9, 16, 9, 28);
+        ws.mergeCells(9, 17, 9, 28);
 
         // â”€â”€ Row 10: blank â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        ws.getRow(10).height = 6;
+        ws.getRow(10).height = 7.5;
 
         // â”€â”€ Rows 11-12: Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const HDR_ROW  = 11;
-        const DOW_ROW  = 12;
-        ws.getRow(HDR_ROW).height = 50;
-        ws.getRow(DOW_ROW).height = 10;
+        const DOW_ROW  = 12; // merged into HDR_ROW for all day columns
+        ws.getRow(HDR_ROW).height = 20.1;
+        ws.getRow(DOW_ROW).height = 20.1;
 
-        // Merge Nr, Nume, Ora across 2 rows
-        ws.mergeCells(HDR_ROW, 1, DOW_ROW, 1);
-        ws.mergeCells(HDR_ROW, 2, DOW_ROW, 2);
-        ws.mergeCells(HDR_ROW, 3, DOW_ROW, 3);
-
-        const hdrStyle    = { fill: 'FFD9D9D9', font: { bold: true, size: 7 }, h: 'center', v: 'middle', wrap: true, border: 'thin' };
-        const hdrRotStyle = { fill: 'FFD9D9D9', font: { bold: true, size: 7 }, h: 'center', v: 'bottom', wrap: false, rotate: 90, border: 'thin' };
-
-        const setHdr = (row, col, val, opts) => {
-            const c = ws.getCell(row, col);
+        // Helper: set a header cell, merge over rows 11-12, apply style
+        const setHdr = (col, val, fntSize, rotate, bgHex) => {
+            const c = ws.getCell(HDR_ROW, col);
             c.value = val;
-            const o = opts || hdrStyle;
-            c.font      = font(o.font || {});
-            c.alignment = align(o.h || 'center', o.v || 'middle', o.wrap || false, o.rotate || 0);
-            if (o.fill) c.fill = fill(o.fill);
-            applyBorder(c, o.border || 'thin');
+            c.font      = font({ size: fntSize || 8 });
+            c.alignment = align('center', 'middle', rotate ? false : true, rotate || 0);
+            c.fill      = fill(bgHex || 'FFFFFFFF');
+            applyBorder(c);
+            ws.mergeCells(HDR_ROW, col, DOW_ROW, col);
         };
 
-        setHdr(HDR_ROW, 1, 'Nr.\ncrt.');
-        setHdr(HDR_ROW, 2, 'Numele si prenumele');
-        setHdr(HDR_ROW, 3, 'Data /\nOra');
+        setHdr(1, 'Nr. crt.',             9,  90);            // rotated 90°
+        setHdr(2, 'Numele si prenumele',   10, 0);             // wrap
+        setHdr(3, 'Data / Ora',            9,  0);             // wrap
 
+        // Day numbers: NOT rotated, white bg; 1-9 → 10pt, 10-31 → 8pt (original)
         for (let d = 1; d <= 31; d++) {
             const col = dayCol(d);
-            if (d <= daysInMonth) {
-                // Day number: rotated 90° to fit narrow column
-                setHdr(HDR_ROW, col, d, hdrRotStyle);
-                const dow = new Date(year, month - 1, d).getDay();
-                const isWknd = dow === 0 || dow === 6;
-                const dowCell = ws.getCell(DOW_ROW, col);
-                dowCell.value = RO_DOW[dow];
-                dowCell.font      = font({ bold: true, size: 7 });
-                dowCell.alignment = align('center', 'middle', false, 0);
-                dowCell.fill      = fill(isWknd ? FILL_WEEKEND : 'FFD9D9D9');
-                applyBorder(dowCell);
-            }
+            const sz  = d <= 9 ? 10 : 8;
+            if (d <= daysInMonth) setHdr(col, d, sz, 0, 'FFFFFFFF');
         }
-        setHdr(HDR_ROW, SUBTOTAL_COL, 'total ore 1-15', hdrRotStyle);
-        ws.mergeCells(HDR_ROW, SUBTOTAL_COL, DOW_ROW, SUBTOTAL_COL);
 
-        // Summary columns: rotated text to match narrow columns
-        setHdr(HDR_ROW, TOT_COL,   'total ore lucrate', hdrRotStyle);
-        setHdr(HDR_ROW, SUPP_COL,  'ore supliment.', hdrRotStyle);
-        setHdr(HDR_ROW, NIGHT_COL, 'ore de noapte', hdrRotStyle);
-        setHdr(HDR_ROW, NELUC_COL, 'total ore nelucrate', hdrRotStyle);
-        setHdr(HDR_ROW, OI_COL,    'OI', hdrRotStyle);
-        setHdr(HDR_ROW, CO_COL,    'Co - Zlp', hdrRotStyle);
-        setHdr(HDR_ROW, BO_COL,    'Bo', hdrRotStyle);
-        setHdr(HDR_ROW, AM_COL,    'Am', hdrRotStyle);
-        setHdr(HDR_ROW, ST_COL,    'ST', hdrRotStyle);
-        setHdr(HDR_ROW, CFP_COL,   'Cfp', hdrRotStyle);
-        setHdr(HDR_ROW, O_COL,     'O', hdrRotStyle);
-        setHdr(HDR_ROW, N_COL,     'N', hdrRotStyle);
-        setHdr(HDR_ROW, EF_COL,    'Ef', hdrRotStyle);
-        for (let c = TOT_COL; c <= LAST_COL; c++) ws.mergeCells(HDR_ROW, c, DOW_ROW, c);
+        // Subtotal 1-15: rotated, white bg
+        setHdr(SUBTOTAL_COL, 'total ore  1-15', 8, 90, 'FFFFFFFF');
+
+        // Summary columns: exact sizes and fills from original
+        setHdr(TOT_COL,   'total ore lucrate',  8, 90);
+        setHdr(SUPP_COL,  'ore supliment.',      6, 90);
+        setHdr(NIGHT_COL, 'ore de noapte',       6, 90);
+        setHdr(NELUC_COL, 'total ore nelucrate', 8, 90);
+        setHdr(OI_COL,    'OI',                  6, 90);
+        setHdr(CO_COL,    'Co - Zlp',            6, 90, 'FFD4EA6B'); // original fill
+        setHdr(BO_COL,    'Bo',                  6, 90, 'FF729FCF'); // original fill
+        setHdr(AM_COL,    'Am',                  6, 90);
+        setHdr(ST_COL,    'ST',                  6, 90);
+        setHdr(CFP_COL,   'Cfp',                 6, 90);
+        setHdr(O_COL,     'O',                   6, 90);
+        setHdr(N_COL,     'N',                   6, 90);
+        setHdr(EF_COL,    'Ef',                  6, 90);
 
         // â”€â”€ Employee rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let currentRow = DOW_ROW + 1;
@@ -896,19 +899,24 @@ const exportAttendance = async (req, res) => {
             const R1 = currentRow;
             const R2 = currentRow + 1;
 
-            ws.getRow(R1).height = 10;
-            ws.getRow(R2).height = 10;
+            ws.getRow(R1).height = 15;
+            ws.getRow(R2).height = 15;
 
-            // Nr + Nume merged over 2 rows
-            ws.mergeCells(R1, 1, R2, 1);
+            // Nr — value in R1 only, no merge (original doesn't merge)
             const nrCell = ws.getCell(R1, 1);
             nrCell.value = idx + 1;
-            styleCell(nrCell, { font: { bold: true, size: 6 }, border: 'thin' });
+            nrCell.font = font({ size: 8 }); nrCell.alignment = align('center', 'middle');
+            applyBorder(nrCell);
+            const nrCell2 = ws.getCell(R2, 1);
+            applyBorder(nrCell2);
 
-            ws.mergeCells(R1, 2, R2, 2);
+            // Nume — value in R1 only, no merge
             const nameCell = ws.getCell(R1, 2);
             nameCell.value = emp.name;
-            styleCell(nameCell, { font: { bold: true, size: 6 }, h: 'center', v: 'middle', wrap: true, border: 'thin' });
+            nameCell.font = font({ size: 10 }); nameCell.alignment = align('center', 'middle', true);
+            applyBorder(nameCell);
+            const nameCell2 = ws.getCell(R2, 2);
+            applyBorder(nameCell2);
 
             const c1 = ws.getCell(R1, 3); c1.value = 'incep.';
             styleCell(c1, { font: { size: 6 }, border: 'thin' });
@@ -924,8 +932,10 @@ const exportAttendance = async (req, res) => {
                 const r2c = ws.getCell(R2, col);
 
                 if (d > daysInMonth) {
-                    styleCell(r1c, { fill: 'FFE0E0E0', border: 'thin', font: { size: 6 } });
-                    styleCell(r2c, { fill: 'FFE0E0E0', border: 'thin', font: { size: 6 } });
+                    r1c.font = font({ size: 6 }); r1c.alignment = align('center','middle',false,90);
+                    r1c.fill = fill('FFE0E0E0'); applyBorder(r1c);
+                    r2c.font = font({ size: 6 }); r2c.alignment = align('center','middle',false,90);
+                    r2c.fill = fill('FFE0E0E0'); applyBorder(r2c);
                     continue;
                 }
 
@@ -942,7 +952,10 @@ const exportAttendance = async (req, res) => {
 
                 const applyDay = (cell, val) => {
                     cell.value = val || '';
-                    styleCell(cell, { fill: cellFill, font: { size: 6 }, border: 'thin' });
+                    cell.font      = font({ size: 6 });
+                    cell.alignment = align('center', 'middle', false, 90); // rotated 90° (matches original)
+                    cell.fill      = fill(cellFill);
+                    applyBorder(cell);
                 };
 
                 if (isWeekend) {
@@ -969,18 +982,24 @@ const exportAttendance = async (req, res) => {
                 }
             }
 
-            // Subtotal 1-15
-            ws.mergeCells(R1, SUBTOTAL_COL, R2, SUBTOTAL_COL);
+            // Subtotal 1-15 — value in R1, blank+border in R2, rotated, white fill (matches original)
             const stCell = ws.getCell(R1, SUBTOTAL_COL);
             stCell.value = total1_15 > 0 ? total1_15 : '';
-            styleCell(stCell, { fill: 'FFDDEBF7', font: { bold: true, size: 6 }, border: 'thin' });
+            stCell.font = font({ size: 6 }); stCell.alignment = align('center','middle',false,90);
+            stCell.fill = fill('FFFFFFFF'); applyBorder(stCell);
+            const stCell2 = ws.getCell(R2, SUBTOTAL_COL);
+            stCell2.font = font({ size: 6 }); stCell2.alignment = align('center','middle',false,90);
+            stCell2.fill = fill('FFFFFFFF'); applyBorder(stCell2);
 
-            // Totals merged over 2 rows
+            // Totals — value in R1, blank+border in R2, no merge (matches original)
             const addTot = (col, val) => {
-                ws.mergeCells(R1, col, R2, col);
                 const tc = ws.getCell(R1, col);
                 tc.value = val !== '' ? val : '';
-                styleCell(tc, { fill: 'FFDDEBF7', font: { bold: true, size: 6 }, border: 'thin' });
+                tc.font = font({ size: 6 }); tc.alignment = align('center','middle',false,90);
+                tc.fill = fill('FFFFFFFF'); applyBorder(tc);
+                const tc2 = ws.getCell(R2, col);
+                tc2.font = font({ size: 6 }); tc2.alignment = align('center','middle',false,90);
+                tc2.fill = fill('FFFFFFFF'); applyBorder(tc2);
             };
             addTot(TOT_COL,   totalWorked > 0 ? totalWorked : '');
             addTot(SUPP_COL,  totalOT > 0     ? totalOT     : '');
