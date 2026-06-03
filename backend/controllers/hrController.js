@@ -902,21 +902,19 @@ const exportAttendance = async (req, res) => {
             ws.getRow(R1).height = 15;
             ws.getRow(R2).height = 15;
 
-            // Nr — value in R1 only, no merge (original doesn't merge)
+            // Nr — merged over both rows, value in R1 (original has merge)
+            ws.mergeCells(R1, 1, R2, 1);
             const nrCell = ws.getCell(R1, 1);
             nrCell.value = idx + 1;
             nrCell.font = font({ size: 8 }); nrCell.alignment = align('center', 'middle');
             applyBorder(nrCell);
-            const nrCell2 = ws.getCell(R2, 1);
-            applyBorder(nrCell2);
 
-            // Nume — value in R1 only, no merge
+            // Nume — merged over both rows, value in R1 (original has merge)
+            ws.mergeCells(R1, 2, R2, 2);
             const nameCell = ws.getCell(R1, 2);
             nameCell.value = emp.name;
             nameCell.font = font({ size: 10 }); nameCell.alignment = align('center', 'middle', true);
             applyBorder(nameCell);
-            const nameCell2 = ws.getCell(R2, 2);
-            applyBorder(nameCell2);
 
             const c1 = ws.getCell(R1, 3); c1.value = 'incep.';
             styleCell(c1, { font: { size: 6 }, border: 'thin' });
