@@ -665,7 +665,7 @@ const exportAttendance = async (req, res) => {
         const RO_MONTHS = ['IANUARIE','FEBRUARIE','MARTIE','APRILIE','MAI','IUNIE',
                            'IULIE','AUGUST','SEPTEMBRIE','OCTOMBRIE','NOIEMBRIE','DECEMBRIE'];
         const monthName = RO_MONTHS[month - 1];
-        const RO_DOW    = ['Du','Lu','Ma','Mi','Jo','Vi','SÃ¢'];
+        const RO_DOW    = ['Du','Lu','Ma','Mi','Jo','Vi','Sâ'];
 
         // â”€â”€ DB queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const empRes = await db.query(`SELECT id, name FROM users WHERE level >= 100 ORDER BY name`);
@@ -738,21 +738,21 @@ const exportAttendance = async (req, res) => {
         const EF_COL       = 48;
         const LAST_COL     = 48;
 
-        // Set column widths
-        ws.getColumn(1).width  = 5;   // Nr
-        ws.getColumn(2).width  = 18;  // Nume
-        ws.getColumn(3).width  = 7;   // Data/Ora
-        for (let c = 4; c <= 35; c++) ws.getColumn(c).width = 5.5; // days
-        ws.getColumn(SUBTOTAL_COL).width = 8;
-        for (let c = TOT_COL; c <= LAST_COL; c++) ws.getColumn(c).width = 7;
+        // Set column widths (narrow to match original 6pt font layout)
+        ws.getColumn(1).width  = 4;   // Nr
+        ws.getColumn(2).width  = 16;  // Nume
+        ws.getColumn(3).width  = 5.5; // Data/Ora
+        for (let c = 4; c <= 35; c++) ws.getColumn(c).width = 3.5; // days
+        ws.getColumn(SUBTOTAL_COL).width = 5;
+        for (let c = TOT_COL; c <= LAST_COL; c++) ws.getColumn(c).width = 5;
 
         // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const fill = (hex) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: hex } });
         const border = (style = 'thin') => ({
             top: { style }, bottom: { style }, left: { style }, right: { style }
         });
-        const font = (opts = {}) => ({ name: 'Times New Roman', size: 8, ...opts });
-        const align = (h = 'center', v = 'middle', wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
+        const font = (opts = {}) => ({ name: 'Times New Roman', size: 6, ...opts });
+        const align = (h = 'center', v = 'middle', wrap = false, rotate = 0) => ({ horizontal: h, vertical: v, wrapText: wrap, textRotation: rotate });
 
         const applyBorder = (cell, style = 'thin') => { cell.border = border(style); };
         const applyFill   = (cell, hex) => { cell.fill = fill(hex); };
@@ -828,20 +828,25 @@ const exportAttendance = async (req, res) => {
         // â”€â”€ Rows 11-12: Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const HDR_ROW  = 11;
         const DOW_ROW  = 12;
-        ws.getRow(HDR_ROW).height = 40;
-        ws.getRow(DOW_ROW).height = 12;
+        ws.getRow(HDR_ROW).height = 50;
+        ws.getRow(DOW_ROW).height = 10;
 
         // Merge Nr, Nume, Ora across 2 rows
         ws.mergeCells(HDR_ROW, 1, DOW_ROW, 1);
         ws.mergeCells(HDR_ROW, 2, DOW_ROW, 2);
         ws.mergeCells(HDR_ROW, 3, DOW_ROW, 3);
 
-        const hdrStyle = { fill: 'FFD9D9D9', font: { bold: true, size: 8 }, h: 'center', v: 'middle', wrap: true, border: 'thin' };
+        const hdrStyle    = { fill: 'FFD9D9D9', font: { bold: true, size: 7 }, h: 'center', v: 'middle', wrap: true, border: 'thin' };
+        const hdrRotStyle = { fill: 'FFD9D9D9', font: { bold: true, size: 7 }, h: 'center', v: 'bottom', wrap: false, rotate: 90, border: 'thin' };
 
-        const setHdr = (row, col, val) => {
+        const setHdr = (row, col, val, opts) => {
             const c = ws.getCell(row, col);
             c.value = val;
-            styleCell(c, hdrStyle);
+            const o = opts || hdrStyle;
+            c.font      = font(o.font || {});
+            c.alignment = align(o.h || 'center', o.v || 'middle', o.wrap || false, o.rotate || 0);
+            if (o.fill) c.fill = fill(o.fill);
+            applyBorder(c, o.border || 'thin');
         };
 
         setHdr(HDR_ROW, 1, 'Nr.\ncrt.');
@@ -851,29 +856,35 @@ const exportAttendance = async (req, res) => {
         for (let d = 1; d <= 31; d++) {
             const col = dayCol(d);
             if (d <= daysInMonth) {
-                setHdr(HDR_ROW, col, String(d));
+                // Day number: rotated 90° to fit narrow column
+                setHdr(HDR_ROW, col, d, hdrRotStyle);
                 const dow = new Date(year, month - 1, d).getDay();
+                const isWknd = dow === 0 || dow === 6;
                 const dowCell = ws.getCell(DOW_ROW, col);
                 dowCell.value = RO_DOW[dow];
-                styleCell(dowCell, { ...hdrStyle, fill: (dow === 0 || dow === 6) ? FILL_WEEKEND : 'FFD9D9D9' });
+                dowCell.font      = font({ bold: true, size: 7 });
+                dowCell.alignment = align('center', 'middle', false, 0);
+                dowCell.fill      = fill(isWknd ? FILL_WEEKEND : 'FFD9D9D9');
+                applyBorder(dowCell);
             }
         }
-        setHdr(HDR_ROW, SUBTOTAL_COL, 'total\nore\n1-15');
+        setHdr(HDR_ROW, SUBTOTAL_COL, 'total ore 1-15', hdrRotStyle);
         ws.mergeCells(HDR_ROW, SUBTOTAL_COL, DOW_ROW, SUBTOTAL_COL);
 
-        setHdr(HDR_ROW, TOT_COL,   'total ore\nlucrate');
-        setHdr(HDR_ROW, SUPP_COL,  'ore\nsupli-\nment.');
-        setHdr(HDR_ROW, NIGHT_COL, 'ore de\nnoapte');
-        setHdr(HDR_ROW, NELUC_COL, 'total ore\nnelucrate');
-        setHdr(HDR_ROW, OI_COL,    'OI');
-        setHdr(HDR_ROW, CO_COL,    'Co -\nZlp');
-        setHdr(HDR_ROW, BO_COL,    'Bo');
-        setHdr(HDR_ROW, AM_COL,    'Am');
-        setHdr(HDR_ROW, ST_COL,    'ST');
-        setHdr(HDR_ROW, CFP_COL,   'Cfp');
-        setHdr(HDR_ROW, O_COL,     'O');
-        setHdr(HDR_ROW, N_COL,     'N');
-        setHdr(HDR_ROW, EF_COL,    'Ef');
+        // Summary columns: rotated text to match narrow columns
+        setHdr(HDR_ROW, TOT_COL,   'total ore lucrate', hdrRotStyle);
+        setHdr(HDR_ROW, SUPP_COL,  'ore supliment.', hdrRotStyle);
+        setHdr(HDR_ROW, NIGHT_COL, 'ore de noapte', hdrRotStyle);
+        setHdr(HDR_ROW, NELUC_COL, 'total ore nelucrate', hdrRotStyle);
+        setHdr(HDR_ROW, OI_COL,    'OI', hdrRotStyle);
+        setHdr(HDR_ROW, CO_COL,    'Co - Zlp', hdrRotStyle);
+        setHdr(HDR_ROW, BO_COL,    'Bo', hdrRotStyle);
+        setHdr(HDR_ROW, AM_COL,    'Am', hdrRotStyle);
+        setHdr(HDR_ROW, ST_COL,    'ST', hdrRotStyle);
+        setHdr(HDR_ROW, CFP_COL,   'Cfp', hdrRotStyle);
+        setHdr(HDR_ROW, O_COL,     'O', hdrRotStyle);
+        setHdr(HDR_ROW, N_COL,     'N', hdrRotStyle);
+        setHdr(HDR_ROW, EF_COL,    'Ef', hdrRotStyle);
         for (let c = TOT_COL; c <= LAST_COL; c++) ws.mergeCells(HDR_ROW, c, DOW_ROW, c);
 
         // â”€â”€ Employee rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -885,24 +896,24 @@ const exportAttendance = async (req, res) => {
             const R1 = currentRow;
             const R2 = currentRow + 1;
 
-            ws.getRow(R1).height = 12;
-            ws.getRow(R2).height = 12;
+            ws.getRow(R1).height = 10;
+            ws.getRow(R2).height = 10;
 
             // Nr + Nume merged over 2 rows
             ws.mergeCells(R1, 1, R2, 1);
             const nrCell = ws.getCell(R1, 1);
             nrCell.value = idx + 1;
-            styleCell(nrCell, { font: { bold: true, size: 8 }, border: 'thin' });
+            styleCell(nrCell, { font: { bold: true, size: 6 }, border: 'thin' });
 
             ws.mergeCells(R1, 2, R2, 2);
             const nameCell = ws.getCell(R1, 2);
             nameCell.value = emp.name;
-            styleCell(nameCell, { font: { bold: true, size: 8 }, h: 'center', v: 'middle', wrap: true, border: 'thin' });
+            styleCell(nameCell, { font: { bold: true, size: 6 }, h: 'center', v: 'middle', wrap: true, border: 'thin' });
 
             const c1 = ws.getCell(R1, 3); c1.value = 'incep.';
-            styleCell(c1, { font: { size: 7 }, border: 'thin' });
+            styleCell(c1, { font: { size: 6 }, border: 'thin' });
             const c2 = ws.getCell(R2, 3); c2.value = 'term.';
-            styleCell(c2, { font: { size: 7 }, border: 'thin' });
+            styleCell(c2, { font: { size: 6 }, border: 'thin' });
 
             let total1_15 = 0, totalWorked = 0, totalOT = 0;
             const leaveCounts = { Co: 0, Bo: 0, Am: 0, ST: 0, Cfp: 0, N: 0, Ef: 0 };
@@ -913,8 +924,8 @@ const exportAttendance = async (req, res) => {
                 const r2c = ws.getCell(R2, col);
 
                 if (d > daysInMonth) {
-                    styleCell(r1c, { fill: 'FFE0E0E0', border: 'thin', font: { size: 7 } });
-                    styleCell(r2c, { fill: 'FFE0E0E0', border: 'thin', font: { size: 7 } });
+                    styleCell(r1c, { fill: 'FFE0E0E0', border: 'thin', font: { size: 6 } });
+                    styleCell(r2c, { fill: 'FFE0E0E0', border: 'thin', font: { size: 6 } });
                     continue;
                 }
 
@@ -931,7 +942,7 @@ const exportAttendance = async (req, res) => {
 
                 const applyDay = (cell, val) => {
                     cell.value = val || '';
-                    styleCell(cell, { fill: cellFill, font: { size: 7 }, border: 'thin' });
+                    styleCell(cell, { fill: cellFill, font: { size: 6 }, border: 'thin' });
                 };
 
                 if (isWeekend) {
@@ -962,14 +973,14 @@ const exportAttendance = async (req, res) => {
             ws.mergeCells(R1, SUBTOTAL_COL, R2, SUBTOTAL_COL);
             const stCell = ws.getCell(R1, SUBTOTAL_COL);
             stCell.value = total1_15 > 0 ? total1_15 : '';
-            styleCell(stCell, { fill: 'FFDDEBF7', font: { bold: true, size: 8 }, border: 'thin' });
+            styleCell(stCell, { fill: 'FFDDEBF7', font: { bold: true, size: 6 }, border: 'thin' });
 
             // Totals merged over 2 rows
             const addTot = (col, val) => {
                 ws.mergeCells(R1, col, R2, col);
                 const tc = ws.getCell(R1, col);
                 tc.value = val !== '' ? val : '';
-                styleCell(tc, { fill: 'FFDDEBF7', font: { bold: true, size: 8 }, border: 'thin' });
+                styleCell(tc, { fill: 'FFDDEBF7', font: { bold: true, size: 6 }, border: 'thin' });
             };
             addTot(TOT_COL,   totalWorked > 0 ? totalWorked : '');
             addTot(SUPP_COL,  totalOT > 0     ? totalOT     : '');
