@@ -646,8 +646,8 @@ const LEGEND = [
 // Day-cell fill colours
 const FILL_WEEKEND  = 'FFFFFFCC'; // light yellow (matches original XLS)
 const FILL_HOLIDAY  = 'FFFFFF00'; // yellow
-const FILL_CO       = 'FF00B0F0'; // blue
-const FILL_BO       = 'FF92D050'; // green
+const FILL_CO       = 'FFD4EA6B'; // green (matches original XLS legend)
+const FILL_BO       = 'FFB4C7DC'; // blue  (matches original XLS legend)
 const FILL_EF       = 'FF00B050';
 const FILL_S        = 'FFFFFF00';
 const FILL_ST       = 'FFD9D9D9';
@@ -969,8 +969,8 @@ const exportAttendance = async (req, res) => {
                 };
 
                 if (isWeekend) {
-                    applyDay(r1c, '');
-                    applyDay(r2c, '');
+                    applyDay(r1c, 'W');
+                    applyDay(r2c, 'W');
                 } else if (isHoliday && !leaveCode) {
                     applyDay(r1c, 'S');
                     applyDay(r2c, 'S');
