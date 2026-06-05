@@ -194,7 +194,10 @@ function populateUserSelects() {
     if (dlUser) dlUser.innerHTML = leaveOpts;
 
     const filterOpts = `<option value="">All Employees</option>` +
-        allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        allUsers.filter(u => {
+            const bal = balancesCache.find(b => b.user_id === u.id);
+            return bal ? bal.include_in_attendance !== false : true;
+        }).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
     const filterSel = document.getElementById('leave-filter-user');
     if (filterSel) filterSel.innerHTML = filterOpts;
 }
