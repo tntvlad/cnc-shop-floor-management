@@ -936,10 +936,6 @@ async function autoFillFromSchedule() {
         alert('Error: ' + e.message);
     }
 }
-    } catch (e) {
-        alert('Error: ' + e.message);
-    }
-}
 
 async function toggleAttendance(userId, currentValue) {
     try {
