@@ -385,8 +385,8 @@ function renderDayTeamTable(dateStr) {
             const hasRecord = !!dayMap[u.id];
             return `<tr id="day-row-${u.id}">
                 <td style="padding:4px 8px;white-space:nowrap;">${escapeHtml(u.name)}</td>
-                <td style="padding:4px 6px;"><input type="time" class="day-ci" data-uid="${u.id}" value="${rec.check_in || ''}" oninput="autoFillHours(${u.id})" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
-                <td style="padding:4px 6px;"><input type="time" class="day-co" data-uid="${u.id}" value="${rec.check_out || ''}" oninput="autoFillHours(${u.id})" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;"><input type="text" class="day-ci" data-uid="${u.id}" value="${rec.check_in || ''}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
+                <td style="padding:4px 6px;"><input type="text" class="day-co" data-uid="${u.id}" value="${rec.check_out || ''}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-hw" data-uid="${u.id}" value="${rec.hours_worked != null && rec.hours_worked !== '' ? rec.hours_worked : ''}" min="0" max="24" step="0.5" placeholder="8" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-ot" data-uid="${u.id}" value="${rec.overtime_hours || ''}" min="0" max="24" step="0.5" placeholder="0" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;text-align:center;">
@@ -397,6 +397,14 @@ function renderDayTeamTable(dateStr) {
                 </td>
             </tr>`;
         }).join('');
+}
+
+// Format text input to HH:MM as user types (24h)
+function formatTimeInput(el) {
+    let v = el.value.replace(/[^0-9]/g, '');
+    if (v.length > 4) v = v.slice(0, 4);
+    if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2);
+    el.value = v;
 }
 
 // Auto-fill hours from check-in/out minus 30-min lunch break; cap at 8h, rest goes to OT
