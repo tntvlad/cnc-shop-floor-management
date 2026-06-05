@@ -399,31 +399,38 @@ function renderDayTeamTable(dateStr) {
         }).join('');
 }
 
-// Auto-fill hours from check-in/out minus 30-min lunch break
+// Auto-fill hours from check-in/out minus 30-min lunch break; cap at 8h, rest goes to OT
 function autoFillHours(uid) {
     const ci = document.querySelector(`.day-ci[data-uid="${uid}"]`)?.value;
     const co = document.querySelector(`.day-co[data-uid="${uid}"]`)?.value;
     const hwInput = document.querySelector(`.day-hw[data-uid="${uid}"]`);
+    const otInput = document.querySelector(`.day-ot[data-uid="${uid}"]`);
     if (!ci || !co || !hwInput) return;
     const [ch, cm] = ci.split(':').map(Number);
     const [oh, om] = co.split(':').map(Number);
     const mins = (oh * 60 + om) - (ch * 60 + cm) - 30; // subtract 30 min lunch
-    hwInput.value = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+    const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+    const regular = Math.min(total, 8);
+    const ot = Math.max(0, Math.round((total - regular) * 10) / 10);
+    hwInput.value = regular;
+    if (otInput) otInput.value = ot || '';
 }
 
 async function saveTeamRow(userId, dateStr, existingId) {
     const ci = document.querySelector(`.day-ci[data-uid="${userId}"]`).value;
     const co = document.querySelector(`.day-co[data-uid="${userId}"]`).value;
     const hwRaw = document.querySelector(`.day-hw[data-uid="${userId}"]`).value;
-    const ot = parseFloat(document.querySelector(`.day-ot[data-uid="${userId}"]`).value) || 0;
+    let ot = parseFloat(document.querySelector(`.day-ot[data-uid="${userId}"]`).value) || 0;
 
-    // Auto-calculate hours from check-in/out (minus 30-min lunch) when hours field is empty
+    // Auto-calculate hours from check-in/out (minus 30-min lunch, cap 8h, rest = OT) when hours field is empty
     let hw = parseFloat(hwRaw);
     if ((isNaN(hw) || hwRaw === '') && ci && co) {
         const [ch, cm] = ci.split(':').map(Number);
         const [oh, om] = co.split(':').map(Number);
-        const mins = (oh * 60 + om) - (ch * 60 + cm) - 30; // subtract 30 min lunch
-        hw = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+        const mins = (oh * 60 + om) - (ch * 60 + cm) - 30;
+        const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+        hw = Math.min(total, 8);
+        if (!ot) ot = Math.max(0, Math.round((total - hw) * 10) / 10);
     }
     if (isNaN(hw)) hw = 0;
 
