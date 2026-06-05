@@ -683,7 +683,7 @@ const exportAttendance = async (req, res) => {
         );
         const hoursMap = {};
         hoursRes.rows.forEach(r => {
-            const day = new Date(r.work_date).getUTCDate();
+            const day = parseInt(String(r.work_date).substring(8, 10), 10); // use ISO string day directly
             if (!hoursMap[r.user_id]) hoursMap[r.user_id] = {};
             hoursMap[r.user_id][day] = r;
         });
@@ -697,16 +697,21 @@ const exportAttendance = async (req, res) => {
         );
         const leaveMap = {};
         leavesRes.rows.forEach(r => {
-            const from = new Date(String(r.date_from).substring(0,10) + 'T00:00:00');
-            const to   = new Date(String(r.date_to).substring(0,10)   + 'T00:00:00');
-            const cur  = new Date(from);
-            while (cur <= to) {
-                if (cur.getFullYear() === year && cur.getMonth() + 1 === month) {
-                    const day = cur.getDate();
+            const fromISO = String(r.date_from).substring(0, 10);
+            const toISO   = String(r.date_to).substring(0, 10);
+            // Walk day by day using pure string/numeric comparison — no timezone issues
+            let [fy, fm, fd] = fromISO.split('-').map(Number);
+            const [ty, tm, td] = toISO.split('-').map(Number);
+            while (fy < ty || (fy === ty && fm < tm) || (fy === ty && fm === tm && fd <= td)) {
+                if (fy === year && fm === month) {
                     if (!leaveMap[r.user_id]) leaveMap[r.user_id] = {};
-                    leaveMap[r.user_id][day] = LEAVE_CODE_MAP[r.leave_code] || r.leave_code;
+                    leaveMap[r.user_id][fd] = LEAVE_CODE_MAP[r.leave_code] || r.leave_code;
                 }
-                cur.setDate(cur.getDate() + 1);
+                // advance one day
+                fd++;
+                const daysInCurMonth = new Date(fy, fm, 0).getDate();
+                if (fd > daysInCurMonth) { fd = 1; fm++; }
+                if (fm > 12) { fm = 1; fy++; }
             }
         });
 
