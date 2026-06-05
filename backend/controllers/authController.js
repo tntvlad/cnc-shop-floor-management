@@ -241,7 +241,8 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// List all users (Supervisor+ only)exports.listUsers = async (req, res) => {
+// List all users (Supervisor+ only)
+exports.listUsers = async (req, res) => {
   try {
     // Determine requester level robustly (support legacy role tokens)
     let requesterLevel = Number.isInteger(req.user.level) ? req.user.level : undefined;
