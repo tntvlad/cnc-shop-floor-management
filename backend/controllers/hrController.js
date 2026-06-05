@@ -145,7 +145,7 @@ const getBalances = async (req, res) => {
 
         const result = await db.query(
             `SELECT b.*, u.name AS employee_name, u.employee_id, u.level, u.include_in_attendance,
-                    u.schedule_checkin, u.schedule_checkout
+                    u.schedule_checkin, u.schedule_checkout, u.lunch_break_minutes
              FROM employee_leave_balance b
              JOIN users u ON b.user_id = u.id
              WHERE b.year = $1 AND u.is_active = true
@@ -1065,18 +1065,19 @@ const exportAttendance = async (req, res) => {
 const updateEmployee = async (req, res) => {
     try {
         if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
-        const { include_in_attendance, schedule_checkin, schedule_checkout } = req.body;
+        const { include_in_attendance, schedule_checkin, schedule_checkout, lunch_break_minutes } = req.body;
 
         const fields = [];
         const vals   = [];
         if (typeof include_in_attendance === 'boolean') { vals.push(include_in_attendance); fields.push(`include_in_attendance = $${vals.length}`); }
         if (schedule_checkin  !== undefined) { vals.push(schedule_checkin  || null); fields.push(`schedule_checkin  = $${vals.length}`); }
         if (schedule_checkout !== undefined) { vals.push(schedule_checkout || null); fields.push(`schedule_checkout = $${vals.length}`); }
+        if (lunch_break_minutes !== undefined) { vals.push(lunch_break_minutes !== null ? parseInt(lunch_break_minutes) : 0); fields.push(`lunch_break_minutes = $${vals.length}`); }
         if (!fields.length) return res.status(400).json({ success: false, error: 'Nothing to update' });
 
         vals.push(req.params.id);
         const result = await db.query(
-            `UPDATE users SET ${fields.join(', ')} WHERE id = $${vals.length} RETURNING id, name, include_in_attendance, schedule_checkin, schedule_checkout`,
+            `UPDATE users SET ${fields.join(', ')} WHERE id = $${vals.length} RETURNING id, name, include_in_attendance, schedule_checkin, schedule_checkout, lunch_break_minutes`,
             vals
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'User not found' });
@@ -1097,7 +1098,7 @@ const autoFill = async (req, res) => {
 
         // Get employees with a schedule
         const empRes = await db.query(
-            `SELECT id, schedule_checkin, schedule_checkout FROM users
+            `SELECT id, schedule_checkin, schedule_checkout, COALESCE(lunch_break_minutes, 30) AS lunch_break_minutes FROM users
              WHERE include_in_attendance = true AND is_active = true AND level >= 100
                AND schedule_checkin IS NOT NULL AND schedule_checkout IS NOT NULL`
         );
@@ -1132,10 +1133,11 @@ const autoFill = async (req, res) => {
         for (const emp of empRes.rows) {
             const ci = emp.schedule_checkin;
             const co = emp.schedule_checkout;
-            // Calc hours (minus 30 min lunch, cap 8, rest OT)
+            // Calc hours: deduct lunch only if >= 30 min, cap 8h, rest OT
+            const lunchDeduct = emp.lunch_break_minutes >= 30 ? emp.lunch_break_minutes : 0;
             const [ch,cm] = ci.split(':').map(Number);
             const [oh,om] = co.split(':').map(Number);
-            const mins = (oh*60+om) - (ch*60+cm) - 30;
+            const mins = (oh*60+om) - (ch*60+cm) - lunchDeduct;
             const total = mins > 0 ? Math.round(mins/6)/10 : 0;
             const hw = Math.min(total, 8);
             const ot = Math.max(0, Math.round((total-hw)*10)/10);

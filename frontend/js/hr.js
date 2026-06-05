@@ -456,10 +456,13 @@ async function agAutoSave(userId, dateStr, existingId, inputEl) {
     // Auto-calc hours from times
     let hw = 0, ot = 0;
     if (ci && co) {
+        const balG = balancesCache.find(b => b.user_id === parseInt(userId));
+        const lunchG = balG?.lunch_break_minutes ?? 30;
+        const lunchDeductG = lunchG >= 30 ? lunchG : 0;
         const [ch, cm] = ci.split(':').map(Number);
         const [oh, om] = co.split(':').map(Number);
         if (!isNaN(ch) && !isNaN(oh)) {
-            const mins = (oh * 60 + om) - (ch * 60 + cm) - 30;
+            const mins = (oh * 60 + om) - (ch * 60 + cm) - lunchDeductG;
             const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
             hw = Math.min(total, 8);
             ot = Math.max(0, Math.round((total - hw) * 10) / 10);
@@ -561,16 +564,20 @@ function formatTimeInput(el) {
     el.value = v;
 }
 
-// Auto-fill hours from check-in/out minus 30-min lunch break; cap at 8h, rest goes to OT
+// Auto-fill hours from check-in/out with per-employee lunch; cap at 8h, rest goes to OT
 function autoFillHours(uid) {
     const ci = document.querySelector(`.day-ci[data-uid="${uid}"]`)?.value;
     const co = document.querySelector(`.day-co[data-uid="${uid}"]`)?.value;
     const hwInput = document.querySelector(`.day-hw[data-uid="${uid}"]`);
     const otInput = document.querySelector(`.day-ot[data-uid="${uid}"]`);
     if (!ci || !co || !hwInput) return;
+    // Lunch deduction: only if >= 30 min
+    const bal = balancesCache.find(b => b.user_id === parseInt(uid));
+    const lunchMins = bal?.lunch_break_minutes ?? 30;
+    const lunchDeduct = lunchMins >= 30 ? lunchMins : 0;
     const [ch, cm] = ci.split(':').map(Number);
     const [oh, om] = co.split(':').map(Number);
-    const mins = (oh * 60 + om) - (ch * 60 + cm) - 30; // subtract 30 min lunch
+    const mins = (oh * 60 + om) - (ch * 60 + cm) - lunchDeduct;
     const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
     const regular = Math.min(total, 8);
     const ot = Math.max(0, Math.round((total - regular) * 10) / 10);
@@ -584,12 +591,15 @@ async function saveTeamRow(userId, dateStr, existingId) {
     const hwRaw = document.querySelector(`.day-hw[data-uid="${userId}"]`).value;
     let ot = parseFloat(document.querySelector(`.day-ot[data-uid="${userId}"]`).value) || 0;
 
-    // Auto-calculate hours from check-in/out (minus 30-min lunch, cap 8h, rest = OT) when hours field is empty
+    // Auto-calculate hours from check-in/out with per-employee lunch when hours field is empty
     let hw = parseFloat(hwRaw);
     if ((isNaN(hw) || hwRaw === '') && ci && co) {
+        const bal2 = balancesCache.find(b => b.user_id === parseInt(userId));
+        const lunchMins2 = bal2?.lunch_break_minutes ?? 30;
+        const lunchDeduct2 = lunchMins2 >= 30 ? lunchMins2 : 0;
         const [ch, cm] = ci.split(':').map(Number);
         const [oh, om] = co.split(':').map(Number);
-        const mins = (oh * 60 + om) - (ch * 60 + cm) - 30;
+        const mins = (oh * 60 + om) - (ch * 60 + cm) - lunchDeduct2;
         const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
         hw = Math.min(total, 8);
         if (!ot) ot = Math.max(0, Math.round((total - hw) * 10) / 10);
@@ -841,7 +851,7 @@ async function renderSettingsBalances() {
         balancesCache = res.balances || [];
         const tbody = document.getElementById('settings-balance-tbody');
         if (!balancesCache.length) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
             return;
         }
         tbody.innerHTML = balancesCache.map(b => {
@@ -852,6 +862,7 @@ async function renderSettingsBalances() {
             const inAtt = b.include_in_attendance !== false;
             const ci = b.schedule_checkin  || '—';
             const co = b.schedule_checkout || '—';
+            const lunch = b.lunch_break_minutes > 0 ? `${b.lunch_break_minutes}m` : 'none';
             return `<tr>
                 <td>${escapeHtml(b.employee_name)}</td>
                 <td>${b.year}</td>
@@ -866,14 +877,14 @@ async function renderSettingsBalances() {
                 <td>${remaining.toFixed(1)}</td>
                 <td style="text-align:center;font-size:0.85rem;">${ci}</td>
                 <td style="text-align:center;font-size:0.85rem;">${co}</td>
+                <td style="text-align:center;font-size:0.85rem;">${lunch}</td>
                 <td style="text-align:center;">
                   <button class="btn-icon" title="${inAtt ? 'Included — click to exclude' : 'Excluded — click to include'}"
                     onclick="toggleAttendance(${b.user_id}, ${inAtt})"
                     style="font-size:1.1rem;">${inAtt ? '✅' : '🚫'}</button>
                 </td>
                 <td>
-                  <button class="btn-icon" title="Edit" onclick="openBalanceEdit(${b.user_id},${b.year},'${escapeHtml(b.employee_name)}',${b.total_days},${b.carried_over || 0},'${b.schedule_checkin || ''}','${b.schedule_checkout || ''}')">✏️</button>
-                </td>
+                  <button class="btn-icon" title="Edit" onclick="openBalanceEdit(${b.user_id},${b.year},'${escapeHtml(b.employee_name)}',${b.total_days},${b.carried_over || 0},'${b.schedule_checkin || ''}','${b.schedule_checkout || ''}')">✏️</button>                </td>
             </tr>`;
         }).join('');
     } catch (e) {
@@ -889,6 +900,13 @@ function openBalanceEdit(userId, year, name, total, carried, schedCi, schedCo) {
     document.getElementById('bm-carried').value = carried;
     document.getElementById('bm-sched-ci').value = schedCi || '';
     document.getElementById('bm-sched-co').value = schedCo || '';
+    // Lunch break
+    const bal = balancesCache.find(b => b.user_id === userId);
+    const lunchMins = bal?.lunch_break_minutes ?? 30;
+    const hasLunch  = lunchMins > 0;
+    document.getElementById('bm-lunch-check').checked = hasLunch;
+    document.getElementById('bm-lunch-mins').value    = hasLunch ? lunchMins : 30;
+    document.getElementById('bm-lunch-mins').disabled = !hasLunch;
     document.getElementById('balance-modal').classList.add('active');
 }
 
@@ -899,6 +917,8 @@ async function saveBalance() {
     const carried = parseFloat(document.getElementById('bm-carried').value);
     const schedCi = document.getElementById('bm-sched-ci').value.trim();
     const schedCo = document.getElementById('bm-sched-co').value.trim();
+    const hasLunch   = document.getElementById('bm-lunch-check').checked;
+    const lunchMins  = hasLunch ? parseInt(document.getElementById('bm-lunch-mins').value) || 30 : 0;
     try {
         await Promise.all([
             apiFetch(`/balances/${userId}`, {
@@ -907,7 +927,7 @@ async function saveBalance() {
             }),
             apiFetch(`/employees/${userId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ schedule_checkin: schedCi || null, schedule_checkout: schedCo || null })
+                body: JSON.stringify({ schedule_checkin: schedCi || null, schedule_checkout: schedCo || null, lunch_break_minutes: lunchMins })
             })
         ]);
         closeModal('balance-modal');
