@@ -373,21 +373,20 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
     document.getElementById('dl-notes').value = '';
     document.getElementById('dl-user').value = '';
 
-    // Supervisor: show employee selector on Leave tab + always show Save button
+    // Supervisor: show employee selector on Leave tab
     if (currentUser.level >= 400) {
         document.getElementById('dl-user-group').style.display = '';
-        document.getElementById('day-modal-save').style.display = '';
     }
 
-    // Supervisor: show team table, hide simple form's Save button
+    // Supervisor: show team table, hide simple form
     if (currentUser.level >= 400 && allUsers.length > 0) {
         document.getElementById('day-team-table-wrap').style.display = '';
         document.getElementById('day-simple-form').style.display = 'none';
-        document.getElementById('day-modal-save').style.display = 'none';
         renderDayTeamTable(dateStr);
     } else {
         document.getElementById('day-team-table-wrap').style.display = 'none';
         document.getElementById('day-simple-form').style.display = '';
+    }
         document.getElementById('day-modal-save').style.display = '';
     }
 
@@ -498,6 +497,11 @@ function switchDayTab(tab) {
     document.getElementById('day-leave-form').style.display = tab === 'leave' ? '' : 'none';
     document.getElementById('day-tab-hours').classList.toggle('active', tab === 'hours');
     document.getElementById('day-tab-leave').classList.toggle('active', tab === 'leave');
+    // Save button: hidden on Hours tab for supervisors (each row has its own Save);
+    // always shown on Leave tab and for non-supervisors
+    const isSup = currentUser && currentUser.level >= 400 && allUsers.length > 0;
+    document.getElementById('day-modal-save').style.display =
+        (isSup && tab === 'hours') ? 'none' : '';
 }
 
 async function saveDayModal() {
