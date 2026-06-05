@@ -385,8 +385,8 @@ function renderDayTeamTable(dateStr) {
             const hasRecord = !!dayMap[u.id];
             return `<tr id="day-row-${u.id}">
                 <td style="padding:4px 8px;white-space:nowrap;">${escapeHtml(u.name)}</td>
-                <td style="padding:4px 6px;"><input type="time" class="day-ci" data-uid="${u.id}" value="${rec.check_in || ''}" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
-                <td style="padding:4px 6px;"><input type="time" class="day-co" data-uid="${u.id}" value="${rec.check_out || ''}" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;"><input type="time" class="day-ci" data-uid="${u.id}" value="${rec.check_in || ''}" oninput="autoFillHours(${u.id})" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;"><input type="time" class="day-co" data-uid="${u.id}" value="${rec.check_out || ''}" oninput="autoFillHours(${u.id})" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-hw" data-uid="${u.id}" value="${rec.hours_worked != null && rec.hours_worked !== '' ? rec.hours_worked : ''}" min="0" max="24" step="0.5" placeholder="8" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-ot" data-uid="${u.id}" value="${rec.overtime_hours || ''}" min="0" max="24" step="0.5" placeholder="0" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;text-align:center;">
@@ -399,19 +399,31 @@ function renderDayTeamTable(dateStr) {
         }).join('');
 }
 
+// Auto-fill hours from check-in/out minus 30-min lunch break
+function autoFillHours(uid) {
+    const ci = document.querySelector(`.day-ci[data-uid="${uid}"]`)?.value;
+    const co = document.querySelector(`.day-co[data-uid="${uid}"]`)?.value;
+    const hwInput = document.querySelector(`.day-hw[data-uid="${uid}"]`);
+    if (!ci || !co || !hwInput) return;
+    const [ch, cm] = ci.split(':').map(Number);
+    const [oh, om] = co.split(':').map(Number);
+    const mins = (oh * 60 + om) - (ch * 60 + cm) - 30; // subtract 30 min lunch
+    hwInput.value = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+}
+
 async function saveTeamRow(userId, dateStr, existingId) {
     const ci = document.querySelector(`.day-ci[data-uid="${userId}"]`).value;
     const co = document.querySelector(`.day-co[data-uid="${userId}"]`).value;
     const hwRaw = document.querySelector(`.day-hw[data-uid="${userId}"]`).value;
     const ot = parseFloat(document.querySelector(`.day-ot[data-uid="${userId}"]`).value) || 0;
 
-    // Auto-calculate hours from check-in/out when hours field is left empty
+    // Auto-calculate hours from check-in/out (minus 30-min lunch) when hours field is empty
     let hw = parseFloat(hwRaw);
     if ((isNaN(hw) || hwRaw === '') && ci && co) {
         const [ch, cm] = ci.split(':').map(Number);
         const [oh, om] = co.split(':').map(Number);
-        const mins = (oh * 60 + om) - (ch * 60 + cm);
-        hw = mins > 0 ? Math.round(mins / 6) / 10 : 0; // round to 1dp
+        const mins = (oh * 60 + om) - (ch * 60 + cm) - 30; // subtract 30 min lunch
+        hw = mins > 0 ? Math.round(mins / 6) / 10 : 0;
     }
     if (isNaN(hw)) hw = 0;
 
