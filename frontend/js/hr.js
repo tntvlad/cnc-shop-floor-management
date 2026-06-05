@@ -387,8 +387,6 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
         document.getElementById('day-team-table-wrap').style.display = 'none';
         document.getElementById('day-simple-form').style.display = '';
     }
-        document.getElementById('day-modal-save').style.display = '';
-    }
 
     switchDayTab('hours');
     document.getElementById('day-modal').classList.add('active');
