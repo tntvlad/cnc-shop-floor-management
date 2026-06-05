@@ -597,7 +597,12 @@ async function renderTeamOverview() {
             tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
             return;
         }
-        tbody.innerHTML = rows.map(u => {
+        tbody.innerHTML = rows
+        .filter(u => {
+            const bal = balancesCache.find(b => b.user_id === u.id);
+            return bal ? bal.include_in_attendance !== false : true;
+        })
+        .map(u => {
             const annual  = balancesCache.find(b => b.user_id === u.id) || {};
             const total   = parseFloat(annual.total_days || 20) + parseFloat(annual.carried_over || 0);
             const used    = parseFloat(annual.used_days || 0);
