@@ -375,9 +375,10 @@
       <!-- ══════════════ TAB 4: Settings ══════════════ -->
       <div class="hr-tab-content" id="tab-settings">
         <div class="section-header">
-          <h3>Leave Allowances</h3>
+          <h3>Leave Allowances &amp; Schedule</h3>
+          <button class="btn-primary btn-sm" id="autofill-btn" onclick="autoFillFromSchedule()">⏰ Auto-fill from Schedule</button>
         </div>
-        <div class="hr-table-wrap" style="margin-bottom:2rem;">
+        <div class="hr-table-wrap" style="margin-bottom:2rem;overflow-x:auto;">
           <table class="hr-table">
             <thead>
               <tr>
@@ -387,12 +388,14 @@
                 <th>Used</th>
                 <th>Carried Over</th>
                 <th>Remaining</th>
+                <th>Check In</th>
+                <th>Check Out</th>
                 <th>In Attendance</th>
                 <th>Edit</th>
               </tr>
             </thead>
             <tbody id="settings-balance-tbody">
-              <tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
+              <tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -621,6 +624,19 @@
         <input type="number" id="bm-carried" min="0" max="100" step="0.5">
       </div>
     </div>
+    <hr style="margin:1rem 0;border:none;border-top:1px solid #e2e8f0;">
+    <div style="font-size:0.85rem;color:#475569;font-weight:600;margin-bottom:.5rem;">Default Daily Schedule</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Check In</label>
+        <input type="text" id="bm-sched-ci" placeholder="07:00" maxlength="5" oninput="formatTimeInput(this)" style="font-size:0.95rem;">
+      </div>
+      <div class="form-group">
+        <label>Check Out</label>
+        <input type="text" id="bm-sched-co" placeholder="15:30" maxlength="5" oninput="formatTimeInput(this)" style="font-size:0.95rem;">
+      </div>
+    </div>
+    <div style="font-size:0.78rem;color:#94a3b8;margin-top:-0.5rem;margin-bottom:0.75rem;">Used by Auto-fill for days without a logged entry or leave.</div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal('balance-modal')">Cancel</button>
       <button class="btn-primary" onclick="saveBalance()">Save</button>

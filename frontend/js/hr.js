@@ -841,7 +841,7 @@ async function renderSettingsBalances() {
         balancesCache = res.balances || [];
         const tbody = document.getElementById('settings-balance-tbody');
         if (!balancesCache.length) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8;">No data</td></tr>`;
             return;
         }
         tbody.innerHTML = balancesCache.map(b => {
@@ -850,6 +850,8 @@ async function renderSettingsBalances() {
             const pct = total > 0 ? (parseFloat(b.used_days) / total) * 100 : 0;
             const cls = pct < 50 ? 'bal-ok' : pct < 80 ? 'bal-low' : 'bal-over';
             const inAtt = b.include_in_attendance !== false;
+            const ci = b.schedule_checkin  || '—';
+            const co = b.schedule_checkout || '—';
             return `<tr>
                 <td>${escapeHtml(b.employee_name)}</td>
                 <td>${b.year}</td>
@@ -862,13 +864,15 @@ async function renderSettingsBalances() {
                 </td>
                 <td>${parseFloat(b.carried_over || 0).toFixed(1)}</td>
                 <td>${remaining.toFixed(1)}</td>
+                <td style="text-align:center;font-size:0.85rem;">${ci}</td>
+                <td style="text-align:center;font-size:0.85rem;">${co}</td>
                 <td style="text-align:center;">
                   <button class="btn-icon" title="${inAtt ? 'Included — click to exclude' : 'Excluded — click to include'}"
                     onclick="toggleAttendance(${b.user_id}, ${inAtt})"
                     style="font-size:1.1rem;">${inAtt ? '✅' : '🚫'}</button>
                 </td>
                 <td>
-                  <button class="btn-icon" title="Edit" onclick="openBalanceEdit(${b.user_id},${b.year},'${escapeHtml(b.employee_name)}',${b.total_days},${b.carried_over || 0})">✏️</button>
+                  <button class="btn-icon" title="Edit" onclick="openBalanceEdit(${b.user_id},${b.year},'${escapeHtml(b.employee_name)}',${b.total_days},${b.carried_over || 0},'${b.schedule_checkin || ''}','${b.schedule_checkout || ''}')">✏️</button>
                 </td>
             </tr>`;
         }).join('');
@@ -877,12 +881,14 @@ async function renderSettingsBalances() {
     }
 }
 
-function openBalanceEdit(userId, year, name, total, carried) {
+function openBalanceEdit(userId, year, name, total, carried, schedCi, schedCo) {
     document.getElementById('bm-user-id').value = userId;
     document.getElementById('bm-year').value    = year;
     document.getElementById('bm-employee-label').textContent = `Employee: ${name} (${year})`;
     document.getElementById('bm-total').value   = total;
     document.getElementById('bm-carried').value = carried;
+    document.getElementById('bm-sched-ci').value = schedCi || '';
+    document.getElementById('bm-sched-co').value = schedCo || '';
     document.getElementById('balance-modal').classList.add('active');
 }
 
@@ -891,13 +897,45 @@ async function saveBalance() {
     const year    = document.getElementById('bm-year').value;
     const total   = parseFloat(document.getElementById('bm-total').value);
     const carried = parseFloat(document.getElementById('bm-carried').value);
+    const schedCi = document.getElementById('bm-sched-ci').value.trim();
+    const schedCo = document.getElementById('bm-sched-co').value.trim();
     try {
-        await apiFetch(`/balances/${userId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ year: parseInt(year), total_days: total, carried_over: carried })
-        });
+        await Promise.all([
+            apiFetch(`/balances/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ year: parseInt(year), total_days: total, carried_over: carried })
+            }),
+            apiFetch(`/employees/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ schedule_checkin: schedCi || null, schedule_checkout: schedCo || null })
+            })
+        ]);
         closeModal('balance-modal');
         renderSettingsBalances();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function autoFillFromSchedule() {
+    const monthStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
+    const btn = document.getElementById('autofill-btn');
+    btn.disabled = true;
+    btn.textContent = 'Filling…';
+    try {
+        const res = await apiFetch(`/autofill?month=${monthStr}`, { method: 'POST' });
+        btn.textContent = `⏰ Auto-fill from Schedule`;
+        btn.disabled = false;
+        alert(`Done! ${res.filled} day${res.filled !== 1 ? 's' : ''} auto-filled for ${monthStr}.`);
+        await loadAll();
+        renderCalendar();
+        if (_gridView) renderAttendanceGrid();
+    } catch (e) {
+        btn.textContent = '⏰ Auto-fill from Schedule';
+        btn.disabled = false;
+        alert('Error: ' + e.message);
+    }
+}
     } catch (e) {
         alert('Error: ' + e.message);
     }

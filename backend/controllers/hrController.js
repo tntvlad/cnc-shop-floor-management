@@ -144,7 +144,8 @@ const getBalances = async (req, res) => {
         for (const u of users.rows) await ensureBalance(u.id, year);
 
         const result = await db.query(
-            `SELECT b.*, u.name AS employee_name, u.employee_id, u.level, u.include_in_attendance
+            `SELECT b.*, u.name AS employee_name, u.employee_id, u.level, u.include_in_attendance,
+                    u.schedule_checkin, u.schedule_checkout
              FROM employee_leave_balance b
              JOIN users u ON b.user_id = u.id
              WHERE b.year = $1 AND u.is_active = true
@@ -1064,16 +1065,99 @@ const exportAttendance = async (req, res) => {
 const updateEmployee = async (req, res) => {
     try {
         if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
-        const { include_in_attendance } = req.body;
-        if (typeof include_in_attendance !== 'boolean') return res.status(400).json({ success: false, error: 'include_in_attendance must be boolean' });
+        const { include_in_attendance, schedule_checkin, schedule_checkout } = req.body;
+
+        const fields = [];
+        const vals   = [];
+        if (typeof include_in_attendance === 'boolean') { vals.push(include_in_attendance); fields.push(`include_in_attendance = $${vals.length}`); }
+        if (schedule_checkin  !== undefined) { vals.push(schedule_checkin  || null); fields.push(`schedule_checkin  = $${vals.length}`); }
+        if (schedule_checkout !== undefined) { vals.push(schedule_checkout || null); fields.push(`schedule_checkout = $${vals.length}`); }
+        if (!fields.length) return res.status(400).json({ success: false, error: 'Nothing to update' });
+
+        vals.push(req.params.id);
         const result = await db.query(
-            `UPDATE users SET include_in_attendance = $1 WHERE id = $2 RETURNING id, name, include_in_attendance`,
-            [include_in_attendance, req.params.id]
+            `UPDATE users SET ${fields.join(', ')} WHERE id = $${vals.length} RETURNING id, name, include_in_attendance, schedule_checkin, schedule_checkout`,
+            vals
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'User not found' });
         res.json({ success: true, user: result.rows[0] });
     } catch (e) {
         console.error('updateEmployee', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+};
+
+// POST /api/hr/autofill?month=YYYY-MM  — fill missing work days from each user's schedule
+const autoFill = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
+        const monthStr = req.query.month || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+        const [year, month] = monthStr.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // Get employees with a schedule
+        const empRes = await db.query(
+            `SELECT id, schedule_checkin, schedule_checkout FROM users
+             WHERE include_in_attendance = true AND is_active = true AND level >= 100
+               AND schedule_checkin IS NOT NULL AND schedule_checkout IS NOT NULL`
+        );
+        if (!empRes.rows.length) return res.json({ success: true, filled: 0 });
+
+        // Get existing hours for the month
+        const existingRes = await db.query(
+            `SELECT user_id, TO_CHAR(work_date,'YYYY-MM-DD') AS work_date FROM work_hours
+             WHERE work_date >= $1::date AND work_date < $1::date + INTERVAL '1 month'`,
+            [`${year}-${String(month).padStart(2,'0')}-01`]
+        );
+        const existingSet = new Set(existingRes.rows.map(r => `${r.user_id}_${r.work_date}`));
+
+        // Get approved leaves for the month
+        const leavesRes = await db.query(
+            `SELECT user_id, TO_CHAR(date_from,'YYYY-MM-DD') AS date_from, TO_CHAR(date_to,'YYYY-MM-DD') AS date_to
+             FROM leave_requests WHERE status='approved' AND EXTRACT(YEAR FROM date_from)=$1`, [year]
+        );
+        const leaveSet = new Set();
+        leavesRes.rows.forEach(r => {
+            let [fy,fm,fd] = r.date_from.split('-').map(Number);
+            const [ty,tm,td] = r.date_to.split('-').map(Number);
+            while (fy < ty || (fy===ty && fm < tm) || (fy===ty && fm===tm && fd<=td)) {
+                if (fy===year && fm===month) leaveSet.add(`${r.user_id}_${year}-${String(month).padStart(2,'0')}-${String(fd).padStart(2,'0')}`);
+                fd++;
+                const dim = new Date(fy,fm,0).getDate();
+                if (fd>dim){fd=1;fm++;} if(fm>12){fm=1;fy++;}
+            }
+        });
+
+        let filled = 0;
+        for (const emp of empRes.rows) {
+            const ci = emp.schedule_checkin;
+            const co = emp.schedule_checkout;
+            // Calc hours (minus 30 min lunch, cap 8, rest OT)
+            const [ch,cm] = ci.split(':').map(Number);
+            const [oh,om] = co.split(':').map(Number);
+            const mins = (oh*60+om) - (ch*60+cm) - 30;
+            const total = mins > 0 ? Math.round(mins/6)/10 : 0;
+            const hw = Math.min(total, 8);
+            const ot = Math.max(0, Math.round((total-hw)*10)/10);
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const iso = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const dow = new Date(iso+'T00:00:00').getDay();
+                if (dow === 0 || dow === 6) continue; // skip weekends
+                const key = `${emp.id}_${iso}`;
+                if (existingSet.has(key) || leaveSet.has(key)) continue; // already has data
+                await db.query(
+                    `INSERT INTO work_hours (user_id, work_date, check_in, check_out, hours_worked, overtime_hours, entered_by)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7)
+                     ON CONFLICT (user_id, work_date) DO NOTHING`,
+                    [emp.id, iso, ci, co, hw, ot, req.user.id]
+                );
+                filled++;
+            }
+        }
+        res.json({ success: true, filled });
+    } catch (e) {
+        console.error('autoFill', e);
         res.status(500).json({ success: false, error: e.message });
     }
 };
@@ -1084,6 +1168,6 @@ module.exports = {
     getBalances, getMyBalance, updateBalance,
     getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
     getHours, getMyHours, logHours, updateHours, deleteHours,
-    getSummary, exportAttendance, updateEmployee,
+    getSummary, exportAttendance, updateEmployee, autoFill,
 };
 
