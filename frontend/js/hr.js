@@ -182,6 +182,15 @@ function populateUserSelects() {
         const el = document.getElementById(id);
         if (el) el.innerHTML = opts;
     });
+    // Leave employee selector: no "Me" option — always pick explicitly
+    const leaveOpts = `<option value="">— Select employee —</option>` +
+        allUsers.filter(u => {
+            const bal = balancesCache.find(b => b.user_id === u.id);
+            return bal ? bal.include_in_attendance !== false : true;
+        }).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+    const dlUser = document.getElementById('dl-user');
+    if (dlUser) dlUser.innerHTML = leaveOpts;
+
     const filterOpts = `<option value="">All Employees</option>` +
         allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
     const filterSel = document.getElementById('leave-filter-user');
@@ -362,6 +371,13 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
     document.getElementById('dl-from').value = dateStr;
     document.getElementById('dl-to').value   = dateStr;
     document.getElementById('dl-notes').value = '';
+    document.getElementById('dl-user').value = '';
+
+    // Supervisor: show employee selector on Leave tab + always show Save button
+    if (currentUser.level >= 400) {
+        document.getElementById('dl-user-group').style.display = '';
+        document.getElementById('day-modal-save').style.display = '';
+    }
 
     // Supervisor: show team table, hide simple form's Save button
     if (currentUser.level >= 400 && allUsers.length > 0) {
@@ -507,23 +523,24 @@ async function saveDayModal() {
             alert('Error: ' + e.message);
         }
     } else {
+        const leaveUserId = document.getElementById('dl-user')?.value || null;
         await submitLeaveFromForm(
             document.getElementById('dl-type').value,
             document.getElementById('dl-from').value,
             document.getElementById('dl-to').value,
             document.getElementById('dl-notes').value,
-            'day-modal'
+            'day-modal',
+            leaveUserId || null
         );
     }
 }
 
 // ── Leave submit helpers ───────────────────────────────────────
-async function submitLeaveFromForm(typeId, from, to, notes, modalId) {
+async function submitLeaveFromForm(typeId, from, to, notes, modalId, userId) {
     try {
-        await apiFetch('/leaves', {
-            method: 'POST',
-            body: JSON.stringify({ leave_type_id: parseInt(typeId), date_from: from, date_to: to, notes: notes || null })
-        });
+        const body = { leave_type_id: parseInt(typeId), date_from: from, date_to: to, notes: notes || null };
+        if (userId) body.user_id = parseInt(userId);
+        await apiFetch('/leaves', { method: 'POST', body: JSON.stringify(body) });
         closeModal(modalId);
         await loadAll();
         renderCalendar();

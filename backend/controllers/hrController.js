@@ -264,17 +264,20 @@ const getMyLeaves = async (req, res) => {
 // POST /api/hr/leaves
 const createLeave = async (req, res) => {
     try {
-        const { leave_type_id, date_from, date_to, notes } = req.body;
+        const { leave_type_id, date_from, date_to, notes, user_id } = req.body;
         if (!leave_type_id || !date_from || !date_to) {
             return res.status(400).json({ success: false, error: 'leave_type_id, date_from, date_to required' });
         }
+
+        // Supervisors can submit leave on behalf of another user
+        const targetUserId = (req.user.level >= 400 && user_id) ? parseInt(user_id) : req.user.id;
 
         // Check overlap
         const overlap = await db.query(
             `SELECT id FROM leave_requests
              WHERE user_id = $1 AND status = 'approved'
                AND date_from <= $3 AND date_to >= $2`,
-            [req.user.id, date_from, date_to]
+            [targetUserId, date_from, date_to]
         );
         if (overlap.rows.length > 0) {
             return res.status(400).json({ success: false, error: 'Overlap with existing approved leave' });
@@ -287,28 +290,29 @@ const createLeave = async (req, res) => {
         if (!ltRes.rows.length) return res.status(400).json({ success: false, error: 'Invalid leave type' });
         const lt = ltRes.rows[0];
 
-        // Sick leave auto-approves
-        const status = (!lt.requires_approval) ? 'approved' : 'pending';
-        const reviewed_by = (!lt.requires_approval) ? req.user.id : null;
-        const reviewed_at = (!lt.requires_approval) ? new Date() : null;
+        // Supervisor-submitted leaves auto-approve; otherwise follow leave type rules
+        const autoApprove = req.user.level >= 400 || !lt.requires_approval;
+        const status = autoApprove ? 'approved' : 'pending';
+        const reviewed_by = autoApprove ? req.user.id : null;
+        const reviewed_at = autoApprove ? new Date() : null;
 
         const result = await db.query(
             `INSERT INTO leave_requests
                 (user_id, leave_type_id, date_from, date_to, days_count, status, notes, reviewed_by, reviewed_at)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
              RETURNING *`,
-            [req.user.id, leave_type_id, date_from, date_to, days_count, status, notes || null, reviewed_by, reviewed_at]
+            [targetUserId, leave_type_id, date_from, date_to, days_count, status, notes || null, reviewed_by, reviewed_at]
         );
 
         // Deduct balance immediately if auto-approved and deducts_balance
         if (status === 'approved' && lt.deducts_balance) {
             const year = new Date(date_from).getFullYear();
-            await ensureBalance(req.user.id, year);
+            await ensureBalance(targetUserId, year);
             await db.query(
                 `UPDATE employee_leave_balance
                  SET used_days = used_days + $1
                  WHERE user_id = $2 AND year = $3`,
-                [days_count, req.user.id, year]
+                [days_count, targetUserId, year]
             );
         }
 
