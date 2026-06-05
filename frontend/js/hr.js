@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (currentUser.level >= 400) {
         document.getElementById('tab-btn-settings').style.display = '';
+        document.getElementById('view-toggle-wrap').style.display = 'flex';
     }
     if (currentUser.level >= 400) {
         document.getElementById('dh-user-group').style.display = '';
@@ -206,13 +207,13 @@ function prevMonth() {
     currentMonth--;
     if (currentMonth < 1) { currentMonth = 12; currentYear--; }
     updateMonthLabel();
-    loadAll().then(() => renderCalendar());
+    loadAll().then(() => { renderCalendar(); if (_gridView) renderAttendanceGrid(); });
 }
 function nextMonth() {
     currentMonth++;
     if (currentMonth > 12) { currentMonth = 1; currentYear++; }
     updateMonthLabel();
-    loadAll().then(() => renderCalendar());
+    loadAll().then(() => { renderCalendar(); if (_gridView) renderAttendanceGrid(); });
 }
 
 function switchHrTab(name) {
@@ -357,7 +358,132 @@ function renderCalendar() {
     }
 }
 
-// ── Day modal ─────────────────────────────────────────────────
+// ── Spreadsheet grid view ──────────────────────────────────────
+let _gridView = false;
+
+function toggleCalendarView() {
+    _gridView = !_gridView;
+    const btn = document.getElementById('view-toggle-btn');
+    document.getElementById('calendar-grid').style.display   = _gridView ? 'none' : '';
+    document.getElementById('attendance-grid-wrap').style.display = _gridView ? '' : 'none';
+    btn.textContent = _gridView ? '📅 Calendar View' : '📊 Grid View';
+    if (_gridView) renderAttendanceGrid();
+}
+
+function renderAttendanceGrid() {
+    const table = document.getElementById('attendance-grid-table');
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const today = toLocalISO(new Date());
+
+    // Build day-of-week headers
+    const RO_DOW_SHORT = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    const holidaySet = new Set(holidaysCache.map(h => toLocalISO(h.holiday_date)));
+
+    // Build allHoursCache lookup: { userId: { 'YYYY-MM-DD': record } }
+    const byUser = {};
+    allHoursCache.forEach(h => {
+        if (!byUser[h.user_id]) byUser[h.user_id] = {};
+        byUser[h.user_id][toLocalISO(h.work_date)] = h;
+    });
+
+    const attendanceUsers = allUsers.filter(u => {
+        const bal = balancesCache.find(b => b.user_id === u.id);
+        return bal ? bal.include_in_attendance !== false : true;
+    });
+
+    // Header row
+    let html = '<thead><tr><th style="min-width:100px;position:sticky;left:0;z-index:3;background:#f1f5f9;">Employee</th>';
+    for (let d = 1; d <= daysInMonth; d++) {
+        const iso = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dow = new Date(iso + 'T00:00:00').getDay();
+        const isWknd = dow === 0 || dow === 6;
+        const isToday = iso === today;
+        const cls = isToday ? 'ag-today' : isWknd ? '' : '';
+        html += `<th class="${cls}" style="${isWknd ? 'background:#fffbeb;' : ''}">${d}<br><span style="font-weight:400;font-size:0.62rem;color:#64748b;">${RO_DOW_SHORT[dow]}</span></th>`;
+    }
+    html += '<th>Total</th></thead>';
+
+    // Body rows
+    html += '<tbody>';
+    attendanceUsers.forEach(u => {
+        const uRecs = byUser[u.id] || {};
+        let totalH = 0, totalOT = 0;
+        html += `<tr><td class="ag-name">${escapeHtml(u.name)}</td>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const iso = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const dow = new Date(iso + 'T00:00:00').getDay();
+            const isWknd = dow === 0 || dow === 6;
+            const isHol  = holidaySet.has(iso);
+            const rec    = uRecs[iso];
+            if (rec) { totalH += parseFloat(rec.hours_worked || 0); totalOT += parseFloat(rec.overtime_hours || 0); }
+            let cls = isWknd ? 'ag-weekend' : isHol ? 'ag-holiday' : rec ? 'ag-has-data' : '';
+            const recId = rec ? rec.id : 'null';
+            if (isWknd || isHol) {
+                html += `<td class="${cls}"></td>`;
+            } else {
+                const ci = rec?.check_in  || '';
+                const co = rec?.check_out || '';
+                const hw = rec ? parseFloat(rec.hours_worked || 0) : '';
+                // Supervisor: inline editable inputs
+                html += `<td class="${cls}" data-uid="${u.id}" data-iso="${iso}" data-rid="${recId}">
+                    <div class="ag-cell-inner">
+                        <input class="ag-edit-ci" placeholder="HH:MM" maxlength="5" value="${ci}"
+                            oninput="formatTimeInput(this)"
+                            onblur="agAutoSave(${u.id},'${iso}','${recId}',this)"
+                            style="display:block;">
+                        <input class="ag-edit-co" placeholder="HH:MM" maxlength="5" value="${co}"
+                            oninput="formatTimeInput(this)"
+                            onblur="agAutoSave(${u.id},'${iso}','${recId}',this)"
+                            style="display:block;">
+                        <span class="ag-hours">${hw !== '' ? hw + 'h' : ''}</span>
+                    </div>
+                </td>`;
+            }
+        }
+        const totLabel = totalH > 0 ? `${totalH.toFixed(1)}h${totalOT > 0 ? ` +${totalOT.toFixed(1)}OT` : ''}` : '—';
+        html += `<td style="font-weight:600;font-size:0.7rem;">${totLabel}</td></tr>`;
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+}
+
+async function agAutoSave(userId, dateStr, existingId, inputEl) {
+    const cell = inputEl.closest('td');
+    const ci = cell.querySelector('.ag-edit-ci').value;
+    const co = cell.querySelector('.ag-edit-co').value;
+    if (!ci && !co) return; // nothing to save
+
+    // Auto-calc hours from times
+    let hw = 0, ot = 0;
+    if (ci && co) {
+        const [ch, cm] = ci.split(':').map(Number);
+        const [oh, om] = co.split(':').map(Number);
+        if (!isNaN(ch) && !isNaN(oh)) {
+            const mins = (oh * 60 + om) - (ch * 60 + cm) - 30;
+            const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+            hw = Math.min(total, 8);
+            ot = Math.max(0, Math.round((total - hw) * 10) / 10);
+        }
+    }
+    try {
+        const res = await apiFetch('/hours', {
+            method: 'POST',
+            body: JSON.stringify({ work_date: dateStr, hours_worked: hw, overtime_hours: ot,
+                check_in: ci || null, check_out: co || null, user_id: userId })
+        });
+        if (res.record) {
+            const idx = allHoursCache.findIndex(h => parseInt(h.user_id) === parseInt(userId) && toLocalISO(h.work_date) === dateStr);
+            if (idx >= 0) allHoursCache[idx] = res.record;
+            else allHoursCache.push(res.record);
+            // Update hours display in cell
+            const span = cell.querySelector('.ag-hours');
+            if (span) span.textContent = hw > 0 ? hw + 'h' : '';
+            cell.className = cell.className.replace('ag-has-data', '') + ' ag-has-data';
+            // Refresh calendar totals in background
+            renderCalendar();
+        }
+    } catch (e) { /* silent fail on blur */ }
+}
 function openDayModal(dateStr, hoursRec, leaveRec) {
     _selectedDate = dateStr;
     _activeDayTab = 'hours';

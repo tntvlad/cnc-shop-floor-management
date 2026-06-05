@@ -67,6 +67,26 @@
     .chip-leave { color: #fff; }
     .chip-holiday { background: #eff6ff; color: #1d4ed8; }
 
+    /* ── Attendance grid (spreadsheet view) ── */
+    #attendance-grid-table th, #attendance-grid-table td {
+      border: 1px solid #e2e8f0; padding: 2px 3px; white-space: nowrap; text-align: center; vertical-align: middle;
+    }
+    #attendance-grid-table th { background: #f1f5f9; font-weight: 600; font-size: 0.7rem; position: sticky; top: 0; z-index: 1; }
+    #attendance-grid-table td.ag-name { text-align: left; padding: 2px 6px; font-weight: 600; min-width: 100px; position: sticky; left: 0; background: #fff; z-index: 2; }
+    #attendance-grid-table tr:hover td { background: #f8fafc; }
+    #attendance-grid-table tr:hover td.ag-name { background: #f8fafc; }
+    #attendance-grid-table td.ag-weekend { background: #fffbeb; }
+    #attendance-grid-table td.ag-holiday { background: #eff6ff; }
+    #attendance-grid-table td.ag-has-data { background: #dcfce7; cursor: pointer; }
+    #attendance-grid-table td.ag-has-data:hover { background: #bbf7d0; }
+    .ag-cell-inner { display:flex; flex-direction:column; gap:1px; min-height: 28px; align-items:center; justify-content:center; }
+    .ag-ci { color: #1d4ed8; font-size: 0.68rem; }
+    .ag-co { color: #dc2626; font-size: 0.68rem; }
+    .ag-hours { color: #16a34a; font-weight:700; font-size: 0.68rem; }
+    .ag-edit-ci, .ag-edit-co { width: 46px; font-size: 0.68rem; padding: 1px 2px; border: 1px solid #94a3b8; border-radius: 3px; text-align:center; }
+    .ag-save-btn { font-size: 0.65rem; padding: 1px 5px; background: #2563eb; color: #fff; border: none; border-radius: 3px; cursor: pointer; margin-top: 2px; }
+    #attendance-grid-table th.ag-today { background: #dbeafe; color: #1d4ed8; }
+
     /* ── Summary bar ── */
     .cal-summary {
       display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
@@ -248,6 +268,9 @@
         </div>
 
         <!-- Calendar grid -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;" id="view-toggle-wrap" style="display:none;">
+          <button id="view-toggle-btn" onclick="toggleCalendarView()" class="btn-secondary" style="font-size:0.8rem;padding:4px 12px;">📊 Grid View</button>
+        </div>
         <div class="calendar-grid" id="calendar-grid">
           <div class="cal-header">Mon</div>
           <div class="cal-header">Tue</div>
@@ -257,6 +280,12 @@
           <div class="cal-header">Sat</div>
           <div class="cal-header">Sun</div>
           <!-- Day cells rendered by JS -->
+        </div>
+
+        <!-- Spreadsheet grid view (supervisor) -->
+        <div id="attendance-grid-wrap" style="display:none;overflow-x:auto;">
+          <table id="attendance-grid-table" style="border-collapse:collapse;font-size:0.73rem;min-width:100%;">
+          </table>
         </div>
 
       </div>
