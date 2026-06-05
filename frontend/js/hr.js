@@ -376,7 +376,10 @@ function renderDayTeamTable(dateStr) {
     allHoursCache.forEach(h => { if (toLocalISO(h.work_date) === dateStr) dayMap[h.user_id] = h; });
 
     tbody.innerHTML = allUsers
-        .filter(u => u.include_in_attendance !== false)
+        .filter(u => {
+            const bal = balancesCache.find(b => b.user_id === u.id);
+            return bal ? bal.include_in_attendance !== false : true;
+        })
         .map(u => {
             const rec = dayMap[u.id] || {};
             const hasRecord = !!dayMap[u.id];
