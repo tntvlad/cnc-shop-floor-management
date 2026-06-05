@@ -567,12 +567,14 @@ async function loadUsers() {
     tbody.innerHTML = '';
     users.forEach(user => {
       const tr = document.createElement('tr');
+      const canEdit = current.level >= 500 && user.id !== current.id && user.level < currentLevel;
       tr.innerHTML = `
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.employee_id}</td>
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.name || ''}</td>
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.level} ${user.levelName ? '('+user.levelName+')' : ''}</td>
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${new Date(user.created_at).toLocaleString()}</td>
-        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;white-space:nowrap;">
+          ${canEdit ? `<button class="btn" data-action="edit" data-id="${user.id}" style="background:#2563eb;color:#fff;margin-right:4px;">Edit</button>` : ''}
           <button class="btn btn-danger" data-action="delete" data-id="${user.id}">Delete</button>
         </td>
       `;
@@ -586,12 +588,61 @@ async function loadUsers() {
         delBtn.addEventListener('click', () => deleteUser(user.id, user.employee_id));
       }
 
+      const editBtn = tr.querySelector('button[data-action="edit"]');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => openEditUserModal(user.id, user.name, user.employee_id));
+      }
+
       tbody.appendChild(tr);
     });
   } catch (error) {
     tbody.innerHTML = '<tr><td colspan="5" style="padding:10px; color:#ef4444;">Failed to load users</td></tr>';
     logEl.style.display = 'block';
     logEl.textContent = `✗ Error: ${error.message}`;
+  }
+}
+
+// Edit user modal
+function openEditUserModal(id, name, employeeId) {
+  document.getElementById('eu-id').value = id;
+  document.getElementById('eu-name').value = name || '';
+  document.getElementById('eu-empid').value = employeeId || '';
+  document.getElementById('eu-pw').value = '';
+  document.getElementById('eu-error').style.display = 'none';
+  const modal = document.getElementById('edit-user-modal');
+  modal.style.display = 'flex';
+}
+
+function closeEditUserModal() {
+  document.getElementById('edit-user-modal').style.display = 'none';
+}
+
+async function saveEditUser() {
+  const id = document.getElementById('eu-id').value;
+  const name = document.getElementById('eu-name').value.trim();
+  const employee_id = document.getElementById('eu-empid').value.trim();
+  const password = document.getElementById('eu-pw').value;
+  const errEl = document.getElementById('eu-error');
+  errEl.style.display = 'none';
+
+  if (!name || !employee_id) { errEl.textContent = 'Name and Employee ID are required.'; errEl.style.display = 'block'; return; }
+
+  const body = { name, employee_id };
+  if (password) body.password = password;
+
+  try {
+    const resp = await fetch(`${config.API_BASE_URL}/auth/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Update failed');
+    closeEditUserModal();
+    loadUsers();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
   }
 }
 

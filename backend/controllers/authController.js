@@ -198,8 +198,50 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// List all users (Supervisor+ only)
-exports.listUsers = async (req, res) => {
+// Update user (name, employee_id, password) — Admin (500) only
+exports.updateUser = async (req, res) => {
+  try {
+    if (req.user.level < 500) {
+      return res.status(403).json({ error: 'Admin level required to edit users' });
+    }
+    const userId = parseInt(req.params.userId);
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'Cannot edit your own account here' });
+    }
+
+    const target = await pool.query('SELECT id, level FROM users WHERE id = $1', [userId]);
+    if (!target.rows.length) return res.status(404).json({ error: 'User not found' });
+    if (target.rows[0].level >= req.user.level) {
+      return res.status(403).json({ error: 'Cannot edit user with equal or higher level' });
+    }
+
+    const { name, employee_id, password } = req.body;
+    const updates = [];
+    const params = [];
+
+    if (name !== undefined) { params.push(name.trim()); updates.push(`name = $${params.length}`); }
+    if (employee_id !== undefined) { params.push(employee_id.trim()); updates.push(`employee_id = $${params.length}`); }
+    if (password && password.trim()) {
+      const hash = await bcrypt.hash(password.trim(), 10);
+      params.push(hash); updates.push(`password_hash = $${params.length}`);
+    }
+
+    if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
+
+    params.push(userId);
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING id, name, employee_id, level`,
+      params
+    );
+    res.json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    if (error.code === '23505') return res.status(400).json({ error: 'Employee ID already in use' });
+    console.error('updateUser error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+};
+
+// List all users (Supervisor+ only)exports.listUsers = async (req, res) => {
   try {
     // Determine requester level robustly (support legacy role tokens)
     let requesterLevel = Number.isInteger(req.user.level) ? req.user.level : undefined;

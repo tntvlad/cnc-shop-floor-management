@@ -287,6 +287,7 @@ app.get('/health', (req, res) => {
 app.post('/api/auth/login', validateRequest(schemas.login), authController.login);
 app.get('/api/auth/me', authMiddleware, authController.getCurrentUser);
 app.post('/api/auth/users', authMiddleware, authController.createUser);
+app.put('/api/auth/users/:userId', authMiddleware, authController.updateUser);
 app.delete('/api/auth/users/:userId', authMiddleware, authController.deleteUser);
 app.get('/api/auth/users', authMiddleware, authController.listUsers);
 
