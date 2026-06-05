@@ -676,20 +676,23 @@ const exportAttendance = async (req, res) => {
         const employees = empRes.rows;
 
         const hoursRes = await db.query(
-            `SELECT user_id, work_date, check_in, check_out, hours_worked, overtime_hours
+            `SELECT user_id, TO_CHAR(work_date,'YYYY-MM-DD') AS work_date, check_in, check_out, hours_worked, overtime_hours
              FROM work_hours
              WHERE work_date >= $1::date AND work_date < $1::date + INTERVAL '1 month'`,
             [`${year}-${String(month).padStart(2,'0')}-01`]
         );
         const hoursMap = {};
         hoursRes.rows.forEach(r => {
-            const day = parseInt(String(r.work_date).substring(8, 10), 10); // use ISO string day directly
+            const day = parseInt(r.work_date.substring(8, 10), 10);
             if (!hoursMap[r.user_id]) hoursMap[r.user_id] = {};
             hoursMap[r.user_id][day] = r;
         });
 
         const leavesRes = await db.query(
-            `SELECT lr.user_id, lr.date_from, lr.date_to, lt.code AS leave_code
+            `SELECT lr.user_id,
+                    TO_CHAR(lr.date_from, 'YYYY-MM-DD') AS date_from,
+                    TO_CHAR(lr.date_to,   'YYYY-MM-DD') AS date_to,
+                    lt.code AS leave_code
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              WHERE lr.status = 'approved' AND EXTRACT(YEAR FROM lr.date_from) = $1`,
