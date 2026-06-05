@@ -264,12 +264,14 @@ function renderCalendar() {
     const hoursMap    = {};
     hoursCache.forEach(h => { hoursMap[toLocalISO(h.work_date)] = h; });
 
-    // For supervisors: total team hours per day
+    // For supervisors: total team hours + OT per day
     const teamHoursMap = {};
+    const teamOTMap    = {};
     if (currentUser.level >= 400 && allHoursCache.length > 0) {
         allHoursCache.forEach(h => {
             const iso = toLocalISO(h.work_date);
-            teamHoursMap[iso] = (teamHoursMap[iso] || 0) + parseFloat(h.hours_worked || 0);
+            teamHoursMap[iso] = (teamHoursMap[iso] || 0) + parseFloat(h.hours_worked    || 0);
+            teamOTMap[iso]    = (teamOTMap[iso]    || 0) + parseFloat(h.overtime_hours  || 0);
         });
     }
 
@@ -314,10 +316,18 @@ function renderCalendar() {
 
         let inner = `<div class="cal-day-num">${cur.getDate()}</div>`;
         if (isHoliday) inner += `<div class="cal-chip chip-holiday" title="${holidayMap[iso]}">🏛 Holiday</div>`;
-        if (hoursRec)  inner += `<div class="cal-chip chip-hours">⏱ ${parseFloat(hoursRec.hours_worked).toFixed(1)}h</div>`;
-        // Supervisor: show total team hours for the day
+        if (hoursRec) {
+            const hw = parseFloat(hoursRec.hours_worked  || 0);
+            const ot = parseFloat(hoursRec.overtime_hours || 0);
+            inner += `<div class="cal-chip chip-hours">⏱ ${hw.toFixed(1)}h</div>`;
+            if (ot > 0) inner += `<div class="cal-chip" style="background:#fef3c7;color:#d97706;font-size:0.7rem;">+${ot.toFixed(1)}h OT</div>`;
+        }
+        // Supervisor: show total team hours + OT for the day
         if (currentUser.level >= 400 && teamHoursMap[iso] > 0) {
-            inner += `<div class="cal-chip" style="background:#dbeafe;color:#1d4ed8;font-size:0.7rem;" title="Total team hours">👥 ${teamHoursMap[iso].toFixed(1)}h</div>`;
+            const tot = teamHoursMap[iso];
+            const tot_ot = teamOTMap[iso] || 0;
+            inner += `<div class="cal-chip" style="background:#dbeafe;color:#1d4ed8;font-size:0.7rem;" title="Total team hours">👥 ${tot.toFixed(1)}h</div>`;
+            if (tot_ot > 0) inner += `<div class="cal-chip" style="background:#fef3c7;color:#d97706;font-size:0.7rem;" title="Total team OT">+${tot_ot.toFixed(1)}h OT</div>`;
         }
         if (leaveRec) {
             const lt = leaveTypesCache.find(t => t.id === leaveRec.leave_type_id);
