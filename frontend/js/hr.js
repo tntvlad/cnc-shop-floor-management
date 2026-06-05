@@ -123,13 +123,15 @@ async function loadAll() {
     // Supervisor: load team data if needed
     if (currentUser.level >= 400) {
         try {
-            const monthStr = document.getElementById('team-month').value || `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
+            // Always use the calendar's current month for hours/summary (not the team-month input)
+            const calMonthStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
+            const teamMonthStr = document.getElementById('team-month').value || calMonthStr;
             const [summRes, usersRes, balRes, allLeavesRes, allHoursRes] = await Promise.all([
-                apiFetch(`/summary?month=${monthStr}`),
+                apiFetch(`/summary?month=${teamMonthStr}`),
                 fetch(`http://${location.hostname}:5000/api/auth/users`, { headers: authHeader() }).then(r => r.json()),
                 apiFetch(`/balances?year=${currentYear}`),
                 apiFetch(`/leaves?year=${currentYear}`),
-                apiFetch(`/hours?month=${monthStr}`),
+                apiFetch(`/hours?month=${calMonthStr}`),
             ]);
             summaryCache   = summRes.summary || [];
             allUsers       = (usersRes.users || []).filter(u => u.level >= 100);
