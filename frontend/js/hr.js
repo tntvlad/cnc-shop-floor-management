@@ -124,16 +124,18 @@ async function loadAll() {
     if (currentUser.level >= 400) {
         try {
             const monthStr = document.getElementById('team-month').value || `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
-            const [summRes, usersRes, balRes, allLeavesRes] = await Promise.all([
+            const [summRes, usersRes, balRes, allLeavesRes, allHoursRes] = await Promise.all([
                 apiFetch(`/summary?month=${monthStr}`),
                 fetch(`http://${location.hostname}:5000/api/auth/users`, { headers: authHeader() }).then(r => r.json()),
                 apiFetch(`/balances?year=${currentYear}`),
                 apiFetch(`/leaves?year=${currentYear}`),
+                apiFetch(`/hours?month=${monthStr}`),
             ]);
             summaryCache   = summRes.summary || [];
             allUsers       = (usersRes.users || []).filter(u => u.level >= 100);
             balancesCache  = balRes.balances || [];
             allLeavesCache = allLeavesRes.leaves || [];
+            allHoursCache  = allHoursRes.hours || [];
 
             // Populate employee selects
             populateUserSelects();
@@ -262,6 +264,15 @@ function renderCalendar() {
     const hoursMap    = {};
     hoursCache.forEach(h => { hoursMap[toLocalISO(h.work_date)] = h; });
 
+    // For supervisors: total team hours per day
+    const teamHoursMap = {};
+    if (currentUser.level >= 400 && allHoursCache.length > 0) {
+        allHoursCache.forEach(h => {
+            const iso = toLocalISO(h.work_date);
+            teamHoursMap[iso] = (teamHoursMap[iso] || 0) + parseFloat(h.hours_worked || 0);
+        });
+    }
+
     const leavesMap   = {};
     leavesCache.filter(l => l.status === 'approved').forEach(l => {
         const from = new Date(toLocalISO(l.date_from) + 'T00:00:00');
@@ -304,6 +315,10 @@ function renderCalendar() {
         let inner = `<div class="cal-day-num">${cur.getDate()}</div>`;
         if (isHoliday) inner += `<div class="cal-chip chip-holiday" title="${holidayMap[iso]}">🏛 Holiday</div>`;
         if (hoursRec)  inner += `<div class="cal-chip chip-hours">⏱ ${parseFloat(hoursRec.hours_worked).toFixed(1)}h</div>`;
+        // Supervisor: show total team hours for the day
+        if (currentUser.level >= 400 && teamHoursMap[iso] > 0) {
+            inner += `<div class="cal-chip" style="background:#dbeafe;color:#1d4ed8;font-size:0.7rem;" title="Total team hours">👥 ${teamHoursMap[iso].toFixed(1)}h</div>`;
+        }
         if (leaveRec) {
             const lt = leaveTypesCache.find(t => t.id === leaveRec.leave_type_id);
             const color = lt ? lt.color : '#667eea';
@@ -326,7 +341,7 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
     document.getElementById('day-modal-title').textContent =
         d.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    // Pre-fill hours
+    // Pre-fill hours (own record)
     document.getElementById('dh-hours').value    = hoursRec ? parseFloat(hoursRec.hours_worked) : 8;
     document.getElementById('dh-ot').value       = hoursRec ? parseFloat(hoursRec.overtime_hours) : 0;
     document.getElementById('dh-checkin').value  = hoursRec?.check_in  || '';
@@ -338,8 +353,70 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
     document.getElementById('dl-to').value   = dateStr;
     document.getElementById('dl-notes').value = '';
 
+    // Supervisor: show team table, hide simple form's Save button
+    if (currentUser.level >= 400 && allUsers.length > 0) {
+        document.getElementById('day-team-table-wrap').style.display = '';
+        document.getElementById('day-simple-form').style.display = 'none';
+        document.getElementById('day-modal-save').style.display = 'none';
+        renderDayTeamTable(dateStr);
+    } else {
+        document.getElementById('day-team-table-wrap').style.display = 'none';
+        document.getElementById('day-simple-form').style.display = '';
+        document.getElementById('day-modal-save').style.display = '';
+    }
+
     switchDayTab('hours');
     document.getElementById('day-modal').classList.add('active');
+}
+
+function renderDayTeamTable(dateStr) {
+    const tbody = document.getElementById('day-team-tbody');
+    // Build lookup from allHoursCache for this date
+    const dayMap = {};
+    allHoursCache.forEach(h => { if (toLocalISO(h.work_date) === dateStr) dayMap[h.user_id] = h; });
+
+    tbody.innerHTML = allUsers
+        .filter(u => u.include_in_attendance !== false)
+        .map(u => {
+            const rec = dayMap[u.id] || {};
+            const hasRecord = !!dayMap[u.id];
+            return `<tr id="day-row-${u.id}">
+                <td style="padding:4px 8px;white-space:nowrap;">${escapeHtml(u.name)}</td>
+                <td style="padding:4px 6px;"><input type="time" class="day-ci" data-uid="${u.id}" value="${rec.check_in || ''}" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;"><input type="time" class="day-co" data-uid="${u.id}" value="${rec.check_out || ''}" style="width:90px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;"><input type="number" class="day-hw" data-uid="${u.id}" value="${rec.hours_worked || ''}" min="0" max="24" step="0.5" placeholder="8" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;"><input type="number" class="day-ot" data-uid="${u.id}" value="${rec.overtime_hours || ''}" min="0" max="24" step="0.5" placeholder="0" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                <td style="padding:4px 6px;text-align:center;">
+                  <button onclick="saveTeamRow(${u.id},'${dateStr}',${hasRecord ? `'${rec.id}'` : 'null'})"
+                    style="padding:3px 10px;font-size:0.78rem;background:#2563eb;color:#fff;border:none;border-radius:4px;cursor:pointer;">
+                    ${hasRecord ? 'Update' : 'Save'}
+                  </button>
+                </td>
+            </tr>`;
+        }).join('');
+}
+
+async function saveTeamRow(userId, dateStr, existingId) {
+    const ci = document.querySelector(`.day-ci[data-uid="${userId}"]`).value;
+    const co = document.querySelector(`.day-co[data-uid="${userId}"]`).value;
+    const hw = parseFloat(document.querySelector(`.day-hw[data-uid="${userId}"]`).value) || 0;
+    const ot = parseFloat(document.querySelector(`.day-ot[data-uid="${userId}"]`).value) || 0;
+    try {
+        await apiFetch('/hours', {
+            method: 'POST',
+            body: JSON.stringify({
+                work_date: dateStr, hours_worked: hw, overtime_hours: ot,
+                check_in: ci || null, check_out: co || null,
+                user_id: userId,
+            })
+        });
+        // Reload hours cache and re-render table + calendar
+        await loadAll();
+        renderDayTeamTable(dateStr);
+        renderCalendar();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
 }
 
 function switchDayTab(tab) {
