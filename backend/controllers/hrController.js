@@ -1164,6 +1164,54 @@ const autoFill = async (req, res) => {
     }
 };
 
+// Standalone daily auto-fill — called by the scheduler for a specific ISO date
+const runDailyAutoFill = async (isoDate) => {
+    const [year, month, day] = isoDate.split('-').map(Number);
+    const dow = new Date(isoDate + 'T00:00:00').getDay();
+    if (dow === 0 || dow === 6) { console.log(`[AutoFill] ${isoDate} is weekend, skipping.`); return; }
+
+    console.log(`[AutoFill] Running daily auto-fill for ${isoDate}`);
+
+    const empRes = await db.query(
+        `SELECT id, schedule_checkin, schedule_checkout, COALESCE(lunch_break_minutes, 30) AS lunch_break_minutes
+         FROM users
+         WHERE include_in_attendance = true AND is_active = true AND level >= 100
+           AND schedule_checkin IS NOT NULL AND schedule_checkout IS NOT NULL`
+    );
+    if (!empRes.rows.length) { console.log('[AutoFill] No employees with schedule.'); return; }
+
+    const existingRes = await db.query(
+        `SELECT user_id FROM work_hours WHERE TO_CHAR(work_date,'YYYY-MM-DD') = $1`, [isoDate]
+    );
+    const existingSet = new Set(existingRes.rows.map(r => `${r.user_id}`));
+
+    const leavesRes = await db.query(
+        `SELECT user_id FROM leave_requests
+         WHERE status = 'approved' AND $1::date BETWEEN date_from AND date_to`, [isoDate]
+    );
+    const leaveSet = new Set(leavesRes.rows.map(r => `${r.user_id}`));
+
+    let filled = 0;
+    for (const emp of empRes.rows) {
+        if (existingSet.has(`${emp.id}`) || leaveSet.has(`${emp.id}`)) continue;
+        const lunchDeduct = emp.lunch_break_minutes >= 30 ? emp.lunch_break_minutes : 0;
+        const [ch, cm] = emp.schedule_checkin.split(':').map(Number);
+        const [oh, om] = emp.schedule_checkout.split(':').map(Number);
+        const mins = (oh * 60 + om) - (ch * 60 + cm) - lunchDeduct;
+        const total = mins > 0 ? Math.round(mins / 6) / 10 : 0;
+        const hw = Math.min(total, 8);
+        const ot = Math.max(0, Math.round((total - hw) * 10) / 10);
+        await db.query(
+            `INSERT INTO work_hours (user_id, work_date, check_in, check_out, hours_worked, overtime_hours, entered_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $1)
+             ON CONFLICT (user_id, work_date) DO NOTHING`,
+            [emp.id, isoDate, emp.schedule_checkin, emp.schedule_checkout, hw, ot]
+        );
+        filled++;
+    }
+    console.log(`[AutoFill] ${isoDate}: filled ${filled} employee-day records.`);
+};
+
 module.exports = {
     getLeaveTypes,
     getPublicHolidays, createPublicHoliday, updatePublicHoliday, deletePublicHoliday,
@@ -1171,5 +1219,6 @@ module.exports = {
     getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
     getHours, getMyHours, logHours, updateHours, deleteHours,
     getSummary, exportAttendance, updateEmployee, autoFill,
+    runDailyAutoFill,
 };
 

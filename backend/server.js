@@ -509,7 +509,23 @@ app.listen(PORT, '0.0.0.0', () => {
     // Ignore git config errors on non-Docker environments
   }
 
-  // Auto sync scheduler
+  // Auto-fill from schedule — runs at 23:55 every day
+  const hrController = require('./controllers/hrController');
+  let _lastAutoFillDate = null;
+  setInterval(async () => {
+    const now = new Date();
+    if (now.getHours() === 23 && now.getMinutes() === 55) {
+      const isoDate = now.toISOString().substring(0, 10);
+      if (_lastAutoFillDate === isoDate) return; // already ran today
+      _lastAutoFillDate = isoDate;
+      try {
+        await hrController.runDailyAutoFill(isoDate);
+      } catch (err) {
+        console.error('[AutoFill] Scheduler error:', err.message);
+      }
+    }
+  }, 60000); // check every minute
+  console.log('✓ Daily auto-fill scheduler enabled (runs at 23:55)');
   const autoEnabled = (process.env.AUTO_SYNC_ENABLED ?? 'true') !== 'false';
   const intervalMs = parseInt(process.env.AUTO_SYNC_INTERVAL_MS || '60000');
   if (autoEnabled) {
