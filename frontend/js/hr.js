@@ -532,6 +532,15 @@ function renderDayTeamTable(dateStr) {
     const dayMap = {};
     allHoursCache.forEach(h => { if (toLocalISO(h.work_date) === dateStr) dayMap[h.user_id] = h; });
 
+    // Build leave lookup for this date
+    const leaveDay = {};
+    allLeavesCache.forEach(l => {
+        if (l.status !== 'approved' && l.status !== 'pending') return;
+        const from = toLocalISO(l.date_from);
+        const to   = toLocalISO(l.date_to);
+        if (dateStr >= from && dateStr <= to) leaveDay[l.user_id] = l;
+    });
+
     tbody.innerHTML = allUsers
         .filter(u => {
             const bal = balancesCache.find(b => b.user_id === u.id);
@@ -540,12 +549,23 @@ function renderDayTeamTable(dateStr) {
         .map(u => {
             const rec = dayMap[u.id] || {};
             const hasRecord = !!dayMap[u.id];
+            const leave = leaveDay[u.id];
+            const leaveCell = leave
+                ? `<td style="padding:4px 8px;text-align:center;">
+                    <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:0.75rem;font-weight:600;
+                        background:${leave.color ? leave.color+'25' : '#e0e7ff'};color:${leave.color || '#4338ca'};white-space:nowrap;">
+                        ${escapeHtml(leave.leave_type_name || leave.leave_type_id)}
+                    </span>
+                    ${leave.status === 'pending' ? '<span style="font-size:0.68rem;color:#f59e0b;"> (pending)</span>' : ''}
+                  </td>`
+                : `<td style="padding:4px 8px;text-align:center;color:#94a3b8;font-size:0.8rem;">—</td>`;
             return `<tr id="day-row-${u.id}">
                 <td style="padding:4px 8px;white-space:nowrap;">${escapeHtml(u.name)}</td>
                 <td style="padding:4px 6px;"><input type="text" class="day-ci" data-uid="${u.id}" value="${(rec.check_in || '').substring(0,5)}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
                 <td style="padding:4px 6px;"><input type="text" class="day-co" data-uid="${u.id}" value="${(rec.check_out || '').substring(0,5)}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-hw" data-uid="${u.id}" value="${rec.hours_worked != null && rec.hours_worked !== '' ? rec.hours_worked : ''}" min="0" max="24" step="0.5" placeholder="8" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-ot" data-uid="${u.id}" value="${rec.overtime_hours || ''}" min="0" max="24" step="0.5" placeholder="0" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
+                ${leaveCell}
                 <td style="padding:4px 6px;text-align:center;">
                   <button onclick="saveTeamRow(${u.id},'${dateStr}',${hasRecord ? `'${rec.id}'` : 'null'})"
                     style="padding:3px 10px;font-size:0.78rem;background:#2563eb;color:#fff;border:none;border-radius:4px;cursor:pointer;">
