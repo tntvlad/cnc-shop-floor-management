@@ -421,8 +421,8 @@ function renderAttendanceGrid() {
             if (isWknd || isHol) {
                 html += `<td class="${cls}"></td>`;
             } else {
-                const ci = rec?.check_in  || '';
-                const co = rec?.check_out || '';
+                const ci = (rec?.check_in  || '').substring(0, 5);
+                const co = (rec?.check_out || '').substring(0, 5);
                 const hw = rec ? parseFloat(rec.hours_worked || 0) : '';
                 // Supervisor: inline editable inputs
                 html += `<td class="${cls}" data-uid="${u.id}" data-iso="${iso}" data-rid="${recId}">
@@ -542,8 +542,8 @@ function renderDayTeamTable(dateStr) {
             const hasRecord = !!dayMap[u.id];
             return `<tr id="day-row-${u.id}">
                 <td style="padding:4px 8px;white-space:nowrap;">${escapeHtml(u.name)}</td>
-                <td style="padding:4px 6px;"><input type="text" class="day-ci" data-uid="${u.id}" value="${rec.check_in || ''}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
-                <td style="padding:4px 6px;"><input type="text" class="day-co" data-uid="${u.id}" value="${rec.check_out || ''}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
+                <td style="padding:4px 6px;"><input type="text" class="day-ci" data-uid="${u.id}" value="${(rec.check_in || '').substring(0,5)}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
+                <td style="padding:4px 6px;"><input type="text" class="day-co" data-uid="${u.id}" value="${(rec.check_out || '').substring(0,5)}" placeholder="HH:MM" maxlength="5" oninput="formatTimeInput(this);autoFillHours(${u.id})" style="width:62px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-hw" data-uid="${u.id}" value="${rec.hours_worked != null && rec.hours_worked !== '' ? rec.hours_worked : ''}" min="0" max="24" step="0.5" placeholder="8" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;"><input type="number" class="day-ot" data-uid="${u.id}" value="${rec.overtime_hours || ''}" min="0" max="24" step="0.5" placeholder="0" style="width:52px;font-size:0.8rem;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;"></td>
                 <td style="padding:4px 6px;text-align:center;">
