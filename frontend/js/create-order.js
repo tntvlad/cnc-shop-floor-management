@@ -234,7 +234,7 @@ function applyRepeatParts() {
   document.getElementById('parts-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-
+async function loadMaterials() {
   try {
     const response = await fetch(`${API_URL}/materials`, {
       headers: { 'Authorization': `Bearer ${getToken()}` }
