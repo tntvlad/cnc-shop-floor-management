@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
   addPartField();
   loadCustomers();
   setupCustomerSearch();
+  setupRepeatSearch();
   loadNextInternalOrderId();
 });
 
@@ -72,7 +73,162 @@ async function loadNextInternalOrderId() {
   }
 }
 
-async function loadMaterials() {
+// ─────────────────────────────────────────────────────────────
+//  Repeat Previous Order
+// ─────────────────────────────────────────────────────────────
+let repeatSearchResults = [];   // orders returned by search
+let repeatSelectedOrder = null; // the order chosen to repeat
+let _repeatSearchTimer = null;
+
+function setupRepeatSearch() {
+  const input = document.getElementById('repeat-search');
+  const dropdown = document.getElementById('repeat-dropdown');
+  if (!input) return;
+
+  input.addEventListener('input', (e) => {
+    const q = e.target.value.trim();
+    clearTimeout(_repeatSearchTimer);
+    if (q.length < 2) { dropdown.classList.remove('active'); return; }
+    _repeatSearchTimer = setTimeout(() => runRepeatSearch(q), 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target !== input && !e.target.closest('#repeat-dropdown')) {
+      dropdown.classList.remove('active');
+    }
+  });
+}
+
+async function runRepeatSearch(q) {
+  const dropdown = document.getElementById('repeat-dropdown');
+  try {
+    const resp = await fetch(`${API_URL}/orders/search-repeat?q=${encodeURIComponent(q)}`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const data = await resp.json();
+    repeatSearchResults = data.orders || [];
+    renderRepeatDropdown();
+    dropdown.classList.add('active');
+  } catch (err) {
+    console.error('Repeat search error:', err);
+  }
+}
+
+function renderRepeatDropdown() {
+  const dropdown = document.getElementById('repeat-dropdown');
+  if (!repeatSearchResults.length) {
+    dropdown.innerHTML = '<div class="customer-option" style="color:#999;">No matching orders found.</div>';
+    return;
+  }
+  dropdown.innerHTML = repeatSearchResults.map((o, i) => {
+    const ids = [o.internal_order_id, o.external_order_id].filter(Boolean).join(' / ') || 'No ID';
+    const date = o.order_date ? new Date(o.order_date).toLocaleDateString() : '';
+    const partCount = (o.parts || []).length;
+    return `<div class="customer-option" onclick="openRepeatPartsModal(${i})">
+      <div class="customer-option-name">${escapeHtml(ids)} — ${escapeHtml(o.customer_name || '')}</div>
+      <div class="customer-option-email">${date} • ${partCount} part${partCount !== 1 ? 's' : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function openRepeatPartsModal(index) {
+  repeatSelectedOrder = repeatSearchResults[index];
+  if (!repeatSelectedOrder) return;
+  document.getElementById('repeat-dropdown').classList.remove('active');
+
+  const ids = [repeatSelectedOrder.internal_order_id, repeatSelectedOrder.external_order_id].filter(Boolean).join(' / ') || 'No ID';
+  document.getElementById('repeat-order-info').innerHTML =
+    `<strong>Source order:</strong> ${escapeHtml(ids)} — ${escapeHtml(repeatSelectedOrder.customer_name || '')}` +
+    (repeatSelectedOrder.notes ? `<br><span style="color:#666;">${escapeHtml(repeatSelectedOrder.notes)}</span>` : '');
+
+  const tbody = document.getElementById('repeat-parts-tbody');
+  const parts = repeatSelectedOrder.parts || [];
+  if (!parts.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:1rem;">This order has no parts.</td></tr>';
+  } else {
+    tbody.innerHTML = parts.map((p, i) => `
+      <tr class="selected">
+        <td style="text-align:center;"><input type="checkbox" class="repeat-part-check" data-idx="${i}" checked onchange="onRepeatPartCheck(this)"></td>
+        <td>${escapeHtml(p.part_name || '')}</td>
+        <td>${escapeHtml(p.material_name || p.material_type || '—')}</td>
+        <td>${escapeHtml(p.material_dimensions || '—')}</td>
+        <td><input type="number" class="repeat-part-qty" data-idx="${i}" min="1" value="${p.quantity || 1}" style="width:70px;padding:4px;"></td>
+      </tr>`).join('');
+  }
+  document.getElementById('repeat-select-all').checked = true;
+  document.getElementById('repeat-parts-modal').classList.add('active');
+}
+
+function closeRepeatPartsModal() {
+  document.getElementById('repeat-parts-modal').classList.remove('active');
+}
+
+function toggleRepeatSelectAll(cb) {
+  document.querySelectorAll('.repeat-part-check').forEach(c => {
+    c.checked = cb.checked;
+    c.closest('tr').classList.toggle('selected', cb.checked);
+  });
+}
+
+function onRepeatPartCheck(cb) {
+  cb.closest('tr').classList.toggle('selected', cb.checked);
+  const all = document.querySelectorAll('.repeat-part-check');
+  const checked = document.querySelectorAll('.repeat-part-check:checked');
+  document.getElementById('repeat-select-all').checked = all.length === checked.length;
+}
+
+function applyRepeatParts() {
+  if (!repeatSelectedOrder) return;
+  const parts = repeatSelectedOrder.parts || [];
+  const checks = document.querySelectorAll('.repeat-part-check:checked');
+  if (!checks.length) { alert('Select at least one part.'); return; }
+
+  // Clear existing parts (mirror import behavior)
+  const partsList = document.getElementById('parts-list');
+  partsList.innerHTML = '';
+
+  checks.forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    const part = parts[idx];
+    const qtyInputModal = document.querySelector(`.repeat-part-qty[data-idx="${idx}"]`);
+    const qty = qtyInputModal ? (parseInt(qtyInputModal.value) || 1) : (part.quantity || 1);
+
+    const currentIndex = partsList.children.length;
+    addPartField();
+    const partItem = partsList.children[currentIndex];
+    if (!partItem) return;
+
+    const nameInput = partItem.querySelector(`input[name="parts[${currentIndex}][part_name]"]`);
+    const qtyInput  = partItem.querySelector(`input[name="parts[${currentIndex}][quantity]"]`);
+    const timeInput = partItem.querySelector(`input[name="parts[${currentIndex}][estimated_time]"]`);
+    const descInput = partItem.querySelector(`textarea[name="parts[${currentIndex}][description]"]`);
+    const matIdInput = partItem.querySelector(`input[name="parts[${currentIndex}][material_id]"]`);
+    const matNameInput = partItem.querySelector(`input[name="parts[${currentIndex}][material_type_name]"]`);
+    const materialSearchInput = partItem.querySelector('.material-search');
+    const prioSelect = partItem.querySelector(`select[name="parts[${currentIndex}][priority]"]`);
+
+    if (nameInput) nameInput.value = part.part_name || '';
+    if (qtyInput)  qtyInput.value = qty;
+    if (timeInput && part.estimated_time) timeInput.value = part.estimated_time;
+    if (descInput) descInput.value = part.description || '';
+    if (prioSelect && part.priority) prioSelect.value = part.priority;
+
+    // Prefill material if present
+    if (part.material_id && matIdInput) {
+      matIdInput.value = part.material_id;
+      const matLabel = part.material_name || part.material_type || '';
+      if (matNameInput) matNameInput.value = matLabel;
+      if (materialSearchInput) materialSearchInput.value = matLabel;
+    }
+  });
+
+  closeRepeatPartsModal();
+  showSuccess(`${checks.length} part${checks.length !== 1 ? 's' : ''} added from previous order. Review and set customer/dates before creating.`);
+  // Scroll to parts
+  document.getElementById('parts-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+
   try {
     const response = await fetch(`${API_URL}/materials`, {
       headers: { 'Authorization': `Bearer ${getToken()}` }

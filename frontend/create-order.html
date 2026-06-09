@@ -931,6 +931,16 @@
         <div class="success-message" id="success-message"></div>
 
         <form id="create-order-form" onsubmit="handleCreateOrder(event)">
+          <!-- Repeat Previous Order -->
+          <div class="form-section">
+            <h3>🔁 Repeat a Previous Order <small style="font-weight:normal;color:#666;">(optional)</small></h3>
+            <div class="form-group" style="position:relative;">
+              <label for="repeat-search">Search by Internal Order ID, External Order ID, or Part Name/Number</label>
+              <input type="text" id="repeat-search" placeholder="Type order ID or part name…" autocomplete="off">
+              <div id="repeat-dropdown" class="customer-dropdown"></div>
+            </div>
+          </div>
+
           <!-- Customer Information -->
           <div class="form-section">
             <h3>Customer Information</h3>
@@ -1310,6 +1320,43 @@
           </div>
         </div>
 
+        <!-- Repeat Order Parts Modal -->
+        <div class="modal" id="repeat-parts-modal">
+          <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+              <h2>🔁 Repeat Order — Select Parts</h2>
+              <button class="modal-close" onclick="closeRepeatPartsModal()">✕</button>
+            </div>
+            <div class="modal-body">
+              <div id="repeat-order-info" style="margin-bottom:1rem;padding:0.75rem;background:#f0f4ff;border-radius:6px;font-size:0.9rem;"></div>
+              <div style="margin-bottom:0.75rem;">
+                <label style="cursor:pointer;font-size:0.9rem;">
+                  <input type="checkbox" id="repeat-select-all" checked onchange="toggleRepeatSelectAll(this)"> Select all parts
+                </label>
+              </div>
+              <div style="max-height:420px;overflow-y:auto;">
+                <table class="csv-table" id="repeat-parts-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40px;"></th>
+                      <th>Part Name</th>
+                      <th>Material</th>
+                      <th>Dimensions</th>
+                      <th style="width:90px;">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody id="repeat-parts-tbody"></tbody>
+                </table>
+              </div>
+              <small style="color:#666;display:block;margin-top:0.75rem;">Customer, dates and order IDs are NOT copied — set those above. Only the selected parts will be added.</small>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-modal-cancel" onclick="closeRepeatPartsModal()">Cancel</button>
+              <button type="button" class="btn-modal-submit" onclick="applyRepeatParts()">Add Selected Parts</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Import Parts Modal -->
         <div class="modal" id="import-parts-modal">
           <div class="modal-content" style="max-width: 900px;">
@@ -1349,7 +1396,7 @@
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/MaterialSelector.js?v=20260113b"></script>
-  <script src="js/create-order.js?v=20260114"></script>
+  <script src="js/create-order.js?v=20260609"></script>
   <link rel="stylesheet" href="css/material-selector.css?v=20260113b">
 </body>
 </html>

@@ -343,6 +343,7 @@ app.get('/api/parts/:partId/timelogs', authMiddleware, timeController.getPartTim
 // Note: requireSupervisor must be INVOKED to return the middleware instance.
 // IMPORTANT: Specific routes must come BEFORE parameterized routes like /api/orders/:id
 app.get('/api/orders/next-internal-id', authMiddleware, requireSupervisor(), ordersController.getNextInternalOrderId);
+app.get('/api/orders/search-repeat', authMiddleware, requireSupervisor(), ordersController.searchRepeatOrders);
 app.get('/api/orders/stats/summary', authMiddleware, requireSupervisor(), ordersController.getOrderStats);
 app.get('/api/orders/financial', authMiddleware, requireAdmin(), ordersController.getFinancialOrders);
 app.post('/api/orders', authMiddleware, requireSupervisor(), ordersController.createOrder);

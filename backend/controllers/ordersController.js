@@ -540,6 +540,7 @@ module.exports = {
   addPartToOrder,
   updatePartPriority,
   getNextInternalOrderId,
+  searchRepeatOrders,
   // Financial dashboard functions
   getFinancialOrders,
   updateFinancialStage,
@@ -548,6 +549,81 @@ module.exports = {
   markCashedIn,
   resetFinancialStatus
 };
+
+// Search orders for the "Repeat Order" feature.
+// Matches by internal_order_id, external_order_id, or part name/number.
+// Returns matching orders with their parts (incl. dimensions, time, folder).
+async function searchRepeatOrders(req, res) {
+  try {
+    const q = (req.query.q || '').trim();
+    if (q.length < 2) {
+      return res.status(200).json({ success: true, orders: [] });
+    }
+    const like = `%${q}%`;
+
+    // Find distinct order IDs matching the query in order ids OR part names/numbers
+    const idResult = await pool.query(
+      `SELECT DISTINCT o.id, o.created_at
+         FROM orders o
+         LEFT JOIN parts p ON p.order_id = o.id
+        WHERE o.internal_order_id ILIKE $1
+           OR o.external_order_id ILIKE $1
+           OR p.part_name ILIKE $1
+           OR p.part_number ILIKE $1
+        ORDER BY o.created_at DESC
+        LIMIT 25`,
+      [like]
+    );
+
+    if (idResult.rows.length === 0) {
+      return res.status(200).json({ success: true, orders: [] });
+    }
+
+    const orderIds = idResult.rows.map(r => r.id);
+
+    // Fetch order headers
+    const ordersResult = await pool.query(
+      `SELECT o.id, o.customer_id, o.customer_name, o.internal_order_id, o.external_order_id,
+              o.order_date, o.due_date, o.notes, o.priority, o.created_at
+         FROM orders o
+        WHERE o.id = ANY($1::int[])
+        ORDER BY o.created_at DESC`,
+      [orderIds]
+    );
+
+    // Fetch all parts for these orders
+    const partsResult = await pool.query(
+      `SELECT p.id, p.order_id, p.part_name, p.part_number, p.quantity, p.description,
+              p.material_id, p.material_type, p.material_dimensions, p.estimated_time,
+              p.file_folder, p.priority,
+              mt.name AS material_name
+         FROM parts p
+         LEFT JOIN material_types mt ON p.material_id = mt.id
+        WHERE p.order_id = ANY($1::int[])
+        ORDER BY p.order_id, p.id`,
+      [orderIds]
+    );
+
+    const partsByOrder = {};
+    partsResult.rows.forEach(p => {
+      if (!partsByOrder[p.order_id]) partsByOrder[p.order_id] = [];
+      partsByOrder[p.order_id].push({
+        ...p,
+        priority: mapPriorityToStr(p.priority)
+      });
+    });
+
+    const orders = ordersResult.rows.map(o => ({
+      ...o,
+      parts: partsByOrder[o.id] || []
+    }));
+
+    res.status(200).json({ success: true, orders });
+  } catch (error) {
+    console.error('Error searching repeat orders:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
 
 // Get next available internal order ID (format: FP-YYYY-NNN)
 async function getNextInternalOrderId(req, res) {
