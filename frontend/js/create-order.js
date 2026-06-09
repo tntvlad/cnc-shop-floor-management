@@ -228,8 +228,17 @@ function applyRepeatParts() {
     }
   });
 
+  // Prefill customer from the source order (if it has one and none is selected yet)
+  if (repeatSelectedOrder.customer_id) {
+    const cust = allCustomers.find(c => c.id === repeatSelectedOrder.customer_id);
+    if (cust) {
+      selectCustomer(cust.id, cust.company_name, cust.email, cust.phone || '');
+    }
+  }
+
   closeRepeatPartsModal();
-  showSuccess(`${checks.length} part${checks.length !== 1 ? 's' : ''} added from previous order. Review and set customer/dates before creating.`);
+  const custMsg = repeatSelectedOrder.customer_id ? ' Customer also filled.' : '';
+  showSuccess(`${checks.length} part${checks.length !== 1 ? 's' : ''} added from previous order.${custMsg} Review and set dates before creating.`);
   // Scroll to parts
   document.getElementById('parts-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
