@@ -43,7 +43,6 @@ function isActiveAttendanceUser(userId) {
     }
     return true;
 }
-}
 
 // ── Bootstrap ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
