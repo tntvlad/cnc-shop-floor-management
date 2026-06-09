@@ -674,7 +674,8 @@ const exportAttendance = async (req, res) => {
         const RO_DOW    = ['Du','Lu','Ma','Mi','Jo','Vi','Sâ'];
 
         // â”€â”€ DB queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        const empRes = await db.query(`SELECT id, name FROM users WHERE level >= 100 AND is_active = true AND include_in_attendance = true ORDER BY name`);
+        const empRes = await db.query(`SELECT id, name FROM users WHERE level >= 100 AND is_active = true AND include_in_attendance = true AND (contract_end_date IS NULL OR contract_end_date >= $1::date) ORDER BY name`,
+            [`${year}-${String(month).padStart(2,'0')}-01`]);
         const employees = empRes.rows;
 
         const hoursRes = await db.query(
