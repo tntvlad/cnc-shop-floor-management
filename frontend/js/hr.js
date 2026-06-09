@@ -25,14 +25,24 @@ let _editHolidayId   = null;
 // ── Date helper (local timezone, avoids UTC-shift bug) ──────────
 function toLocalISO(d) {
     if (!d) return '';
-    // JS Date objects: use local time components (avoids UTC-shift)
     if (d instanceof Date) {
         if (isNaN(d)) return '';
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
-    // DB date strings ("2026-06-01" or "2026-06-01T00:00:00.000Z"):
-    // never parse as Date — just take the first 10 chars
     return String(d).substring(0, 10);
+}
+
+// ── Returns true if user is active (in attendance and contract not expired) ──
+function isActiveAttendanceUser(userId) {
+    const bal = balancesCache.find(b => b.user_id === userId);
+    if (!bal) return true;
+    if (bal.include_in_attendance === false) return false;
+    if (bal.contract_end_date) {
+        const today = new Date().toISOString().substring(0, 10);
+        if (bal.contract_end_date < today) return false;
+    }
+    return true;
+}
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────
@@ -187,18 +197,12 @@ function populateUserSelects() {
     });
     // Leave employee selector: no "Me" option — always pick explicitly
     const leaveOpts = `<option value="">— Select employee —</option>` +
-        allUsers.filter(u => {
-            const bal = balancesCache.find(b => b.user_id === u.id);
-            return bal ? bal.include_in_attendance !== false : true;
-        }).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        allUsers.filter(u => isActiveAttendanceUser(u.id)).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
     const dlUser = document.getElementById('dl-user');
     if (dlUser) dlUser.innerHTML = leaveOpts;
 
     const filterOpts = `<option value="">All Employees</option>` +
-        allUsers.filter(u => {
-            const bal = balancesCache.find(b => b.user_id === u.id);
-            return bal ? bal.include_in_attendance !== false : true;
-        }).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        allUsers.filter(u => isActiveAttendanceUser(u.id)).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
     const filterSel = document.getElementById('leave-filter-user');
     if (filterSel) filterSel.innerHTML = filterOpts;
 }
@@ -386,10 +390,7 @@ function renderAttendanceGrid() {
         byUser[h.user_id][toLocalISO(h.work_date)] = h;
     });
 
-    const attendanceUsers = allUsers.filter(u => {
-        const bal = balancesCache.find(b => b.user_id === u.id);
-        return bal ? bal.include_in_attendance !== false : true;
-    });
+    const attendanceUsers = allUsers.filter(u => isActiveAttendanceUser(u.id));
 
     // Header row
     let html = '<thead><tr><th style="min-width:100px;position:sticky;left:0;z-index:3;background:#f1f5f9;">Employee</th>';
@@ -542,10 +543,7 @@ function renderDayTeamTable(dateStr) {
     });
 
     tbody.innerHTML = allUsers
-        .filter(u => {
-            const bal = balancesCache.find(b => b.user_id === u.id);
-            return bal ? bal.include_in_attendance !== false : true;
-        })
+        .filter(u => isActiveAttendanceUser(u.id))
         .map(u => {
             const rec = dayMap[u.id] || {};
             const hasRecord = !!dayMap[u.id];
@@ -757,10 +755,7 @@ async function renderTeamOverview() {
             return;
         }
         tbody.innerHTML = rows
-        .filter(u => {
-            const bal = balancesCache.find(b => b.user_id === u.id);
-            return bal ? bal.include_in_attendance !== false : true;
-        })
+        .filter(u => isActiveAttendanceUser(u.id))
         .map(u => {
             const annual  = balancesCache.find(b => b.user_id === u.id) || {};
             const total   = parseFloat(annual.total_days || 20) + parseFloat(annual.carried_over || 0);
