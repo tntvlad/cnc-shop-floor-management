@@ -934,10 +934,12 @@
           <!-- Repeat Previous Order -->
           <div class="form-section">
             <h3>🔁 Repeat a Previous Order <small style="font-weight:normal;color:#666;">(optional)</small></h3>
-            <div class="form-group" style="position:relative;">
+            <div class="form-group customer-search-wrapper">
               <label for="repeat-search">Search by Internal Order ID, External Order ID, or Part Name/Number</label>
-              <input type="text" id="repeat-search" placeholder="Type order ID or part name…" autocomplete="off">
-              <div id="repeat-dropdown" class="customer-dropdown"></div>
+              <div style="position:relative;">
+                <input type="text" id="repeat-search" placeholder="Type order ID or part name…" autocomplete="off">
+                <div id="repeat-dropdown" class="customer-dropdown"></div>
+              </div>
             </div>
           </div>
 
@@ -1396,7 +1398,7 @@
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/MaterialSelector.js?v=20260113b"></script>
-  <script src="js/create-order.js?v=20260609"></script>
+  <script src="js/create-order.js?v=20260609b"></script>
   <link rel="stylesheet" href="css/material-selector.css?v=20260113b">
 </body>
 </html>

@@ -92,8 +92,14 @@ function setupRepeatSearch() {
     _repeatSearchTimer = setTimeout(() => runRepeatSearch(q), 300);
   });
 
+  input.addEventListener('focus', () => {
+    if (input.value.trim().length >= 2 && repeatSearchResults.length) {
+      dropdown.classList.add('active');
+    }
+  });
+
   document.addEventListener('click', (e) => {
-    if (e.target !== input && !e.target.closest('#repeat-dropdown')) {
+    if (e.target !== input && !e.target.closest('#repeat-dropdown') && !e.target.closest('.customer-search-wrapper')) {
       dropdown.classList.remove('active');
     }
   });
