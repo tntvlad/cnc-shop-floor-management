@@ -31,6 +31,7 @@ async function createOrder(req, res) {
       technical_contact_id,
       delivery_address,
       priority,
+      offer_number,
       // Order approval fields (Phase 2)
       discount_applied,
       requires_approval,
@@ -66,10 +67,10 @@ async function createOrder(req, res) {
           order_date, internal_order_id, external_order_id, due_date, notes, status, priority,
           invoice_contact_id, order_contact_id, technical_contact_id,
           delivery_address,
-          discount_applied, requires_approval, approval_status
+          discount_applied, requires_approval, approval_status, offer_number
         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-         RETURNING id, customer_id, customer_name, customer_email, order_date, internal_order_id, external_order_id, due_date, status, priority, created_at, approval_status, requires_approval`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         RETURNING id, customer_id, customer_name, customer_email, order_date, internal_order_id, external_order_id, due_date, status, priority, created_at, approval_status, requires_approval, offer_number`,
         [
           customer_id || null,
           customerDetails.name,
@@ -88,7 +89,8 @@ async function createOrder(req, res) {
           delivery_address || null,
           discount_applied || 0,
           requires_approval || false,
-          approval_status || 'approved'
+          approval_status || 'approved',
+          offer_number || null
         ]
       );
 
@@ -568,6 +570,7 @@ async function searchRepeatOrders(req, res) {
          LEFT JOIN parts p ON p.order_id = o.id
         WHERE o.internal_order_id ILIKE $1
            OR o.external_order_id ILIKE $1
+           OR o.offer_number ILIKE $1
            OR p.part_name ILIKE $1
            OR p.part_number ILIKE $1
         ORDER BY o.created_at DESC
@@ -583,7 +586,7 @@ async function searchRepeatOrders(req, res) {
 
     // Fetch order headers
     const ordersResult = await pool.query(
-      `SELECT o.id, o.customer_id, o.customer_name, o.internal_order_id, o.external_order_id,
+      `SELECT o.id, o.customer_id, o.customer_name, o.internal_order_id, o.external_order_id, o.offer_number,
               o.order_date, o.due_date, o.notes, o.priority, o.created_at
          FROM orders o
         WHERE o.id = ANY($1::int[])

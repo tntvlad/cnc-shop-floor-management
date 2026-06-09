@@ -6,6 +6,8 @@ let allMaterials = [];
 
 // Customer extracted from spreadsheet import
 let importedCustomerName = null;
+// Offer number ("Oferta") extracted from spreadsheet import
+let importedOfferNumber = null;
 
 // Category color system (shared with materials-admin)
 const categoryColorsOrder = JSON.parse(localStorage.getItem('materialCategoryColors') || '{}');
@@ -128,11 +130,12 @@ function renderRepeatDropdown() {
   }
   dropdown.innerHTML = repeatSearchResults.map((o, i) => {
     const ids = [o.internal_order_id, o.external_order_id].filter(Boolean).join(' / ') || 'No ID';
+    const offer = o.offer_number ? ` • Oferta ${escapeHtml(o.offer_number)}` : '';
     const date = o.order_date ? new Date(o.order_date).toLocaleDateString() : '';
     const partCount = (o.parts || []).length;
     return `<div class="customer-option" onclick="openRepeatPartsModal(${i})">
       <div class="customer-option-name">${escapeHtml(ids)} — ${escapeHtml(o.customer_name || '')}</div>
-      <div class="customer-option-email">${date} • ${partCount} part${partCount !== 1 ? 's' : ''}</div>
+      <div class="customer-option-email">${date} • ${partCount} part${partCount !== 1 ? 's' : ''}${offer}</div>
     </div>`;
   }).join('');
 }
@@ -234,6 +237,12 @@ function applyRepeatParts() {
     if (cust) {
       selectCustomer(cust.id, cust.company_name, cust.email, cust.phone || '');
     }
+  }
+
+  // Prefill offer number from the source order
+  if (repeatSelectedOrder.offer_number) {
+    const offerInput = document.getElementById('offer-number');
+    if (offerInput) offerInput.value = repeatSelectedOrder.offer_number;
   }
 
   closeRepeatPartsModal();
@@ -833,6 +842,28 @@ function handleSpreadsheetFile(event) {
       }
       
       const worksheet = workbook.Sheets[sheetName];
+
+      // Extract offer number ("Oferta") from sheet names or title cells.
+      // Matches things like "CalculatieOferta2204", "Oferta nr 2204", "Oferta 2204".
+      importedOfferNumber = null;
+      const offerRegex = /oferta[\s._nr-]*([0-9]{2,})/i;
+      // 1) Check sheet names
+      for (const sn of workbook.SheetNames) {
+        const m = String(sn).match(offerRegex);
+        if (m) { importedOfferNumber = m[1]; break; }
+      }
+      // 2) Check the top title cells (first ~12 rows) if not found
+      if (!importedOfferNumber) {
+        const topScan = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        for (let i = 0; i < Math.min(topScan.length, 12) && !importedOfferNumber; i++) {
+          const rowArr = topScan[i] || [];
+          for (const cell of rowArr) {
+            const m = String(cell || '').match(offerRegex);
+            if (m) { importedOfferNumber = m[1]; break; }
+          }
+        }
+      }
+      if (importedOfferNumber) console.log('Extracted offer number:', importedOfferNumber);
       
       // Extract hyperlinks from worksheet
       const hyperlinks = {};
@@ -1409,8 +1440,14 @@ function handleImportParts() {
   if (importedCustomerName) {
     autoFillCustomerFromImport(importedCustomerName);
   }
+
+  // Auto-fill offer number from spreadsheet import
+  if (importedOfferNumber) {
+    const offerInput = document.getElementById('offer-number');
+    if (offerInput) offerInput.value = importedOfferNumber;
+  }
   
-  alert(`Imported ${importedCount} parts successfully!${importedCustomerName ? '\nCustomer: ' + importedCustomerName : ''}`);
+  alert(`Imported ${importedCount} parts successfully!${importedCustomerName ? '\nCustomer: ' + importedCustomerName : ''}${importedOfferNumber ? '\nOffer: ' + importedOfferNumber : ''}`);
 }
 
 // Auto-fill customer search field and try to match existing customer
@@ -1994,6 +2031,7 @@ async function handleCreateOrder(event) {
     order_date: document.getElementById('order-date').value,
     internal_order_id: document.getElementById('internal-order-id').value.trim() || null,
     external_order_id: document.getElementById('external-order-id').value.trim() || null,
+    offer_number: document.getElementById('offer-number')?.value.trim() || null,
     due_date: document.getElementById('due-date').value,
     priority: document.getElementById('priority').value,
     notes: document.getElementById('notes').value.trim(),
