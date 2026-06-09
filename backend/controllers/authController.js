@@ -26,6 +26,15 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check contract expiry
+    if (user.contract_end_date) {
+      const today = new Date().toISOString().substring(0, 10);
+      const expiry = new Date(user.contract_end_date).toISOString().substring(0, 10);
+      if (today > expiry) {
+        return res.status(403).json({ error: 'Contract expired. Please contact your administrator.' });
+      }
+    }
+
     // Generate JWT
     const token = jwt.sign(
       {
@@ -215,7 +224,7 @@ exports.updateUser = async (req, res) => {
       return res.status(403).json({ error: 'Cannot edit user with equal or higher level' });
     }
 
-    const { name, employee_id, password } = req.body;
+    const { name, employee_id, password, contract_end_date } = req.body;
     const updates = [];
     const params = [];
 
@@ -224,6 +233,10 @@ exports.updateUser = async (req, res) => {
     if (password && password.trim()) {
       const hash = await bcrypt.hash(password.trim(), 10);
       params.push(hash); updates.push(`password_hash = $${params.length}`);
+    }
+    if (contract_end_date !== undefined) {
+      params.push(contract_end_date || null); // null = no expiry
+      updates.push(`contract_end_date = $${params.length}`);
     }
 
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
@@ -268,7 +281,7 @@ exports.listUsers = async (req, res) => {
 
     // Get all users with level <= requester's level
     const result = await pool.query(
-      'SELECT id, employee_id, name, level, created_at FROM users WHERE level <= $1 ORDER BY level DESC, created_at ASC',
+      'SELECT id, employee_id, name, level, created_at, contract_end_date FROM users WHERE level <= $1 ORDER BY level DESC, created_at ASC',
       [requesterLevel]
     );
 

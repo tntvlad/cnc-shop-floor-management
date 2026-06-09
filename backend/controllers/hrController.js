@@ -145,7 +145,8 @@ const getBalances = async (req, res) => {
 
         const result = await db.query(
             `SELECT b.*, u.name AS employee_name, u.employee_id, u.level, u.include_in_attendance,
-                    u.schedule_checkin, u.schedule_checkout, u.lunch_break_minutes
+                    u.schedule_checkin, u.schedule_checkout, u.lunch_break_minutes,
+                    TO_CHAR(u.contract_end_date, 'YYYY-MM-DD') AS contract_end_date
              FROM employee_leave_balance b
              JOIN users u ON b.user_id = u.id
              WHERE b.year = $1 AND u.is_active = true
@@ -1096,11 +1097,14 @@ const autoFill = async (req, res) => {
         const [year, month] = monthStr.split('-').map(Number);
         const daysInMonth = new Date(year, month, 0).getDate();
 
-        // Get employees with a schedule
+        // Get employees with a schedule (skip expired contracts for first day of month)
+        const firstDay = `${year}-${String(month).padStart(2,'0')}-01`;
         const empRes = await db.query(
             `SELECT id, schedule_checkin, schedule_checkout, COALESCE(lunch_break_minutes, 30) AS lunch_break_minutes FROM users
              WHERE include_in_attendance = true AND is_active = true AND level >= 100
-               AND schedule_checkin IS NOT NULL AND schedule_checkout IS NOT NULL`
+               AND schedule_checkin IS NOT NULL AND schedule_checkout IS NOT NULL
+               AND (contract_end_date IS NULL OR contract_end_date >= $1::date)`,
+            [firstDay]
         );
         if (!empRes.rows.length) return res.json({ success: true, filled: 0 });
 

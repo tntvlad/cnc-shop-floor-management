@@ -887,9 +887,14 @@
                   <label style="font-size:.85rem;color:#475569;display:block;margin-bottom:4px;">Employee ID</label>
                   <input type="text" id="eu-empid" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:.95rem;box-sizing:border-box;">
                 </div>
-                <div style="margin-bottom:1.4rem;">
+                <div style="margin-bottom:.9rem;">
                   <label style="font-size:.85rem;color:#475569;display:block;margin-bottom:4px;">New Password <span style="color:#94a3b8;font-size:.8rem;">(leave blank to keep current)</span></label>
                   <input type="password" id="eu-pw" placeholder="New password..." style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:.95rem;box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:1.4rem;">
+                  <label style="font-size:.85rem;color:#475569;display:block;margin-bottom:4px;">Contract End Date <span style="color:#94a3b8;font-size:.8rem;">(leave blank = no expiry)</span></label>
+                  <input type="date" id="eu-contract-end" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:.95rem;box-sizing:border-box;">
+                  <div style="font-size:0.77rem;color:#94a3b8;margin-top:3px;">After this date the user cannot log in and is excluded from auto-fill.</div>
                 </div>
                 <div style="display:flex;gap:.75rem;justify-content:flex-end;">
                   <button onclick="closeEditUserModal()" style="padding:8px 18px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;cursor:pointer;">Cancel</button>

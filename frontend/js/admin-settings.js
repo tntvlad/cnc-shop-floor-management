@@ -568,9 +568,16 @@ async function loadUsers() {
     users.forEach(user => {
       const tr = document.createElement('tr');
       const canEdit = current.level >= 500 && user.id !== current.id && user.level < currentLevel;
+      const today = new Date().toISOString().substring(0, 10);
+      const isExpired = user.contract_end_date && user.contract_end_date < today;
+      const expiryBadge = isExpired
+        ? `<span style="font-size:.75rem;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px;margin-left:4px;">expired</span>`
+        : user.contract_end_date
+          ? `<span style="font-size:.75rem;color:#94a3b8;margin-left:4px;">until ${user.contract_end_date}</span>`
+          : '';
       tr.innerHTML = `
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.employee_id}</td>
-        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.name || ''}</td>
+        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.name || ''}${expiryBadge}</td>
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${user.level} ${user.levelName ? '('+user.levelName+')' : ''}</td>
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${new Date(user.created_at).toLocaleString()}</td>
         <td style="padding:8px; border-bottom:1px solid #e2e8f0;white-space:nowrap;">
@@ -590,7 +597,7 @@ async function loadUsers() {
 
       const editBtn = tr.querySelector('button[data-action="edit"]');
       if (editBtn) {
-        editBtn.addEventListener('click', () => openEditUserModal(user.id, user.name, user.employee_id));
+        editBtn.addEventListener('click', () => openEditUserModal(user.id, user.name, user.employee_id, user.contract_end_date));
       }
 
       tbody.appendChild(tr);
@@ -603,11 +610,12 @@ async function loadUsers() {
 }
 
 // Edit user modal
-function openEditUserModal(id, name, employeeId) {
+function openEditUserModal(id, name, employeeId, contractEnd) {
   document.getElementById('eu-id').value = id;
   document.getElementById('eu-name').value = name || '';
   document.getElementById('eu-empid').value = employeeId || '';
   document.getElementById('eu-pw').value = '';
+  document.getElementById('eu-contract-end').value = contractEnd || '';
   document.getElementById('eu-error').style.display = 'none';
   const modal = document.getElementById('edit-user-modal');
   modal.style.display = 'flex';
@@ -629,6 +637,8 @@ async function saveEditUser() {
 
   const body = { name, employee_id };
   if (password) body.password = password;
+  const contractEnd = document.getElementById('eu-contract-end').value;
+  body.contract_end_date = contractEnd || null;
 
   try {
     const resp = await fetch(`${config.API_BASE_URL}/auth/users/${id}`, {
