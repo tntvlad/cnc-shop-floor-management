@@ -57,6 +57,10 @@ function renderOrderDetails() {
   document.getElementById('order-id').textContent = currentOrder.internal_order_id || `#${currentOrder.id}`;
   document.getElementById('order-internal-id').textContent = currentOrder.internal_order_id || `#${currentOrder.id}`;
   document.getElementById('order-external-id').textContent = currentOrder.external_order_id || '---';
+  if (currentOrder.offer_number) {
+    document.getElementById('order-offer-number').textContent = currentOrder.offer_number;
+    document.getElementById('offer-number-row').style.display = '';
+  }
   document.getElementById('customer-name').textContent = currentOrder.customer_name;
   document.getElementById('customer-email').textContent = currentOrder.customer_email;
   document.getElementById('customer-phone').textContent = currentOrder.customer_phone || '---';
