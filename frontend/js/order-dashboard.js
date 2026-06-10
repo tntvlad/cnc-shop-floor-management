@@ -245,7 +245,10 @@ function renderOrders(orders) {
       <tr class="${priority.rowClass} ${overdueClass}" onclick="openOrderDetails(${order.id})">
         <td style="color: #1F2937;">
           <strong>${order.internal_order_id || '#' + order.id}</strong>
-          ${!order.external_order_id ? `<span title="No External Order ID (Customer PO)" style="display:inline-block;margin-left:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;font-size:0.7rem;padding:1px 5px;vertical-align:middle;cursor:default;">No PO</span>` : ''}
+          ${!order.external_order_id
+            ? `<span title="No External Order ID (Customer PO)" style="display:inline-block;margin-left:4px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;font-size:0.7rem;padding:1px 5px;vertical-align:middle;cursor:default;">No PO</span>`
+            : `<div style="font-size:0.78rem;color:#6B7280;margin-top:2px;">${escapeHtml(order.external_order_id)}</div>`
+          }
         </td>
         <td>
           <span class="priority-badge ${priority.badgeClass}">${escapeHtml(priority.label)}</span>
