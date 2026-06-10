@@ -843,23 +843,40 @@ function handleSpreadsheetFile(event) {
       
       const worksheet = workbook.Sheets[sheetName];
 
-      // Extract offer number ("Oferta") from sheet names or title cells.
-      // Matches things like "CalculatieOferta2204", "Oferta nr 2204", "Oferta 2204".
+      // Extract offer number from: filename → sheet names → "Oferta nr:" cell pair → title cells
+      // Handles: CalculatieOferta1963.ods, "Oferta nr: 1963", "OFERTĂ Nr.1963/...", etc.
       importedOfferNumber = null;
-      const offerRegex = /oferta[\s._nr-]*([0-9]{2,})/i;
+      const offerRegex = /ofert[aă][\s._:nr/-]*([0-9]{2,})/i;
+
+      // 0) Check the filename first — most reliable
+      const fileNameM = file.name.replace(/\.[^.]+$/, '').match(offerRegex);
+      if (fileNameM) importedOfferNumber = fileNameM[1];
+
       // 1) Check sheet names
-      for (const sn of workbook.SheetNames) {
-        const m = String(sn).match(offerRegex);
-        if (m) { importedOfferNumber = m[1]; break; }
+      if (!importedOfferNumber) {
+        for (const sn of workbook.SheetNames) {
+          const m = String(sn).match(offerRegex);
+          if (m) { importedOfferNumber = m[1]; break; }
+        }
       }
-      // 2) Check the top title cells (first ~12 rows) if not found
+
+      // 2) Check top cells — also look for "Oferta nr:" label followed by a numeric cell in the same row
       if (!importedOfferNumber) {
         const topScan = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-        for (let i = 0; i < Math.min(topScan.length, 12) && !importedOfferNumber; i++) {
+        outer: for (let i = 0; i < Math.min(topScan.length, 15); i++) {
           const rowArr = topScan[i] || [];
-          for (const cell of rowArr) {
-            const m = String(cell || '').match(offerRegex);
-            if (m) { importedOfferNumber = m[1]; break; }
+          for (let j = 0; j < rowArr.length; j++) {
+            const cellStr = String(rowArr[j] || '');
+            // Direct match in cell text
+            const m = cellStr.match(offerRegex);
+            if (m) { importedOfferNumber = m[1]; break outer; }
+            // "Oferta nr:" label — look at next cell for the number
+            if (/ofert[aă]\s*nr/i.test(cellStr)) {
+              for (let k = j + 1; k < Math.min(j + 4, rowArr.length); k++) {
+                const val = String(rowArr[k] || '').trim();
+                if (/^[0-9]{2,}$/.test(val)) { importedOfferNumber = val; break outer; }
+              }
+            }
           }
         }
       }
