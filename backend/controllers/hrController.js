@@ -959,14 +959,14 @@ const exportAttendance = async (req, res) => {
                 const hoursRec  = uh[d];
 
                 const cellFill = isWeekend ? FILL_WEEKEND
-                    : isHoliday && !leaveCode ? FILL_HOLIDAY
+                    : isHoliday ? FILL_HOLIDAY           // holiday always wins over leave
                     : leaveCode ? (LEAVE_FILL[leaveCode] || 'FFD9D9D9')
                     : FILL_WORK;
 
                 const applyDay = (cell, val) => {
                     cell.value = val || '';
                     cell.font      = font({ size: 6 });
-                    cell.alignment = align('center', 'middle', false, 90); // rotated 90° (matches original)
+                    cell.alignment = align('center', 'middle', false, 90);
                     cell.fill      = fill(cellFill);
                     applyBorder(cell);
                 };
@@ -974,7 +974,7 @@ const exportAttendance = async (req, res) => {
                 if (isWeekend) {
                     applyDay(r1c, 'W');
                     applyDay(r2c, 'W');
-                } else if (isHoliday && !leaveCode) {
+                } else if (isHoliday) {                  // holiday always wins over leave
                     applyDay(r1c, 'S');
                     applyDay(r2c, 'S');
                 } else if (leaveCode) {
