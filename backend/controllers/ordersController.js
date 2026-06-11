@@ -586,18 +586,18 @@ async function generateFisaMateriale(req, res) {
     // ── HEADER ─────────────────────────────────────────────
     // Logo text: "Fero-Pact" in TechoOverload blue
     if (fs.existsSync(fontPath)) {
-      doc.font('TechoOverload').fontSize(28).fillColor('#1d4ed8').text('Fero-Pact', margin, 22, { lineBreak: false });
+      doc.font('TechoOverload').fontSize(38).fillColor('#1d4ed8').text('Fero-Pact', margin, 18, { lineBreak: false });
     } else {
-      doc.font('Helvetica-BoldOblique').fontSize(22).fillColor('#1d4ed8').text('Fero-Pact', margin, 24, { lineBreak: false });
+      doc.font('Helvetica-BoldOblique').fontSize(30).fillColor('#1d4ed8').text('Fero-Pact', margin, 20, { lineBreak: false });
     }
 
     // Title & order ID right/centre of header area
-    doc.font('Helvetica-Bold').fontSize(20).fillColor('#1a1a1a')
-       .text('FISA MATERIALE', margin + 160, 22, { width: usable - 160, align: 'right', lineBreak: false });
-    doc.font('Helvetica').fontSize(11).fillColor('#444')
-       .text(`Comanda: ${orderId}`, margin + 160, 52, { width: usable - 160, align: 'right', lineBreak: false });
+    doc.font('Helvetica-Bold').fontSize(24).fillColor('#1a1a1a')
+       .text('FISA MATERIALE', margin + 200, 18, { width: usable - 200, align: 'right', lineBreak: false });
+    doc.font('Helvetica').fontSize(13).fillColor('#444')
+       .text(`Comanda: ${orderId}`, margin + 200, 52, { width: usable - 200, align: 'right', lineBreak: false });
 
-    const headerBottom = 82;
+    const headerBottom = 88;
     doc.moveTo(margin, headerBottom).lineTo(pageW - margin, headerBottom).lineWidth(1).strokeColor('#1d4ed8').stroke();
 
     // ── COLUMN LAYOUT ──────────────────────────────────────
@@ -610,7 +610,7 @@ async function generateFisaMateriale(req, res) {
     const cDim  = cMat + wMat + 2;
     const wDim  = pageW - margin - cDim;
 
-    const rowH   = 16;
+    const rowH   = 20;
     const footerH = 28;
     const footerY = pageH - footerH;
     const maxY    = footerY - 4; // stop rows before footer
@@ -619,11 +619,11 @@ async function generateFisaMateriale(req, res) {
 
     const drawTableHeader = () => {
       doc.rect(margin, y, usable, rowH).fill('#1d4ed8');
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#fff');
-      doc.text('Denumire Reper', cName + 2, y + 3, { width: wName - 4,     lineBreak: false });
-      doc.text('Buc.',           cQty  + 2, y + 3, { width: wQty,   align: 'center', lineBreak: false });
-      doc.text('Material',       cMat  + 2, y + 3, { width: wMat - 4,     lineBreak: false });
-      doc.text('Dimensiuni',     cDim  + 2, y + 3, { width: wDim - 4,     lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#fff');
+      doc.text('Denumire Reper', cName + 2, y + 4, { width: wName - 4,     lineBreak: false });
+      doc.text('Buc.',           cQty  + 2, y + 4, { width: wQty,   align: 'center', lineBreak: false });
+      doc.text('Material',       cMat  + 2, y + 4, { width: wMat - 4,     lineBreak: false });
+      doc.text('Dimensiuni',     cDim  + 2, y + 4, { width: wDim - 4,     lineBreak: false });
       y += rowH;
     };
     drawTableHeader();
@@ -640,20 +640,23 @@ async function generateFisaMateriale(req, res) {
       }
       const bg = i % 2 === 0 ? '#f0f4ff' : '#ffffff';
       doc.rect(margin, y, usable, rowH).fill(bg);
-      doc.fillColor('#1a1a1a').font('Helvetica').fontSize(8);
+      doc.fillColor('#1a1a1a').font('Helvetica').fontSize(10);
 
       const mat = p.material_type || p.material_name || '\u2014';
-      // Diameter: replace "#" (with optional space) → "ø" (U+00F8, supported in Helvetica)
-      const dim = (p.material_dimensions || '\u2014')
-        .replace(/#\s*/g, 'o/')          // temp marker
-        .replace(/x/gi, '\u00D7');       // x → ×
-      // now swap temp marker for ø
-      const dimFinal = dim.replace(/o\//g, '\u00F8');
+      // Use TechoOverload for dimension cell — it supports full Unicode so Ø renders correctly
+      const dimRaw = (p.material_dimensions || '\u2014')
+        .replace(/#\s*/g, '\u00D8 ')   // # → Ø (U+00D8)
+        .replace(/x/gi, '\u00D7');     // x → ×
 
-      doc.text(p.part_name || '\u2014', cName + 2, y + 4, { width: wName - 4, lineBreak: false });
-      doc.text(String(p.quantity || 1), cQty  + 2, y + 4, { width: wQty,   align: 'center', lineBreak: false });
-      doc.text(mat,                     cMat  + 2, y + 4, { width: wMat - 4, lineBreak: false });
-      doc.text(dimFinal,                cDim  + 2, y + 4, { width: wDim - 4, lineBreak: false });
+      doc.text(p.part_name || '\u2014', cName + 2, y + 5, { width: wName - 4, lineBreak: false });
+      doc.text(String(p.quantity || 1), cQty  + 2, y + 5, { width: wQty,   align: 'center', lineBreak: false });
+      doc.text(mat,                     cMat  + 2, y + 5, { width: wMat - 4, lineBreak: false });
+      if (fs.existsSync(fontPath)) {
+        doc.font('TechoOverload').fontSize(9).text(dimRaw, cDim + 2, y + 5, { width: wDim - 4, lineBreak: false });
+        doc.font('Helvetica').fontSize(10);
+      } else {
+        doc.text(dimRaw, cDim + 2, y + 5, { width: wDim - 4, lineBreak: false });
+      }
       doc.moveTo(margin, y + rowH).lineTo(pageW - margin, y + rowH).lineWidth(0.3).strokeColor('#e5e7eb').stroke();
       y += rowH;
     });
