@@ -482,6 +482,26 @@ function updateSortArrows() {
 let editingOrderId = null;
 let editingOrderParts = [];
 let allCustomers = [];
+let allMaterialTypes = []; // cached material types for dropdown
+
+async function loadMaterialTypesForEdit() {
+  if (allMaterialTypes.length > 0) return; // already loaded
+  try {
+    const res = await authFetch(`${API_URL}/materials/types`);
+    const data = await res.json();
+    const types = data.types || [];
+    // Include name + all aliases as separate options
+    const names = new Set();
+    types.forEach(t => {
+      if (t.name) names.add(t.name);
+      if (t.aliases) {
+        const aliasArr = Array.isArray(t.aliases) ? t.aliases : String(t.aliases).split(',');
+        aliasArr.forEach(a => { const v = a.trim(); if (v) names.add(v); });
+      }
+    });
+    allMaterialTypes = [...names].sort();
+  } catch (e) { /* non-critical */ }
+}
 
 async function openEditOrderModal(orderId) {
   editingOrderId = orderId;
@@ -502,6 +522,7 @@ async function openEditOrderModal(orderId) {
     
     // Load customers for dropdown
     await loadCustomersForEdit();
+    await loadMaterialTypesForEdit();
     
     // Populate form - use internal_order_id if available
     const displayId = order.internal_order_id || `#${orderId}`;
@@ -563,10 +584,13 @@ function renderEditParts() {
         <div class="edit-part-name">${escapeHtml(part.part_name || part.name || 'Unnamed Part')}</div>
         <div class="edit-part-details" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:4px;margin:0;">
-            Material: <input type="text" value="${escapeHtml(part.material_type || part.material || '')}" placeholder="e.g. 1.2379"
-              style="width:90px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;"
+            Material: <input type="text" list="mat-type-list-${part.id}" value="${escapeHtml(part.material_type || part.material || '')}" placeholder="e.g. 1.2379"
+              style="width:110px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;"
               onchange="updatePartMaterial(${part.id}, this.value)"
               onclick="event.stopPropagation()">
+            <datalist id="mat-type-list-${part.id}">
+              ${allMaterialTypes.map(m => `<option value="${escapeHtml(m)}"></option>`).join('')}
+            </datalist>
           </label> |
           <label style="display:flex;align-items:center;gap:4px;margin:0;">
             Qty: <input type="number" min="1" value="${part.quantity || 1}"
