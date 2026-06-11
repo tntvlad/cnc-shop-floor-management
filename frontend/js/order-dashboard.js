@@ -584,7 +584,7 @@ function renderEditParts() {
         <div class="edit-part-name">${escapeHtml(part.part_name || part.name || 'Unnamed Part')}</div>
         <div class="edit-part-details" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:4px;margin:0;">
-            Material: <input type="text" list="mat-type-list-${part.id}" value="${escapeHtml(part.material_type || part.material || '')}" placeholder="e.g. 1.2379"
+            Material: <input type="text" list="mat-type-list-${part.id}" value="${escapeHtml(part.material_type || part.material_name || part.material || '')}" placeholder="e.g. 1.2379"
               style="width:110px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;"
               onchange="updatePartMaterial(${part.id}, this.value)"
               onclick="event.stopPropagation()">
