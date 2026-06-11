@@ -2113,33 +2113,29 @@ async function handleCreateOrder(event) {
         const folderPath = `${selectedCustomer.folder_path}/Orders/${sanitizedOrderId}/${sanitizedPartName}`;
         
         try {
-          // Use the new endpoint that can also copy drawing files
-          const endpoint = part.drawing_source_path 
-            ? `${API_URL}/folders/create-with-drawing`
-            : `${API_URL}/folders/create`;
-          
-          const body = { folderPath };
-          if (part.drawing_source_path) {
-            body.drawingSourcePath = part.drawing_source_path;
-          }
-          
-          const response = await fetch(endpoint, {
+          // Always create the part folder first
+          const partFolderResp = await fetch(`${API_URL}/folders/create`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify(body)
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ folderPath })
           });
-          
-          const folderData = await response.json();
-          if (folderData.success) {
-            order.parts[i].file_folder = folderData.path;
-            
-            // Log if drawing was copied
+          const partFolderData = await partFolderResp.json();
+          if (partFolderData.success) {
+            order.parts[i].file_folder = partFolderData.path;
+          }
+
+          // If a drawing hyperlink exists, copy it into <part_folder>/2D/
+          if (part.drawing_source_path) {
+            const drawingFolderPath = `${folderPath}/2D`;
+            const response = await fetch(`${API_URL}/folders/create-with-drawing`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+              body: JSON.stringify({ folderPath: drawingFolderPath, drawingSourcePath: part.drawing_source_path })
+            });
+            const folderData = await response.json();
             if (folderData.drawingCopy) {
               if (folderData.drawingCopy.success) {
-                console.log(`Drawing copied for part ${part.part_name}:`, folderData.drawingCopy.filename);
+                console.log(`Drawing copied to 2D for part ${part.part_name}:`, folderData.drawingCopy.filename);
               } else {
                 console.warn(`Failed to copy drawing for part ${part.part_name}:`, folderData.drawingCopy.error);
               }
