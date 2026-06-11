@@ -1,6 +1,8 @@
 let currentFilter = 'all';
 let currentUser = null;
 let allOrdersCache = [];
+let _searchTimer = null;
+let _partSearchOrderIds = null; // null = no part search active
 let currentSort = { col: null, dir: 'asc' };
 const PRIORITY_WEIGHT = {
   urgent: 3,
@@ -95,7 +97,8 @@ function canEditOrders() {
 function setupEventListeners() {
   // Search
   document.getElementById('search-input').addEventListener('keyup', (e) => {
-    applyFilters();
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(applyFilters, 250);
   });
 
   // Filter buttons
@@ -171,15 +174,47 @@ function applyFilters() {
   
   // Filter by search query
   if (searchQuery) {
-    filtered = filtered.filter(order => 
+    // First try matching against order header fields in memory
+    const headerMatches = filtered.filter(order =>
       (order.customer_name && order.customer_name.toLowerCase().includes(searchQuery)) ||
       (order.customer_email && order.customer_email.toLowerCase().includes(searchQuery)) ||
       (order.internal_order_id && order.internal_order_id.toLowerCase().includes(searchQuery)) ||
-      (order.external_order_id && order.external_order_id.toLowerCase().includes(searchQuery))
+      (order.external_order_id && order.external_order_id.toLowerCase().includes(searchQuery)) ||
+      (order.offer_number && order.offer_number.toLowerCase().includes(searchQuery))
     );
+
+    if (headerMatches.length > 0) {
+      // Found in headers — use those
+      _partSearchOrderIds = null;
+      filtered = headerMatches;
+    } else if (_partSearchOrderIds !== null) {
+      // Part search result already fetched — apply it
+      filtered = filtered.filter(o => _partSearchOrderIds.has(o.id));
+    } else {
+      // Trigger async part search and re-render when done
+      searchByPartName(searchQuery);
+      filtered = []; // show empty while loading
+    }
+  } else {
+    _partSearchOrderIds = null;
   }
   
   renderOrders(filtered);
+}
+
+async function searchByPartName(query) {
+  if (query.length < 2) return;
+  try {
+    const res = await authFetch(`${API_URL}/orders/search-repeat?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    const ids = new Set((data.orders || []).map(o => o.id));
+    const currentQuery = document.getElementById('search-input')?.value?.toLowerCase() || '';
+    // Only apply if search box still has the same query
+    if (currentQuery === query) {
+      _partSearchOrderIds = ids;
+      applyFilters();
+    }
+  } catch (e) { /* silent */ }
 }
 
 function renderOrders(orders) {
