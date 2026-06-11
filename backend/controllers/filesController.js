@@ -454,6 +454,7 @@ exports.copyDrawingFile = async (req, res) => {
 exports.createFolderAndCopyDrawing = async (req, res) => {
   try {
     const { folderPath, drawingSourcePath } = req.body;
+    console.log('[createFolderAndCopyDrawing] folderPath:', folderPath, '| drawingSourcePath:', drawingSourcePath);
     
     if (!folderPath) {
       return res.status(400).json({ success: false, error: 'Folder path is required' });
@@ -461,6 +462,7 @@ exports.createFolderAndCopyDrawing = async (req, res) => {
     
     // Create folder
     const resolved = path.resolve(CLIENTS_ROOT, folderPath);
+    console.log('[createFolderAndCopyDrawing] resolved folder:', resolved);
     ensureWithinRoot(resolved, CLIENTS_ROOT);
     
     if (!fs.existsSync(resolved)) {
@@ -480,6 +482,7 @@ exports.createFolderAndCopyDrawing = async (req, res) => {
         .replace(/%20/g, ' ');
       
       const sourceResolved = path.resolve(CLIENTS_ROOT, cleanSource);
+      console.log('[createFolderAndCopyDrawing] cleanSource:', cleanSource, '| sourceResolved:', sourceResolved, '| exists:', fs.existsSync(sourceResolved));
       
       try {
         ensureWithinRoot(sourceResolved, CLIENTS_ROOT);
