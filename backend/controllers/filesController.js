@@ -468,11 +468,10 @@ exports.createFolderAndCopyDrawing = async (req, res) => {
     if (!fs.existsSync(resolved)) {
       fs.mkdirSync(resolved, { recursive: true, mode: 0o777 });
     }
+    try { require('child_process').execSync(`chmod -R 777 "${resolved}"`, { timeout: 5000 }); } catch (_) {}
     
     const relPath = path.relative(CLIENTS_ROOT, resolved).split(path.sep).join('/');
-    let copyResult = null;
     
-    // Copy drawing if provided
     if (drawingSourcePath) {
       // Convert P:/1-Clienti/... path to /data/clients/...
       let cleanSource = drawingSourcePath
