@@ -563,100 +563,108 @@ async function generateFisaMateriale(req, res) {
     const sanitized = orderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
     const fileName  = `Fisa materiale-${sanitized}.pdf`;
 
-    // User info from token (passed via auth middleware)
     const userName = req.user?.name || req.user?.employeeId || 'System';
     const now = new Date();
     const dateStr = now.toLocaleDateString('ro-RO');
     const timeStr = now.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 
-    // Landscape A4
-    const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
+    // margin:0 so footer placement is absolute without page-overflow triggering
+    const doc = new PDFDocument({ margin: 0, size: 'A4', layout: 'landscape' });
     const buffers = [];
     doc.on('data', c => buffers.push(c));
     const done = new Promise(r => doc.on('end', r));
 
-    const pageW = doc.page.width;   // ~841 for landscape A4
-    const pageH = doc.page.height;  // ~595
+    // Register TechoOverload font for logo
+    const fontPath = path.join(__dirname, '../assets/techover.ttf');
+    if (fs.existsSync(fontPath)) doc.registerFont('TechoOverload', fontPath);
 
-    // Logo
-    const logoPath = path.join(__dirname, '../assets/fero_logo.jpg');
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 40, 30, { height: 45, fit: [150, 45] });
+    const pageW = doc.page.width;    // 841.89 landscape
+    const pageH = doc.page.height;   // 595.28 landscape
+    const margin = 40;
+    const usable = pageW - margin * 2;
+
+    // ── HEADER ─────────────────────────────────────────────
+    // Logo text: "Fero-Pact" in TechoOverload blue
+    if (fs.existsSync(fontPath)) {
+      doc.font('TechoOverload').fontSize(28).fillColor('#1d4ed8').text('Fero-Pact', margin, 22, { lineBreak: false });
+    } else {
+      doc.font('Helvetica-BoldOblique').fontSize(22).fillColor('#1d4ed8').text('Fero-Pact', margin, 24, { lineBreak: false });
     }
 
-    // Title centred
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a1a1a')
-       .text('FISA MATERIALE', 0, 38, { align: 'center' });
-    doc.fontSize(12).font('Helvetica').fillColor('#333')
-       .text(`Comanda: ${orderId}`, 0, 64, { align: 'center' });
+    // Title & order ID right/centre of header area
+    doc.font('Helvetica-Bold').fontSize(20).fillColor('#1a1a1a')
+       .text('FISA MATERIALE', margin + 160, 22, { width: usable - 160, align: 'right', lineBreak: false });
+    doc.font('Helvetica').fontSize(11).fillColor('#444')
+       .text(`Comanda: ${orderId}`, margin + 160, 52, { width: usable - 160, align: 'right', lineBreak: false });
 
-    const afterHeader = 95;
-    doc.moveTo(40, afterHeader).lineTo(pageW - 40, afterHeader).lineWidth(1).stroke('#ccc');
+    const headerBottom = 82;
+    doc.moveTo(margin, headerBottom).lineTo(pageW - margin, headerBottom).lineWidth(1).strokeColor('#1d4ed8').stroke();
 
-    // Column layout (landscape: ~761px usable)
-    const usable = pageW - 80;
-    const cName = 40;
+    // ── COLUMN LAYOUT ──────────────────────────────────────
+    const cName = margin;
     const wName = usable * 0.42;
-    const cQty  = cName + wName + 4;
-    const wQty  = 45;
-    const cMat  = cQty + wQty + 4;
-    const wMat  = usable * 0.22;
-    const cDim  = cMat + wMat + 4;
-    const wDim  = usable - (cDim - 40);
+    const cQty  = cName + wName + 2;
+    const wQty  = 42;
+    const cMat  = cQty + wQty + 2;
+    const wMat  = usable * 0.20;
+    const cDim  = cMat + wMat + 2;
+    const wDim  = pageW - margin - cDim;
 
-    const rowH = 16;
-    let y = afterHeader + 10;
+    const rowH   = 16;
+    const footerH = 28;
+    const footerY = pageH - footerH;
+    const maxY    = footerY - 4; // stop rows before footer
 
-    // Table header
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#fff');
-    doc.rect(40, y, usable, rowH).fill('#1d4ed8');
-    doc.fillColor('#fff');
-    doc.text('Denumire Reper', cName + 2, y + 3, { width: wName });
-    doc.text('Buc.',           cQty  + 2, y + 3, { width: wQty, align: 'center' });
-    doc.text('Material',       cMat  + 2, y + 3, { width: wMat });
-    doc.text('Dimensiuni',     cDim  + 2, y + 3, { width: wDim });
-    y += rowH;
+    let y = headerBottom + 8;
 
-    // Rows
+    const drawTableHeader = () => {
+      doc.rect(margin, y, usable, rowH).fill('#1d4ed8');
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#fff');
+      doc.text('Denumire Reper', cName + 2, y + 3, { width: wName - 4,     lineBreak: false });
+      doc.text('Buc.',           cQty  + 2, y + 3, { width: wQty,   align: 'center', lineBreak: false });
+      doc.text('Material',       cMat  + 2, y + 3, { width: wMat - 4,     lineBreak: false });
+      doc.text('Dimensiuni',     cDim  + 2, y + 3, { width: wDim - 4,     lineBreak: false });
+      y += rowH;
+    };
+    drawTableHeader();
+
+    // ── DATA ROWS ──────────────────────────────────────────
     doc.font('Helvetica').fontSize(8);
     parts.forEach((p, i) => {
-      if (y + rowH > pageH - 50) {
-        doc.addPage({ size: 'A4', layout: 'landscape' });
-        y = 40;
+      if (y + rowH > maxY) {
+        // Footer on current page before adding new
+        drawFooter(doc, margin, pageW, footerY, usable, userName, dateStr, timeStr, parts.length, orderId);
+        doc.addPage({ size: 'A4', layout: 'landscape', margin: 0 });
+        y = margin;
+        drawTableHeader();
       }
       const bg = i % 2 === 0 ? '#f0f4ff' : '#ffffff';
-      doc.rect(40, y, usable, rowH).fill(bg);
-      doc.fillColor('#1a1a1a');
+      doc.rect(margin, y, usable, rowH).fill(bg);
+      doc.fillColor('#1a1a1a').font('Helvetica').fontSize(8);
 
       const mat = p.material_type || p.material_name || '\u2014';
-      // Fix diameter: # → Ø and replace × with ×
+      // Diameter: replace "#" (with optional space) → "ø" (U+00F8, supported in Helvetica)
       const dim = (p.material_dimensions || '\u2014')
-        .replace(/#\s*/g, '\u00D8')  // # → Ø
-        .replace(/x/gi, '\u00D7');   // x → ×
+        .replace(/#\s*/g, 'o/')          // temp marker
+        .replace(/x/gi, '\u00D7');       // x → ×
+      // now swap temp marker for ø
+      const dimFinal = dim.replace(/o\//g, '\u00F8');
 
-      doc.text(p.part_name || '\u2014', cName + 2, y + 4, { width: wName - 4 });
-      doc.text(String(p.quantity || 1), cQty  + 2, y + 4, { width: wQty, align: 'center' });
-      doc.text(mat,                     cMat  + 2, y + 4, { width: wMat - 4 });
-      doc.text(dim,                     cDim  + 2, y + 4, { width: wDim - 4 });
-
-      // Row border bottom
-      doc.moveTo(40, y + rowH).lineTo(40 + usable, y + rowH).lineWidth(0.3).strokeColor('#ddd').stroke();
+      doc.text(p.part_name || '\u2014', cName + 2, y + 4, { width: wName - 4, lineBreak: false });
+      doc.text(String(p.quantity || 1), cQty  + 2, y + 4, { width: wQty,   align: 'center', lineBreak: false });
+      doc.text(mat,                     cMat  + 2, y + 4, { width: wMat - 4, lineBreak: false });
+      doc.text(dimFinal,                cDim  + 2, y + 4, { width: wDim - 4, lineBreak: false });
+      doc.moveTo(margin, y + rowH).lineTo(pageW - margin, y + rowH).lineWidth(0.3).strokeColor('#e5e7eb').stroke();
       y += rowH;
     });
 
-    // Footer
-    const footerY = pageH - 35;
-    doc.moveTo(40, footerY).lineTo(pageW - 40, footerY).lineWidth(0.5).strokeColor('#999').stroke();
-    doc.fontSize(8).fillColor('#666')
-       .text(`Generat: ${userName}  |  ${dateStr}  ${timeStr}  |  ${parts.length} repere`,
-             40, footerY + 6, { align: 'left' });
-    doc.text(`${orderId}`, 40, footerY + 6, { align: 'right', width: pageW - 80 });
+    // Footer on last page
+    drawFooter(doc, margin, pageW, footerY, usable, userName, dateStr, timeStr, parts.length, orderId);
 
     doc.end();
     await done;
     const pdfBuf = Buffer.concat(buffers);
 
-    // Save to <order_folder>/Orders/<orderId>/Materiale/<fileName>
     const BROWSE_ROOT = path.resolve(process.env.FILE_BROWSE_ROOT || process.env.UPLOAD_DIR || './uploads');
     if (order.folder_path) {
       try {
@@ -673,6 +681,15 @@ async function generateFisaMateriale(req, res) {
     console.error('generateFisaMateriale error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
+}
+
+function drawFooter(doc, margin, pageW, footerY, usable, userName, dateStr, timeStr, partCount, orderId) {
+  doc.moveTo(margin, footerY).lineTo(pageW - margin, footerY).lineWidth(0.5).strokeColor('#9ca3af').stroke();
+  doc.font('Helvetica').fontSize(8).fillColor('#6b7280')
+     .text(`Generat: ${userName}  |  ${dateStr}  ${timeStr}  |  ${partCount} repere`,
+           margin, footerY + 7, { width: (pageW - margin * 2) * 0.7, lineBreak: false });
+  doc.text(orderId, margin, footerY + 7,
+           { width: pageW - margin * 2, align: 'right', lineBreak: false });
 }
 
 module.exports = {
