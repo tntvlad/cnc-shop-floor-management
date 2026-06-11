@@ -2125,6 +2125,7 @@ async function handleCreateOrder(event) {
           }
 
           // If a drawing hyperlink exists, copy it into <part_folder>/2D/
+          console.log(`[createOrder] Part ${part.part_name} drawing_source_path:`, part.drawing_source_path);
           if (part.drawing_source_path) {
             const drawingFolderPath = `${folderPath}/2D`;
             const response = await fetch(`${API_URL}/folders/create-with-drawing`, {
