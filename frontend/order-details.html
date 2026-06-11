@@ -542,7 +542,12 @@
 
         <!-- Materials Section -->
         <div class="materials-section">
-          <h2 class="section-title">Material Requirements</h2>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+            <h2 class="section-title" style="margin:0;">Material Requirements</h2>
+            <button onclick="exportFisaMateriale()" style="padding:8px 16px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;font-weight:600;">
+              📄 Export Fișă Materiale PDF
+            </button>
+          </div>
           <div id="materials-list">
             <!-- Populated by JS -->
           </div>

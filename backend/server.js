@@ -384,6 +384,7 @@ app.post('/api/materials/:id/stock-out', authMiddleware, requireSupervisor(), ma
 app.post('/api/materials/:id/transfer', authMiddleware, requireSupervisor(), materialsController.transferStock);
 app.post('/api/materials/:id/adjust', authMiddleware, requireSupervisor(), materialsController.adjustMaterialStock);
 app.get('/api/orders/:orderId/material-requirements', authMiddleware, materialsController.getOrderMaterialRequirements);
+app.post('/api/orders/:id/fisa-materiale', authMiddleware, requireSupervisor(), ordersController.generateFisaMateriale);
 
 // ======================== MATERIAL SUGGESTIONS ROUTES ========================
 app.post('/api/materials/suggestions', authMiddleware, materialsController.getMaterialSuggestions);

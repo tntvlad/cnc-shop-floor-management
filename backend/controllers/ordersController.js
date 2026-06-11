@@ -537,6 +537,97 @@ async function getOrderStats(req, res) {
   }
 }
 
+// POST /api/orders/:id/fisa-materiale — generate PDF and save to order folder
+async function generateFisaMateriale(req, res) {
+  try {
+    const PDFDocument = require('pdfkit');
+    const fs   = require('fs');
+    const path = require('path');
+    const { id } = req.params;
+
+    const orderResult = await pool.query(
+      `SELECT o.id, o.internal_order_id, o.customer_name, c.folder_path
+       FROM orders o LEFT JOIN customers c ON o.customer_id = c.id WHERE o.id = $1`, [id]
+    );
+    if (!orderResult.rows.length) return res.status(404).json({ success: false, message: 'Order not found' });
+    const order = orderResult.rows[0];
+
+    const partsResult = await pool.query(
+      `SELECT p.part_name, p.quantity, p.material_type, p.material_dimensions, mt.name AS material_name
+       FROM parts p LEFT JOIN material_types mt ON p.material_id = mt.id
+       WHERE p.order_id = $1 ORDER BY p.id`, [id]
+    );
+    const parts = partsResult.rows;
+
+    const orderId  = order.internal_order_id || `ORD-${id}`;
+    const sanitized = orderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+    const fileName  = `Fisa materiale-${sanitized}.pdf`;
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const buffers = [];
+    doc.on('data', c => buffers.push(c));
+    const done = new Promise(r => doc.on('end', r));
+
+    doc.fontSize(18).font('Helvetica-Bold').text('FISA MATERIALE', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(13).font('Helvetica').text(`Comanda: ${orderId}`, { align: 'center' });
+    if (order.customer_name) doc.fontSize(11).text(`Client: ${order.customer_name}`, { align: 'center' });
+    doc.moveDown(0.8);
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    const col = [40, 240, 290, 400];
+    doc.fontSize(9).font('Helvetica-Bold');
+    doc.text('Denumire Reper', col[0], doc.y, { width: 192, continued: true });
+    doc.text('Buc.',           col[1], doc.y, { width: 44,  align: 'center', continued: true });
+    doc.text('Material',       col[2], doc.y, { width: 104, continued: true });
+    doc.text('Dimensiuni',     col[3], doc.y, { width: 155 });
+    doc.moveDown(0.3);
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).lineWidth(0.5).stroke();
+    doc.moveDown(0.3);
+    doc.font('Helvetica').fontSize(8);
+
+    parts.forEach((p, i) => {
+      if (doc.y + 14 > doc.page.height - 60) doc.addPage();
+      const y = doc.y;
+      if (i % 2 === 0) { doc.save().rect(40, y-1, 515, 14).fillColor('#f5f5f5').fill().restore(); }
+      doc.fillColor('black');
+      const mat = p.material_type || p.material_name || '—';
+      doc.text(p.part_name || '—',    col[0], y, { width: 192 });
+      doc.text(String(p.quantity||1), col[1], y, { width: 44, align: 'center' });
+      doc.text(mat,                   col[2], y, { width: 104 });
+      doc.text(p.material_dimensions || '—', col[3], y, { width: 155 });
+      doc.moveDown(0.55);
+    });
+
+    doc.moveDown(0.5);
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).lineWidth(0.5).stroke();
+    doc.moveDown(1);
+    doc.fontSize(8).fillColor('#888').text(`Generat: ${new Date().toLocaleDateString('ro-RO')}  |  ${parts.length} repere`, { align: 'right' });
+    doc.end();
+    await done;
+
+    const pdfBuf = Buffer.concat(buffers);
+
+    // Save to <order_folder>/Orders/<orderId>/Materiale/<fileName>
+    const BROWSE_ROOT = path.resolve(process.env.FILE_BROWSE_ROOT || process.env.UPLOAD_DIR || './uploads');
+    if (order.folder_path) {
+      try {
+        const dir = path.join(BROWSE_ROOT, order.folder_path, 'Orders', sanitized, 'Materiale');
+        require('fs').mkdirSync(dir, { recursive: true });
+        require('fs').writeFileSync(path.join(dir, fileName), pdfBuf);
+      } catch (e) { console.warn('PDF save to folder failed:', e.message); }
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuf);
+  } catch (error) {
+    console.error('generateFisaMateriale error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 module.exports = {
   createOrder,
   getOrders,
@@ -549,6 +640,7 @@ module.exports = {
   updatePartPriority,
   getNextInternalOrderId,
   searchRepeatOrders,
+  generateFisaMateriale,
   // Financial dashboard functions
   getFinancialOrders,
   updateFinancialStage,

@@ -1,5 +1,36 @@
 let currentOrder = null;
 
+async function exportFisaMateriale() {
+  if (!currentOrder) return;
+  try {
+    const btn = document.querySelector('[onclick="exportFisaMateriale()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+    const token = localStorage.getItem('cnc_auth_token');
+    const res = await fetch(`${API_URL}/orders/${currentOrder.id}/fisa-materiale`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert('Error: ' + (err.message || res.statusText));
+      return;
+    }
+    const blob = await res.blob();
+    const orderId = currentOrder.internal_order_id || `ORD-${currentOrder.id}`;
+    const sanitized = orderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Fisa materiale-${sanitized}.pdf`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    const btn = document.querySelector('[onclick="exportFisaMateriale()"]');
+    if (btn) { btn.disabled = false; btn.textContent = '📄 Export Fișă Materiale PDF'; }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   ensureAuthed();
   loadOrderDetails();
