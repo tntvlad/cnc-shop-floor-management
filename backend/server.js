@@ -275,8 +275,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -300,7 +300,10 @@ app.post('/api/admin/git-switch', authMiddleware, adminController.switchBranch);
 app.post('/api/admin/git-checkout-release', authMiddleware, adminController.checkoutRelease);
 app.post('/api/admin/restart', authMiddleware, adminController.restartServices);
 app.get('/api/admin/database/backup', authMiddleware, adminController.databaseBackup);
-app.post('/api/admin/database/restore', authMiddleware, adminController.databaseRestore);
+
+// Restore accepts multipart (large files) or JSON
+const restoreUpload = multer({ dest: '/tmp/', limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB
+app.post('/api/admin/database/restore', authMiddleware, restoreUpload.single('sqlFile'), adminController.databaseRestore);
 
 // Parts routes
 app.get('/api/parts', authMiddleware, partsController.getAllParts);

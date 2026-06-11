@@ -745,18 +745,17 @@ async function restoreDatabase(event) {
   }
 
   logEl.style.display = 'block';
-  logEl.textContent = `⏳ Restoring database from ${file.name}...\n`;
+  logEl.textContent = `⏳ Restoring database from ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)...\n`;
 
   try {
-    const sqlContent = await file.text();
-    
+    // Send as multipart form (avoids JSON body size limits)
+    const formData = new FormData();
+    formData.append('sqlFile', file);
+
     const response = await fetch(`${config.API_BASE_URL}/admin/database/restore`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Auth.getToken()}`
-      },
-      body: JSON.stringify({ sqlContent })
+      headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+      body: formData
     });
 
     const data = await response.json();

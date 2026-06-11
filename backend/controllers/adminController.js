@@ -342,8 +342,19 @@ exports.databaseRestore = async (req, res) => {
       });
     }
 
-    if (!req.body || !req.body.sqlContent) {
-      return res.status(400).json({ error: 'SQL content is required' });
+    // Accept either multipart upload (req.file) or legacy JSON body (req.body.sqlContent)
+    let tempFile, ownsTempFile;
+    if (req.file) {
+      // multer already saved to /tmp/
+      tempFile = req.file.path;
+      ownsTempFile = true;
+    } else if (req.body && req.body.sqlContent) {
+      const path = require('path');
+      tempFile = path.join('/tmp', `restore_${Date.now()}.sql`);
+      require('fs').writeFileSync(tempFile, req.body.sqlContent, 'utf-8');
+      ownsTempFile = true;
+    } else {
+      return res.status(400).json({ error: 'SQL file or SQL content is required' });
     }
 
     try {
@@ -352,10 +363,6 @@ exports.databaseRestore = async (req, res) => {
       const dbHost = process.env.DB_HOST || 'postgres';
       const fs = require('fs');
       const path = require('path');
-
-      // Write SQL to temp file
-      const tempFile = path.join('/tmp', `restore_${Date.now()}.sql`);
-      fs.writeFileSync(tempFile, req.body.sqlContent, 'utf-8');
 
       // Drop all tables first to allow clean restore
       console.log('Dropping existing tables for clean restore...');
@@ -387,7 +394,7 @@ END $$;
       );
 
       // Clean up temp file
-      fs.unlinkSync(tempFile);
+      if (ownsTempFile) try { fs.unlinkSync(tempFile); } catch (_) {}
 
       console.log('Database restore completed');
       res.json({
