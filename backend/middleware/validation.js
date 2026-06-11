@@ -39,7 +39,8 @@ const schemas = {
   
   updatePart: Joi.object({
     name: Joi.string(),
-    material: Joi.string(),
+    material: Joi.string().allow('', null),
+    material_type: Joi.string().allow('', null),
     quantity: Joi.number().integer().min(1),
     treatment: Joi.string().allow('', null),
     targetTime: Joi.number().integer().min(0).allow(null),

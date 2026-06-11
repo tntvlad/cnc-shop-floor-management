@@ -562,7 +562,12 @@ function renderEditParts() {
       <div class="edit-part-info">
         <div class="edit-part-name">${escapeHtml(part.part_name || part.name || 'Unnamed Part')}</div>
         <div class="edit-part-details" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span>Material: ${escapeHtml(part.material_type || part.material || 'N/A')}</span> |
+          <label style="display:flex;align-items:center;gap:4px;margin:0;">
+            Material: <input type="text" value="${escapeHtml(part.material_type || part.material || '')}" placeholder="e.g. 1.2379"
+              style="width:90px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;"
+              onchange="updatePartMaterial(${part.id}, this.value)"
+              onclick="event.stopPropagation()">
+          </label> |
           <label style="display:flex;align-items:center;gap:4px;margin:0;">
             Qty: <input type="number" min="1" value="${part.quantity || 1}"
               style="width:56px;padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;"
@@ -627,6 +632,21 @@ async function updatePartQuantity(partId, input) {
     if (partIndex >= 0) editingOrderParts[partIndex].quantity = qty;
   } catch (e) {
     showError('Error updating quantity');
+  }
+}
+
+async function updatePartMaterial(partId, material) {
+  try {
+    const res = await fetch(`${API_URL}/parts/${partId}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ material: material.trim() || null, material_type: material.trim() || null })
+    });
+    if (!res.ok) { const d = await res.json(); showError(d.error || 'Failed to update material'); return; }
+    const partIndex = editingOrderParts.findIndex(p => p.id === partId);
+    if (partIndex >= 0) editingOrderParts[partIndex].material_type = material.trim();
+  } catch (e) {
+    showError('Error updating material');
   }
 }
 
