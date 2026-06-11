@@ -619,7 +619,7 @@ async function generateFisaMateriale(req, res) {
 
     const drawTableHeader = () => {
       doc.rect(margin, y, usable, rowH).fill('#1d4ed8');
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#fff');
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#fff');
       doc.text('Denumire Reper', cName + 2, y + 4, { width: wName - 4,     lineBreak: false });
       doc.text('Buc.',           cQty  + 2, y + 4, { width: wQty,   align: 'center', lineBreak: false });
       doc.text('Material',       cMat  + 2, y + 4, { width: wMat - 4,     lineBreak: false });
@@ -640,23 +640,18 @@ async function generateFisaMateriale(req, res) {
       }
       const bg = i % 2 === 0 ? '#f0f4ff' : '#ffffff';
       doc.rect(margin, y, usable, rowH).fill(bg);
-      doc.fillColor('#1a1a1a').font('Helvetica').fontSize(10);
+      doc.fillColor('#1a1a1a').font('Helvetica').fontSize(9);
 
       const mat = p.material_type || p.material_name || '\u2014';
-      // Use TechoOverload for dimension cell — it supports full Unicode so Ø renders correctly
+      // Diameter: replace "#" with "D " — always renders correctly in Helvetica
       const dimRaw = (p.material_dimensions || '\u2014')
-        .replace(/#\s*/g, '\u00D8 ')   // # → Ø (U+00D8)
-        .replace(/x/gi, '\u00D7');     // x → ×
+        .replace(/#\s*/g, 'D ')      // # -> D (diameter shorthand)
+        .replace(/x/gi, '\u00D7');   // x -> ×
 
       doc.text(p.part_name || '\u2014', cName + 2, y + 5, { width: wName - 4, lineBreak: false });
       doc.text(String(p.quantity || 1), cQty  + 2, y + 5, { width: wQty,   align: 'center', lineBreak: false });
       doc.text(mat,                     cMat  + 2, y + 5, { width: wMat - 4, lineBreak: false });
-      if (fs.existsSync(fontPath)) {
-        doc.font('TechoOverload').fontSize(9).text(dimRaw, cDim + 2, y + 5, { width: wDim - 4, lineBreak: false });
-        doc.font('Helvetica').fontSize(10);
-      } else {
-        doc.text(dimRaw, cDim + 2, y + 5, { width: wDim - 4, lineBreak: false });
-      }
+      doc.text(dimRaw,                  cDim  + 2, y + 5, { width: wDim - 4, lineBreak: false });
       doc.moveTo(margin, y + rowH).lineTo(pageW - margin, y + rowH).lineWidth(0.3).strokeColor('#e5e7eb').stroke();
       y += rowH;
     });
