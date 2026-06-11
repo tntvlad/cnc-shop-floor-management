@@ -559,54 +559,101 @@ async function generateFisaMateriale(req, res) {
     );
     const parts = partsResult.rows;
 
-    const orderId  = order.internal_order_id || `ORD-${id}`;
+    const orderId   = order.internal_order_id || `ORD-${id}`;
     const sanitized = orderId.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
     const fileName  = `Fisa materiale-${sanitized}.pdf`;
 
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    // User info from token (passed via auth middleware)
+    const userName = req.user?.name || req.user?.employeeId || 'System';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('ro-RO');
+    const timeStr = now.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+
+    // Landscape A4
+    const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
     const buffers = [];
     doc.on('data', c => buffers.push(c));
     const done = new Promise(r => doc.on('end', r));
 
-    doc.fontSize(18).font('Helvetica-Bold').text('FISA MATERIALE', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(13).font('Helvetica').text(`Comanda: ${orderId}`, { align: 'center' });
-    if (order.customer_name) doc.fontSize(11).text(`Client: ${order.customer_name}`, { align: 'center' });
-    doc.moveDown(0.8);
-    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-    doc.moveDown(0.5);
+    const pageW = doc.page.width;   // ~841 for landscape A4
+    const pageH = doc.page.height;  // ~595
 
-    const col = [40, 240, 290, 400];
-    doc.fontSize(9).font('Helvetica-Bold');
-    doc.text('Denumire Reper', col[0], doc.y, { width: 192, continued: true });
-    doc.text('Buc.',           col[1], doc.y, { width: 44,  align: 'center', continued: true });
-    doc.text('Material',       col[2], doc.y, { width: 104, continued: true });
-    doc.text('Dimensiuni',     col[3], doc.y, { width: 155 });
-    doc.moveDown(0.3);
-    doc.moveTo(40, doc.y).lineTo(555, doc.y).lineWidth(0.5).stroke();
-    doc.moveDown(0.3);
+    // Logo
+    const logoPath = path.join(__dirname, '../assets/fero_logo.jpg');
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 40, 30, { height: 45, fit: [150, 45] });
+    }
+
+    // Title centred
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a1a1a')
+       .text('FISA MATERIALE', 0, 38, { align: 'center' });
+    doc.fontSize(12).font('Helvetica').fillColor('#333')
+       .text(`Comanda: ${orderId}`, 0, 64, { align: 'center' });
+
+    const afterHeader = 95;
+    doc.moveTo(40, afterHeader).lineTo(pageW - 40, afterHeader).lineWidth(1).stroke('#ccc');
+
+    // Column layout (landscape: ~761px usable)
+    const usable = pageW - 80;
+    const cName = 40;
+    const wName = usable * 0.42;
+    const cQty  = cName + wName + 4;
+    const wQty  = 45;
+    const cMat  = cQty + wQty + 4;
+    const wMat  = usable * 0.22;
+    const cDim  = cMat + wMat + 4;
+    const wDim  = usable - (cDim - 40);
+
+    const rowH = 16;
+    let y = afterHeader + 10;
+
+    // Table header
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#fff');
+    doc.rect(40, y, usable, rowH).fill('#1d4ed8');
+    doc.fillColor('#fff');
+    doc.text('Denumire Reper', cName + 2, y + 3, { width: wName });
+    doc.text('Buc.',           cQty  + 2, y + 3, { width: wQty, align: 'center' });
+    doc.text('Material',       cMat  + 2, y + 3, { width: wMat });
+    doc.text('Dimensiuni',     cDim  + 2, y + 3, { width: wDim });
+    y += rowH;
+
+    // Rows
     doc.font('Helvetica').fontSize(8);
-
     parts.forEach((p, i) => {
-      if (doc.y + 14 > doc.page.height - 60) doc.addPage();
-      const y = doc.y;
-      if (i % 2 === 0) { doc.save().rect(40, y-1, 515, 14).fillColor('#f5f5f5').fill().restore(); }
-      doc.fillColor('black');
-      const mat = p.material_type || p.material_name || '—';
-      doc.text(p.part_name || '—',    col[0], y, { width: 192 });
-      doc.text(String(p.quantity||1), col[1], y, { width: 44, align: 'center' });
-      doc.text(mat,                   col[2], y, { width: 104 });
-      doc.text(p.material_dimensions || '—', col[3], y, { width: 155 });
-      doc.moveDown(0.55);
+      if (y + rowH > pageH - 50) {
+        doc.addPage({ size: 'A4', layout: 'landscape' });
+        y = 40;
+      }
+      const bg = i % 2 === 0 ? '#f0f4ff' : '#ffffff';
+      doc.rect(40, y, usable, rowH).fill(bg);
+      doc.fillColor('#1a1a1a');
+
+      const mat = p.material_type || p.material_name || '\u2014';
+      // Fix diameter: # → Ø and replace × with ×
+      const dim = (p.material_dimensions || '\u2014')
+        .replace(/#\s*/g, '\u00D8')  // # → Ø
+        .replace(/x/gi, '\u00D7');   // x → ×
+
+      doc.text(p.part_name || '\u2014', cName + 2, y + 4, { width: wName - 4 });
+      doc.text(String(p.quantity || 1), cQty  + 2, y + 4, { width: wQty, align: 'center' });
+      doc.text(mat,                     cMat  + 2, y + 4, { width: wMat - 4 });
+      doc.text(dim,                     cDim  + 2, y + 4, { width: wDim - 4 });
+
+      // Row border bottom
+      doc.moveTo(40, y + rowH).lineTo(40 + usable, y + rowH).lineWidth(0.3).strokeColor('#ddd').stroke();
+      y += rowH;
     });
 
-    doc.moveDown(0.5);
-    doc.moveTo(40, doc.y).lineTo(555, doc.y).lineWidth(0.5).stroke();
-    doc.moveDown(1);
-    doc.fontSize(8).fillColor('#888').text(`Generat: ${new Date().toLocaleDateString('ro-RO')}  |  ${parts.length} repere`, { align: 'right' });
+    // Footer
+    const footerY = pageH - 35;
+    doc.moveTo(40, footerY).lineTo(pageW - 40, footerY).lineWidth(0.5).strokeColor('#999').stroke();
+    doc.fontSize(8).fillColor('#666')
+       .text(`Generat: ${userName}  |  ${dateStr}  ${timeStr}  |  ${parts.length} repere`,
+             40, footerY + 6, { align: 'left' });
+    doc.text(`${orderId}`, 40, footerY + 6, { align: 'right', width: pageW - 80 });
+
     doc.end();
     await done;
-
     const pdfBuf = Buffer.concat(buffers);
 
     // Save to <order_folder>/Orders/<orderId>/Materiale/<fileName>
@@ -614,8 +661,8 @@ async function generateFisaMateriale(req, res) {
     if (order.folder_path) {
       try {
         const dir = path.join(BROWSE_ROOT, order.folder_path, 'Orders', sanitized, 'Materiale');
-        require('fs').mkdirSync(dir, { recursive: true });
-        require('fs').writeFileSync(path.join(dir, fileName), pdfBuf);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, fileName), pdfBuf);
       } catch (e) { console.warn('PDF save to folder failed:', e.message); }
     }
 
