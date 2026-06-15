@@ -428,6 +428,41 @@ const cancelLeave = async (req, res) => {
     }
 };
 
+// DELETE /api/hr/leaves/by-date?user_id=&date=  (supervisor+)
+// Cancels any approved leave covering the given date for that user
+const deleteLeaveByDate = async (req, res) => {
+    try {
+        if (req.user.level < 400) return res.status(403).json({ success: false, error: 'Supervisor required' });
+        const { user_id, date } = req.query;
+        if (!user_id || !date) return res.status(400).json({ success: false, error: 'user_id and date required' });
+
+        const leaveRes = await db.query(
+            `SELECT lr.*, lt.deducts_balance FROM leave_requests lr
+             JOIN leave_types lt ON lr.leave_type_id = lt.id
+             WHERE lr.user_id = $1 AND lr.status = 'approved'
+               AND $2::date BETWEEN lr.date_from AND lr.date_to`,
+            [user_id, date]
+        );
+        if (!leaveRes.rows.length) return res.status(404).json({ success: false, error: 'No approved leave found on that date for this user' });
+
+        const leave = leaveRes.rows[0];
+        await db.query(`UPDATE leave_requests SET status='cancelled' WHERE id=$1`, [leave.id]);
+
+        if (leave.deducts_balance) {
+            const year = new Date(String(leave.date_from).substring(0, 10) + 'T00:00:00').getFullYear();
+            await db.query(
+                `UPDATE employee_leave_balance SET used_days = GREATEST(0, used_days - $1)
+                 WHERE user_id = $2 AND year = $3`,
+                [leave.days_count, leave.user_id, year]
+            );
+        }
+        res.json({ success: true, message: `Leave cancelled (${leave.days_count} day(s) restored)`, leave_id: leave.id });
+    } catch (e) {
+        console.error('deleteLeaveByDate', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+};
+
 // â”€â”€ Work Hours â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/hr/hours?user_id=&month=YYYY-MM  (supervisor+)
@@ -1221,7 +1256,7 @@ module.exports = {
     getLeaveTypes,
     getPublicHolidays, createPublicHoliday, updatePublicHoliday, deletePublicHoliday,
     getBalances, getMyBalance, updateBalance,
-    getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave,
+    getLeaves, getMyLeaves, createLeave, approveLeave, rejectLeave, cancelLeave, deleteLeaveByDate,
     getHours, getMyHours, logHours, updateHours, deleteHours,
     getSummary, exportAttendance, updateEmployee, autoFill,
     runDailyAutoFill,

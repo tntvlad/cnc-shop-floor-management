@@ -21,6 +21,7 @@ router.put('/balances/:userId',  authMiddleware, hr.updateBalance);
 router.get('/leaves',              authMiddleware, hr.getLeaves);
 router.get('/leaves/me',           authMiddleware, hr.getMyLeaves);
 router.post('/leaves',             authMiddleware, hr.createLeave);
+router.delete('/leaves/by-date',   authMiddleware, hr.deleteLeaveByDate);
 router.put('/leaves/:id/approve',  authMiddleware, hr.approveLeave);
 router.put('/leaves/:id/reject',   authMiddleware, hr.rejectLeave);
 router.delete('/leaves/:id',       authMiddleware, hr.cancelLeave);

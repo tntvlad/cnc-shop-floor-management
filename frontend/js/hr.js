@@ -183,7 +183,12 @@ function populateLeaveTypeSelects() {
     ).join('');
     ['dl-type', 'lm-type'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = opts;
+        if (!el) return;
+        el.innerHTML = opts;
+        // Add delete option for supervisor leave form only
+        if (id === 'dl-type' && currentUser && currentUser.level >= 400) {
+            el.innerHTML += `<option value="__delete__" style="color:#dc2626;font-weight:600;">🗑 Delete Leave on this date</option>`;
+        }
     });
 }
 
@@ -194,10 +199,9 @@ function populateUserSelects() {
         const el = document.getElementById(id);
         if (el) el.innerHTML = opts;
     });
-    // Leave employee selector: show ALL active employees (not filtered by attendance)
-    // so supervisors can add leaves for non-attendance users too
+    // Leave employee selector: attendance users only for leave assignment
     const leaveOpts = `<option value="">— Select employee —</option>` +
-        allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        allUsers.filter(u => isActiveAttendanceUser(u.id)).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
     const dlUser = document.getElementById('dl-user');
     if (dlUser) dlUser.innerHTML = leaveOpts;
 
@@ -697,9 +701,25 @@ async function saveDayModal() {
         }
     } else {
         const leaveUserId = document.getElementById('dl-user')?.value || null;
+        const leaveType   = document.getElementById('dl-type').value;
+        const leaveDate   = document.getElementById('dl-from').value;
+
+        // Handle Delete Leave option
+        if (leaveType === '__delete__') {
+            if (!leaveUserId) { alert('Please select an employee to delete the leave for.'); return; }
+            if (!confirm(`Delete the approved leave for this employee on ${leaveDate}? Their balance will be restored.`)) return;
+            try {
+                await apiFetch(`/leaves/by-date?user_id=${leaveUserId}&date=${leaveDate}`, { method: 'DELETE' });
+                closeModal('day-modal');
+                await loadAll();
+                renderCalendar();
+            } catch (e) { alert('Error: ' + e.message); }
+            return;
+        }
+
         await submitLeaveFromForm(
-            document.getElementById('dl-type').value,
-            document.getElementById('dl-from').value,
+            leaveType,
+            leaveDate,
             document.getElementById('dl-to').value,
             document.getElementById('dl-notes').value,
             'day-modal',
