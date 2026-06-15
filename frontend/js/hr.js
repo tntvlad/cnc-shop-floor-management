@@ -653,11 +653,23 @@ function switchDayTab(tab) {
     document.getElementById('day-leave-form').style.display = tab === 'leave' ? '' : 'none';
     document.getElementById('day-tab-hours').classList.toggle('active', tab === 'hours');
     document.getElementById('day-tab-leave').classList.toggle('active', tab === 'leave');
-    // Save button: hidden on Hours tab for supervisors (each row has its own Save);
-    // always shown on Leave tab and for non-supervisors
+    // Clear button only on Leave tab
+    const clearBtn = document.getElementById('day-leave-clear-btn');
+    if (clearBtn) clearBtn.style.display = tab === 'leave' ? '' : 'none';
+    // Save button: hidden on Hours tab for supervisors (each row has its own Save)
     const isSup = currentUser && currentUser.level >= 400 && allUsers.length > 0;
     document.getElementById('day-modal-save').style.display =
         (isSup && tab === 'hours') ? 'none' : '';
+}
+
+function clearLeaveForm() {
+    document.getElementById('dl-user').value = '';
+    document.getElementById('dl-from').value = _selectedDate || '';
+    document.getElementById('dl-to').value   = _selectedDate || '';
+    document.getElementById('dl-notes').value = '';
+    // Reset leave type to first option
+    const typeEl = document.getElementById('dl-type');
+    if (typeEl && typeEl.options.length > 0) typeEl.selectedIndex = 0;
 }
 
 async function saveDayModal() {
