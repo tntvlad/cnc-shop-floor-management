@@ -507,8 +507,8 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
     document.getElementById('dh-notes').value    = hoursRec?.notes || '';
 
     // Pre-fill leave date range
-    document.getElementById('dl-from').value = isoToDisplay(dateStr);
-    document.getElementById('dl-to').value   = isoToDisplay(dateStr);
+    document.getElementById('dl-from').value = dateStr;
+    document.getElementById('dl-to').value   = dateStr;
     document.getElementById('dl-notes').value = '';
     document.getElementById('dl-user').value = '';
 
@@ -696,8 +696,8 @@ function switchDayTab(tab) {
 
 function clearLeaveForm() {
     document.getElementById('dl-user').value = '';
-    document.getElementById('dl-from').value = isoToDisplay(_selectedDate || '');
-    document.getElementById('dl-to').value   = isoToDisplay(_selectedDate || '');
+    document.getElementById('dl-from').value = _selectedDate || '';
+    document.getElementById('dl-to').value   = _selectedDate || '';
     document.getElementById('dl-notes').value = '';
     // Reset leave type to first option
     const typeEl = document.getElementById('dl-type');
@@ -729,7 +729,7 @@ async function saveDayModal() {
     } else {
         const leaveUserId = document.getElementById('dl-user')?.value || null;
         const leaveType   = document.getElementById('dl-type').value;
-        const leaveDate   = displayToISO(document.getElementById('dl-from').value);
+        const leaveDate   = document.getElementById('dl-from').value;
 
         // Handle Delete Leave option
         if (leaveType === '__delete__') {
@@ -746,8 +746,8 @@ async function saveDayModal() {
 
         await submitLeaveFromForm(
             leaveType,
-            displayToISO(leaveDate),
-            displayToISO(document.getElementById('dl-to').value),
+            leaveDate,
+            document.getElementById('dl-to').value,
             document.getElementById('dl-notes').value,
             'day-modal',
             leaveUserId || null
