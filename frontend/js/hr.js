@@ -194,9 +194,10 @@ function populateUserSelects() {
         const el = document.getElementById(id);
         if (el) el.innerHTML = opts;
     });
-    // Leave employee selector: no "Me" option — always pick explicitly
+    // Leave employee selector: show ALL active employees (not filtered by attendance)
+    // so supervisors can add leaves for non-attendance users too
     const leaveOpts = `<option value="">— Select employee —</option>` +
-        allUsers.filter(u => isActiveAttendanceUser(u.id)).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        allUsers.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
     const dlUser = document.getElementById('dl-user');
     if (dlUser) dlUser.innerHTML = leaveOpts;
 
