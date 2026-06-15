@@ -167,16 +167,16 @@ class Tool {
                 $1, $2, $3, $4, $5,
                 $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20,
-                $21, $22,
-                $23, $24,
-                $25, $26,
-                $27, $28, $29, 'available',
+                $16, $17, $18, $19,
+                $20, $21,
+                $22, $23,
+                $24, $25,
+                $26, $27, $28, 'available',
                 NOW(), NOW()
             )
             RETURNING *
         `, [
-            tool_number, tool_type, category_id, brand_id, supplier_id,
+            tool_number, tool_type, category_id || null, brand_id || null, supplier_id || null,
             cabinet_id || null, shelf_id || null, box_id || null, drawer_slot, internal_code,
             diameter, length, shank_diameter, cutting_length, overall_length,
             flute_count, tool_material, coating, material,
