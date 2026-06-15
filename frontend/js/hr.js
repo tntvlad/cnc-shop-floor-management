@@ -507,8 +507,8 @@ function openDayModal(dateStr, hoursRec, leaveRec) {
     document.getElementById('dh-notes').value    = hoursRec?.notes || '';
 
     // Pre-fill leave date range
-    document.getElementById('dl-from').value = dateStr;
-    document.getElementById('dl-to').value   = dateStr;
+    document.getElementById('dl-from').value = isoToDisplay(dateStr);
+    document.getElementById('dl-to').value   = isoToDisplay(dateStr);
     document.getElementById('dl-notes').value = '';
     document.getElementById('dl-user').value = '';
 
@@ -584,6 +584,33 @@ function formatTimeInput(el) {
     if (v.length > 4) v = v.slice(0, 4);
     if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2);
     el.value = v;
+}
+
+// Auto-format date input as DD.MM.YYYY while typing
+function autoFormatDateInput(el) {
+    let v = el.value.replace(/[^0-9]/g, '');
+    if (v.length > 8) v = v.slice(0, 8);
+    if (v.length >= 5) v = v.slice(0,2) + '.' + v.slice(2,4) + '.' + v.slice(4);
+    else if (v.length >= 3) v = v.slice(0,2) + '.' + v.slice(2);
+    el.value = v;
+}
+
+// Convert DD.MM.YYYY display format → YYYY-MM-DD for API
+function displayToISO(s) {
+    if (!s) return '';
+    s = s.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
+    const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return s;
+    return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
+
+// Convert YYYY-MM-DD → DD.MM.YYYY for display
+function isoToDisplay(s) {
+    if (!s) return '';
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return s;
+    return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
 // Auto-fill hours from check-in/out with per-employee lunch; cap at 8h, rest goes to OT
@@ -669,8 +696,8 @@ function switchDayTab(tab) {
 
 function clearLeaveForm() {
     document.getElementById('dl-user').value = '';
-    document.getElementById('dl-from').value = _selectedDate || '';
-    document.getElementById('dl-to').value   = _selectedDate || '';
+    document.getElementById('dl-from').value = isoToDisplay(_selectedDate || '');
+    document.getElementById('dl-to').value   = isoToDisplay(_selectedDate || '');
     document.getElementById('dl-notes').value = '';
     // Reset leave type to first option
     const typeEl = document.getElementById('dl-type');
@@ -702,7 +729,7 @@ async function saveDayModal() {
     } else {
         const leaveUserId = document.getElementById('dl-user')?.value || null;
         const leaveType   = document.getElementById('dl-type').value;
-        const leaveDate   = document.getElementById('dl-from').value;
+        const leaveDate   = displayToISO(document.getElementById('dl-from').value);
 
         // Handle Delete Leave option
         if (leaveType === '__delete__') {
@@ -719,8 +746,8 @@ async function saveDayModal() {
 
         await submitLeaveFromForm(
             leaveType,
-            leaveDate,
-            document.getElementById('dl-to').value,
+            displayToISO(leaveDate),
+            displayToISO(document.getElementById('dl-to').value),
             document.getElementById('dl-notes').value,
             'day-modal',
             leaveUserId || null

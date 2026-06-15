@@ -507,12 +507,14 @@
       </div>
       <div class="form-grid-2">
         <div class="form-group">
-          <label>From</label>
-          <input type="date" id="dl-from">
+          <label>From <small style="color:#94a3b8;">(DD.MM.YYYY)</small></label>
+          <input type="text" id="dl-from" placeholder="18.06.2026" maxlength="10"
+            oninput="autoFormatDateInput(this)" style="font-size:1rem;letter-spacing:0.05em;">
         </div>
         <div class="form-group">
-          <label>To</label>
-          <input type="date" id="dl-to">
+          <label>To <small style="color:#94a3b8;">(DD.MM.YYYY)</small></label>
+          <input type="text" id="dl-to" placeholder="24.06.2026" maxlength="10"
+            oninput="autoFormatDateInput(this)" style="font-size:1rem;letter-spacing:0.05em;">
         </div>
       </div>
       <div class="form-group">
