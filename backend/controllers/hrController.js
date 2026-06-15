@@ -437,7 +437,10 @@ const deleteLeaveByDate = async (req, res) => {
         if (!user_id || !date) return res.status(400).json({ success: false, error: 'user_id and date required' });
 
         const leaveRes = await db.query(
-            `SELECT lr.*, lt.deducts_balance FROM leave_requests lr
+            `SELECT lr.*, lt.deducts_balance,
+                    TO_CHAR(lr.date_from,'YYYY-MM-DD') AS date_from,
+                    TO_CHAR(lr.date_to,'YYYY-MM-DD')   AS date_to
+             FROM leave_requests lr
              JOIN leave_types lt ON lr.leave_type_id = lt.id
              WHERE lr.user_id = $1 AND lr.status = 'approved'
                AND $2::date BETWEEN lr.date_from AND lr.date_to`,
@@ -449,7 +452,7 @@ const deleteLeaveByDate = async (req, res) => {
         await db.query(`UPDATE leave_requests SET status='cancelled' WHERE id=$1`, [leave.id]);
 
         if (leave.deducts_balance) {
-            const year = new Date(String(leave.date_from).substring(0, 10) + 'T00:00:00').getFullYear();
+            const year = parseInt(leave.date_from.substring(0, 4));
             await db.query(
                 `UPDATE employee_leave_balance SET used_days = GREATEST(0, used_days - $1)
                  WHERE user_id = $2 AND year = $3`,
