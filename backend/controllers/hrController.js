@@ -229,7 +229,7 @@ const getLeaves = async (req, res) => {
                     r.name AS reviewed_by_name
              FROM leave_requests lr
              JOIN leave_types lt ON lr.leave_type_id = lt.id
-             JOIN users u ON lr.user_id = u.id
+             JOIN users u ON lr.user_id = u.id AND u.include_in_attendance = true
              LEFT JOIN users r ON lr.reviewed_by = r.id
              ${where}
              ORDER BY lr.created_at DESC`,
